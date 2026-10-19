@@ -514,10 +514,10 @@ export const LAYOUT_PRESETS: LayoutPresetDefinition[] = [
 ];
 
 export const DEFAULT_BRANDING: GlobalBranding = {
-  publicationName: 'KINFOLK & CEREAL CHRONICLES',
-  issueLabel: 'VOL. XIV · SLOW LIVING ISSUE',
-  authorOrHandle: '@muni.forest.journal',
-  footerNote: 'BANDUNG HIGHLANDS · 2026',
+  publicationName: 'ARUNE EDITORIAL STUDIO',
+  issueLabel: 'VOL. XIV · CREATIVE JOURNAL',
+  authorOrHandle: '@dinurpradiptaa',
+  footerNote: 'Banjarmasin - 2026',
   showSlideNumbers: true,
   showFooterBar: true,
 };
