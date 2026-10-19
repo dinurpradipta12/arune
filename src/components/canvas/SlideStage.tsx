@@ -1009,15 +1009,12 @@ export const SlideStage: React.FC<SlideStageProps> = ({
             {/* Selection Controls: Label Pill, Rotation Handle, and 8 Resize Handles */}
             {isSelected && editingTextId !== el.id && (
               <>
-                {/* Minimalist Dynamic Label Pill: scales down with length, subtle padding */}
+                {/* Minimalist Frameless Label: Tanpa Kotak, Font Super Mini & Elegan */}
                 {(() => {
                   const labelText = `${el.name} · ${el.width}×${el.height}${rot ? ` · ${rot}°` : ''}${el.locked ? ' · 🔒' : ''}`;
-                  // Dynamic font size: shorter = 8px, medium = 7px, long = 6.5px
-                  const fontSize = labelText.length > 35 ? '6.5px' : labelText.length > 20 ? '7.5px' : '8px';
                   return (
                     <div
-                      className="absolute -top-4 left-0 px-1 py-0.2 rounded-xs font-medium tracking-normal whitespace-nowrap pointer-events-none z-50 transition-colors backdrop-blur-xs max-w-[200px] truncate shadow-xs bg-zinc-950/75 text-zinc-300 border border-zinc-700/50"
-                      style={{ fontSize }}
+                      className="absolute -top-3.5 left-0 font-normal tracking-tight whitespace-nowrap pointer-events-none z-50 text-[6.5px] text-zinc-300/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] max-w-[180px] truncate select-none"
                     >
                       {labelText}
                     </div>
@@ -1030,9 +1027,9 @@ export const SlideStage: React.FC<SlideStageProps> = ({
                     <div
                       onPointerDown={(e) => startRotate(e, el)}
                       title="Drag to Rotate Object"
-                      className="absolute -top-5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing z-50 transition-all bg-zinc-900/40 hover:bg-zinc-900/80 text-zinc-400 hover:text-white backdrop-blur-xs border border-white/20 hover:border-white/50"
+                      className="absolute -top-4.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing z-50 transition-all bg-zinc-950/30 hover:bg-zinc-950/70 text-zinc-400 hover:text-white backdrop-blur-xs border border-white/20 hover:border-white/40"
                     >
-                      <RotateCw className="w-2.5 h-2.5 opacity-80" />
+                      <RotateCw className="w-2 h-2 opacity-75" />
                     </div>
 
                     {/* Minimalist Solid Corner & Edge Dots (No Stroke, Clean Solid Dots) */}
