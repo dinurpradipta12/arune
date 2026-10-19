@@ -24,6 +24,8 @@
     },
     "files": [
       "dist/**/*",
+      "!dist/**/*.dmg",
+      "!dist/**/*.zip",
       "electron/**/*",
       "package.json"
     ],

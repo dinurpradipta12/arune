@@ -8,6 +8,8 @@ import { RightInspector } from './components/layout/RightInspector';
 import { TopHeaderBar } from './components/layout/TopHeaderBar';
 import { StudioModals } from './components/modals/StudioModals';
 import { UpdateNotifier } from './components/modals/UpdateNotifier';
+import { DesktopUpdateModal } from './components/modals/DesktopUpdateModal';
+import { isDesktopApp } from './utils/platform';
 import { scanComputerFonts } from './services/fontManager';
 import { fetchCloudStudioData } from './services/supabaseTemplates';
 import { useStudioStore } from './store/useStudioStore';
@@ -240,8 +242,12 @@ export function App() {
       {/* Quick Modals (Global Branding, JSON Import/Export, Supabase Sync, Local & Custom Fonts) */}
       <StudioModals />
 
-      {/* New Deploy Detector: prompts user to refresh when a newer build is live */}
-      <UpdateNotifier darkMode={workspaceDarkMode} />
+      {/* Update Detector: In-App Desktop Updater for Electron, Web Deploy Notifier for Browser */}
+      {isDesktopApp() ? (
+        <DesktopUpdateModal />
+      ) : (
+        <UpdateNotifier darkMode={workspaceDarkMode} />
+      )}
 
       {/* Offscreen 1:1 Stage Renderer for Batch HD (.ZIP) Export */}
       <div

@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "build": 1,
+  "releaseDate": "2026-10-20",
+  "changelog": "Pembaruan tampilan macOS, perbaikan logo resolusi tinggi, safe-area traffic lights, dan dukungan Auto-Updater in-app.",
+  "mac": {
+    "url": "https://raw.githubusercontent.com/dinurpradipta12/arune/main/public/Arune-Editorial-Studio-1.0.0-arm64.dmg"
+  },
+  "win": {
+    "url": "https://raw.githubusercontent.com/dinurpradipta12/arune/main/public/Arune-Editorial-Studio-1.0.0-Setup.exe"
+  }
+}

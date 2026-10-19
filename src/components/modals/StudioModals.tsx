@@ -77,6 +77,7 @@ import {
   type ParsedContentScript,
 } from '../../utils/rtfScriptImporter';
 import { studioLogo } from '../../assets/branding';
+import { isDesktopApp } from '../../utils/platform';
 
 type SettingsTabId =
   | 'interface'
@@ -2248,8 +2249,23 @@ create policy "Public read and admin write editorial_templates" on public.editor
                   className="w-4 h-4 object-contain rounded-xs"
                 />
                 <span className="text-[10.5px] text-zinc-500">
-                  {settings.studioName} · v1.2
+                  {settings.studioName} · v1.0.0
                 </span>
+                {isDesktopApp() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(
+                        new CustomEvent('check-desktop-update-manual')
+                      );
+                    }}
+                    className="ml-2 px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Periksa apakah ada versi rilis desktop terbaru"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5 text-blue-400" />
+                    <span>Cek Update</span>
+                  </button>
+                )}
               </div>
 
               <button

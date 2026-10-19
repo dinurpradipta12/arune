@@ -53,6 +53,13 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    // Initialize Auto-Updater IPC
+    try {
+      const { setupAutoUpdater } = require('./updater.cjs');
+      setupAutoUpdater(mainWindow, app);
+    } catch (e) {
+      console.error('Failed to initialize auto-updater:', e);
+    }
   });
 
   mainWindow.on('closed', () => {
