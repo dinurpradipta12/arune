@@ -1,13 +1,16 @@
-import React from 'react';
 import {
   Download,
   FileJson,
   FilePlus2,
   Home,
+  ImageDown,
   Loader2,
+  Maximize2,
+  Minus,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Redo2,
   Settings,
   Sparkles,
@@ -15,6 +18,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useStudioStore } from '../../store/useStudioStore';
+import { exportSingleSlidePng } from '../../utils/exportEngine';
 
 export const TopHeaderBar: React.FC = () => {
   const {
@@ -36,6 +40,10 @@ export const TopHeaderBar: React.FC = () => {
     redo,
     openDocuments,
     openBlankDocumentTab,
+    canvasZoom,
+    setCanvasZoom,
+    slides,
+    activeSlideIndex,
   } = useStudioStore();
 
   return (
@@ -114,6 +122,74 @@ export const TopHeaderBar: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* CENTER: Canvas Zoom & Export Slide Ini Controls (Editor Mode) */}
+      {activeView === 'editor' && (
+        <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-full border border-zinc-800 bg-zinc-900/90 text-zinc-200 shadow-xs">
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(canvasZoom - 0.1)}
+            disabled={canvasZoom <= 0.5}
+            title="Zoom Out"
+            className="p-1 rounded hover:bg-zinc-700/50 disabled:opacity-30 cursor-pointer text-zinc-400 hover:text-zinc-100"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+
+          <input
+            type="range"
+            min={50}
+            max={150}
+            step={5}
+            value={Math.round(canvasZoom * 100)}
+            onChange={(e) => setCanvasZoom(Number(e.target.value) / 100)}
+            aria-label="Canvas Zoom Percentage"
+            className="w-20 lg:w-24 accent-blue-900 cursor-pointer h-1"
+          />
+
+          <span className="text-[11px] font-mono w-9 text-center tabular-nums text-zinc-300">
+            {Math.round(canvasZoom * 100)}%
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(canvasZoom + 0.1)}
+            disabled={canvasZoom >= 1.5}
+            title="Zoom In"
+            className="p-1 rounded hover:bg-zinc-700/50 disabled:opacity-30 cursor-pointer text-zinc-400 hover:text-zinc-100"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(aspectRatio === '9:16' ? 0.68 : 0.9)}
+            title="Reset Zoom to Fit"
+            className="p-1 rounded hover:bg-zinc-700/50 text-[10.5px] font-medium px-1.5 border-l border-zinc-700/50 cursor-pointer flex items-center gap-1 text-zinc-300 hover:text-white"
+          >
+            <Maximize2 className="w-3 h-3 text-zinc-400" />
+            <span>Fit</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const currentSlide = slides[activeSlideIndex];
+              exportSingleSlidePng({
+                slideIndex: activeSlideIndex,
+                slideLayout: currentSlide?.layout || 'slide',
+                projectTitle,
+                pixelRatio: 3,
+              });
+            }}
+            title="Export Slide Ini (HD PNG)"
+            className="p-1 rounded hover:bg-blue-900/30 text-blue-400 hover:text-blue-300 text-[10.5px] font-medium px-2 border-l border-zinc-700/50 cursor-pointer flex items-center gap-1.5 transition-colors"
+          >
+            <ImageDown className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">Export Slide Ini</span>
+          </button>
+        </div>
+      )}
 
       {/* RIGHT: Branding + Theme Mode + JSON + Settings + Export HD (.ZIP) Modal Trigger */}
       <div className="flex items-center gap-1.5">

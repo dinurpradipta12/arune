@@ -7,9 +7,6 @@ import {
   Copy,
   FileText,
   FolderOpen,
-  ImageDown,
-  Maximize2,
-  Minus,
   Plus,
   Save,
   Scaling,
@@ -23,7 +20,6 @@ import {
 } from '../../constants/themesAndPresets';
 import { useStudioStore } from '../../store/useStudioStore';
 import type { AspectRatioKey } from '../../types/studio';
-import { exportSingleSlidePng } from '../../utils/exportEngine';
 import { SlideStage } from '../canvas/SlideStage';
 
 export const CenterWorkspace: React.FC = () => {
@@ -39,7 +35,6 @@ export const CenterWorkspace: React.FC = () => {
     getActiveTheme,
     branding,
     canvasZoom,
-    setCanvasZoom,
     workspaceDarkMode,
     selectedElementId,
     setSelectedElementId,
@@ -816,77 +811,6 @@ export const CenterWorkspace: React.FC = () => {
             />
           </div>
         )}
-
-        {/* Floating Zoom & Single-Slide Export Bar */}
-        <div
-          className={`fixed bottom-36 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-lg backdrop-blur-md ${
-            workspaceDarkMode
-              ? 'bg-zinc-900/90 border-zinc-800 text-zinc-200'
-              : 'bg-white/95 border-zinc-300 text-zinc-800'
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() => setCanvasZoom(canvasZoom - 0.1)}
-            disabled={canvasZoom <= 0.5}
-            title="Zoom Out"
-            className="p-1 rounded hover:bg-zinc-500/20 disabled:opacity-30 cursor-pointer"
-          >
-            <Minus className="w-3.5 h-3.5" />
-          </button>
-
-          <input
-            type="range"
-            min={50}
-            max={150}
-            step={5}
-            value={Math.round(canvasZoom * 100)}
-            onChange={(e) => setCanvasZoom(Number(e.target.value) / 100)}
-            aria-label="Canvas Zoom Percentage"
-            className="w-24 accent-blue-900 cursor-pointer h-1"
-          />
-
-          <span className="text-[11px] font-mono w-10 text-center tabular-nums">
-            {Math.round(canvasZoom * 100)}%
-          </span>
-
-          <button
-            type="button"
-            onClick={() => setCanvasZoom(canvasZoom + 0.1)}
-            disabled={canvasZoom >= 1.5}
-            title="Zoom In"
-            className="p-1 rounded hover:bg-zinc-500/20 disabled:opacity-30 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCanvasZoom(aspectRatio === '9:16' ? 0.68 : 0.9)}
-            title="Reset Zoom to Fit"
-            className="p-1 rounded hover:bg-zinc-500/20 text-[10px] font-medium px-1.5 border-l border-zinc-700/40 cursor-pointer flex items-center gap-1"
-          >
-            <Maximize2 className="w-3 h-3" />
-            <span>Fit</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              exportSingleSlidePng({
-                slideIndex: activeSlideIndex,
-                slideLayout: activeSlide?.layout || 'slide',
-                projectTitle,
-                pixelRatio: 3,
-              })
-            }
-            title="Export Slide Ini (HD PNG)"
-            className="p-1 rounded hover:bg-blue-900/10 text-blue-900 text-[10px] font-medium px-1.5 border-l border-zinc-700/40 cursor-pointer flex items-center gap-1"
-          >
-            <ImageDown className="w-3 h-3" />
-            <span>Export Slide Ini</span>
-          </button>
-        </div>
         </div>
       </div>
 
