@@ -35,14 +35,31 @@ interface SlideStageProps {
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
+interface DistanceBadge {
+  x: number;
+  y: number;
+  distance: number;
+  orientation: 'horizontal' | 'vertical';
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
 interface ActiveGuides {
   verticalCenter: boolean;
   horizontalCenter: boolean;
   leftMargin: boolean;
   rightMargin: boolean;
+  topMargin: boolean;
+  bottomMargin: boolean;
+  // Dynamic alignment lines across canvas or between objects
+  verticalLines: number[];
+  horizontalLines: number[];
+  distanceBadges: DistanceBadge[];
 }
 
-const SNAP_THRESHOLD = 5;
+const SNAP_THRESHOLD = 6;
 const EDITORIAL_MARGIN = 36;
 
 export const SlideStage: React.FC<SlideStageProps> = ({
@@ -70,6 +87,11 @@ export const SlideStage: React.FC<SlideStageProps> = ({
     horizontalCenter: false,
     leftMargin: false,
     rightMargin: false,
+    topMargin: false,
+    bottomMargin: false,
+    verticalLines: [],
+    horizontalLines: [],
+    distanceBadges: [],
   });
 
   useEffect(() => {
@@ -155,13 +177,23 @@ export const SlideStage: React.FC<SlideStageProps> = ({
       nextX = Math.max(-elW + 24, Math.min(W - 24, nextX));
       nextY = Math.max(-elH + 24, Math.min(H - 24, nextY));
 
+      const otherElements = slide.elements.filter(
+        (other) => other.id !== element.id && !other.hidden
+      );
+
       const nextGuides: ActiveGuides = {
         verticalCenter: false,
         horizontalCenter: false,
         leftMargin: false,
         rightMargin: false,
+        topMargin: false,
+        bottomMargin: false,
+        verticalLines: [],
+        horizontalLines: [],
+        distanceBadges: [],
       };
 
+      // 1. Canvas Boundary & Center Snapping
       const centerX = nextX + elW / 2;
       if (Math.abs(centerX - W / 2) <= SNAP_THRESHOLD) {
         nextX = Math.round(W / 2 - elW / 2);
@@ -184,6 +216,172 @@ export const SlideStage: React.FC<SlideStageProps> = ({
         nextGuides.rightMargin = true;
       }
 
+      if (Math.abs(nextY - EDITORIAL_MARGIN) <= SNAP_THRESHOLD) {
+        nextY = EDITORIAL_MARGIN;
+        nextGuides.topMargin = true;
+      }
+
+      if (Math.abs(nextY + elH - (H - EDITORIAL_MARGIN)) <= SNAP_THRESHOLD) {
+        nextY = H - EDITORIAL_MARGIN - elH;
+        nextGuides.bottomMargin = true;
+      }
+
+      // 2. Object-to-Object Snapping (Alignment & Distance)
+      const curLeft = nextX;
+      const curRight = nextX + elW;
+      const curCenterX = nextX + elW / 2;
+      const curTop = nextY;
+      const curBottom = nextY + elH;
+      const curCenterY = nextY + elH / 2;
+
+      const vLines = new Set<number>();
+      const hLines = new Set<number>();
+      const badges: DistanceBadge[] = [];
+
+      for (const other of otherElements) {
+        const oLeft = other.x;
+        const oRight = other.x + other.width;
+        const oCenterX = other.x + other.width / 2;
+        const oTop = other.y;
+        const oBottom = other.y + other.height;
+        const oCenterY = other.y + other.height / 2;
+
+        // --- X Alignments ---
+        // Left to Left
+        if (Math.abs(curLeft - oLeft) <= SNAP_THRESHOLD) {
+          nextX = oLeft;
+          vLines.add(oLeft);
+        }
+        // Right to Right
+        else if (Math.abs(curRight - oRight) <= SNAP_THRESHOLD) {
+          nextX = oRight - elW;
+          vLines.add(oRight);
+        }
+        // Center to Center X
+        else if (Math.abs(curCenterX - oCenterX) <= SNAP_THRESHOLD) {
+          nextX = Math.round(oCenterX - elW / 2);
+          vLines.add(oCenterX);
+        }
+        // Left to Right (adjacent)
+        else if (Math.abs(curLeft - oRight) <= SNAP_THRESHOLD) {
+          nextX = oRight;
+          vLines.add(oRight);
+        }
+        // Right to Left (adjacent)
+        else if (Math.abs(curRight - oLeft) <= SNAP_THRESHOLD) {
+          nextX = oLeft - elW;
+          vLines.add(oLeft);
+        }
+
+        // --- Y Alignments ---
+        // Top to Top
+        if (Math.abs(curTop - oTop) <= SNAP_THRESHOLD) {
+          nextY = oTop;
+          hLines.add(oTop);
+        }
+        // Bottom to Bottom
+        else if (Math.abs(curBottom - oBottom) <= SNAP_THRESHOLD) {
+          nextY = oBottom - elH;
+          hLines.add(oBottom);
+        }
+        // Center to Center Y
+        else if (Math.abs(curCenterY - oCenterY) <= SNAP_THRESHOLD) {
+          nextY = Math.round(oCenterY - elH / 2);
+          hLines.add(oCenterY);
+        }
+        // Top to Bottom (stacked)
+        else if (Math.abs(curTop - oBottom) <= SNAP_THRESHOLD) {
+          nextY = oBottom;
+          hLines.add(oBottom);
+        }
+        // Bottom to Top (stacked)
+        else if (Math.abs(curBottom - oTop) <= SNAP_THRESHOLD) {
+          nextY = oTop - elH;
+          hLines.add(oTop);
+        }
+
+        // --- Distance Measurements & Badges ---
+        // Vertical gap between elements when horizontally overlapping
+        const xOverlap = Math.max(0, Math.min(curRight, oRight) - Math.max(curLeft, oLeft));
+        if (xOverlap > 20) {
+          const midX = Math.round((Math.max(curLeft, oLeft) + Math.min(curRight, oRight)) / 2);
+          // Current is below Other
+          if (curTop >= oBottom && curTop - oBottom < 160) {
+            const gap = Math.round(curTop - oBottom);
+            if (gap > 4) {
+              badges.push({
+                x: midX,
+                y: Math.round(oBottom + gap / 2),
+                distance: gap,
+                orientation: 'vertical',
+                startX: midX,
+                startY: oBottom,
+                endX: midX,
+                endY: curTop,
+              });
+            }
+          }
+          // Current is above Other
+          else if (oTop >= curBottom && oTop - curBottom < 160) {
+            const gap = Math.round(oTop - curBottom);
+            if (gap > 4) {
+              badges.push({
+                x: midX,
+                y: Math.round(curBottom + gap / 2),
+                distance: gap,
+                orientation: 'vertical',
+                startX: midX,
+                startY: curBottom,
+                endX: midX,
+                endY: oTop,
+              });
+            }
+          }
+        }
+
+        // Horizontal gap between elements when vertically overlapping
+        const yOverlap = Math.max(0, Math.min(curBottom, oBottom) - Math.max(curTop, oTop));
+        if (yOverlap > 20) {
+          const midY = Math.round((Math.max(curTop, oTop) + Math.min(curBottom, oBottom)) / 2);
+          // Current is to the right of Other
+          if (curLeft >= oRight && curLeft - oRight < 160) {
+            const gap = Math.round(curLeft - oRight);
+            if (gap > 4) {
+              badges.push({
+                x: Math.round(oRight + gap / 2),
+                y: midY,
+                distance: gap,
+                orientation: 'horizontal',
+                startX: oRight,
+                startY: midY,
+                endX: curLeft,
+                endY: midY,
+              });
+            }
+          }
+          // Current is to the left of Other
+          else if (oLeft >= curRight && oLeft - curRight < 160) {
+            const gap = Math.round(oLeft - curRight);
+            if (gap > 4) {
+              badges.push({
+                x: Math.round(curRight + gap / 2),
+                y: midY,
+                distance: gap,
+                orientation: 'horizontal',
+                startX: curRight,
+                startY: midY,
+                endX: oLeft,
+                endY: midY,
+              });
+            }
+          }
+        }
+      }
+
+      nextGuides.verticalLines = Array.from(vLines);
+      nextGuides.horizontalLines = Array.from(hLines);
+      nextGuides.distanceBadges = badges.slice(0, 4); // Limit badges to keep UI crisp
+
       setGuides(nextGuides);
       onUpdateElement?.(element.id, { x: nextX, y: nextY }, false);
     };
@@ -195,6 +393,11 @@ export const SlideStage: React.FC<SlideStageProps> = ({
         horizontalCenter: false,
         leftMargin: false,
         rightMargin: false,
+        topMargin: false,
+        bottomMargin: false,
+        verticalLines: [],
+        horizontalLines: [],
+        distanceBadges: [],
       });
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
@@ -604,6 +807,88 @@ export const SlideStage: React.FC<SlideStageProps> = ({
           style={{ left: `${W - EDITORIAL_MARGIN}px` }}
         />
       )}
+      {interactive && guides.topMargin && (
+        <div
+          className={`absolute left-0 right-0 h-px z-[999] pointer-events-none ${
+            isDarkSlide ? 'bg-sky-300/90' : 'bg-sky-500/80'
+          }`}
+          style={{ top: `${EDITORIAL_MARGIN}px` }}
+        />
+      )}
+      {interactive && guides.bottomMargin && (
+        <div
+          className={`absolute left-0 right-0 h-px z-[999] pointer-events-none ${
+            isDarkSlide ? 'bg-sky-300/90' : 'bg-sky-500/80'
+          }`}
+          style={{ top: `${H - EDITORIAL_MARGIN}px` }}
+        />
+      )}
+
+      {/* Dynamic Object-to-Object Alignment Lines */}
+      {interactive &&
+        guides.verticalLines.map((xVal, idx) => (
+          <div
+            key={`vl-${idx}-${xVal}`}
+            className="absolute top-0 bottom-0 w-px bg-rose-500/85 shadow-[0_0_4px_rgba(244,63,94,0.7)] z-[999] pointer-events-none"
+            style={{ left: `${xVal}px` }}
+          />
+        ))}
+      {interactive &&
+        guides.horizontalLines.map((yVal, idx) => (
+          <div
+            key={`hl-${idx}-${yVal}`}
+            className="absolute left-0 right-0 h-px bg-rose-500/85 shadow-[0_0_4px_rgba(244,63,94,0.7)] z-[999] pointer-events-none"
+            style={{ top: `${yVal}px` }}
+          />
+        ))}
+
+      {/* Dynamic Distance / Gap Measurement Indicators */}
+      {interactive &&
+        guides.distanceBadges.map((badge, idx) => (
+          <React.Fragment key={`badge-${idx}-${badge.orientation}-${badge.x}-${badge.y}`}>
+            {/* Gap Extent Line with T-bars */}
+            {badge.orientation === 'vertical' ? (
+              <div
+                className="absolute w-px bg-rose-500/90 pointer-events-none z-[998]"
+                style={{
+                  left: `${badge.startX}px`,
+                  top: `${Math.min(badge.startY, badge.endY)}px`,
+                  height: `${Math.abs(badge.endY - badge.startY)}px`,
+                }}
+              >
+                {/* Top T-bar */}
+                <div className="absolute top-0 -left-1 w-2.5 h-px bg-rose-500" />
+                {/* Bottom T-bar */}
+                <div className="absolute bottom-0 -left-1 w-2.5 h-px bg-rose-500" />
+              </div>
+            ) : (
+              <div
+                className="absolute h-px bg-rose-500/90 pointer-events-none z-[998]"
+                style={{
+                  top: `${badge.startY}px`,
+                  left: `${Math.min(badge.startX, badge.endX)}px`,
+                  width: `${Math.abs(badge.endX - badge.startX)}px`,
+                }}
+              >
+                {/* Left T-bar */}
+                <div className="absolute left-0 -top-1 w-px h-2.5 bg-rose-500" />
+                {/* Right T-bar */}
+                <div className="absolute right-0 -top-1 w-px h-2.5 bg-rose-500" />
+              </div>
+            )}
+
+            {/* Distance Number Badge */}
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono text-[9px] font-bold shadow-md z-[1000] pointer-events-none flex items-center justify-center tabular-nums leading-none"
+              style={{
+                left: `${badge.x}px`,
+                top: `${badge.y}px`,
+              }}
+            >
+              {badge.distance}px
+            </div>
+          </React.Fragment>
+        ))}
 
       {/* Slide Elements */}
       {sortedElements.map((el) => {
