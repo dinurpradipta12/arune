@@ -46,6 +46,7 @@ import {
   getFontVariantsForFamily,
 } from '../../constants/themesAndPresets';
 import { scanComputerFonts } from '../../services/fontManager';
+import { trimTransparentImage } from '../../services/backgroundRemoval';
 import { useStudioStore } from '../../store/useStudioStore';
 import type {
   BlendModeType,
@@ -182,6 +183,7 @@ export const RightInspector: React.FC = () => {
     customFonts,
     addBatchLocalFonts,
     setActiveModal,
+    commitElementHistory,
   } = useStudioStore();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1381,27 +1383,77 @@ export const RightInspector: React.FC = () => {
             <span className="text-[10px] text-zinc-400">
               Crop Shape & Radial Mask
             </span>
-            <button
-              type="button"
-              onClick={() =>
-                updateElement(
-                  imgEl.id,
-                  {
-                    cropShape: 'rect',
-                    cropTop: 0,
-                    cropBottom: 0,
-                    cropLeft: 0,
-                    cropRight: 0,
-                    flipX: false,
-                    flipY: false,
-                  },
-                  true
-                )
-              }
-              className="text-[9.5px] text-zinc-400 hover:text-blue-900 cursor-pointer"
-            >
-              Reset Crop
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    commitElementHistory();
+                    const trimmed = await trimTransparentImage(imgEl.src);
+                    const curCenterX = imgEl.x + imgEl.width / 2;
+                    const curCenterY = imgEl.y + imgEl.height / 2;
+                    let nextW = imgEl.width;
+                    let nextH = imgEl.height;
+                    if (trimmed.width > 0 && trimmed.height > 0) {
+                      const ratio = trimmed.width / trimmed.height;
+                      if (ratio >= 1) {
+                        nextW = Math.round(Math.min(imgEl.width, imgEl.height * ratio));
+                        nextH = Math.round(nextW / ratio);
+                      } else {
+                        nextH = Math.round(Math.min(imgEl.height, imgEl.width / ratio));
+                        nextW = Math.round(nextH * ratio);
+                      }
+                      nextW = Math.max(36, nextW);
+                      nextH = Math.max(36, nextH);
+                    }
+                    const nextX = Math.round(curCenterX - nextW / 2);
+                    const nextY = Math.round(curCenterY - nextH / 2);
+                    updateElement(
+                      imgEl.id,
+                      {
+                        src: trimmed.dataUrl,
+                        width: nextW,
+                        height: nextH,
+                        x: nextX,
+                        y: nextY,
+                        cropTop: 0,
+                        cropBottom: 0,
+                        cropLeft: 0,
+                        cropRight: 0,
+                      },
+                      true
+                    );
+                  } catch (err) {
+                    console.error('Trim error:', err);
+                  }
+                }}
+                title="Pangkas Bounding Box Kosong (Auto-Trim Transparan)"
+                className="text-[9.5px] px-1.5 py-0.5 rounded bg-blue-900/15 hover:bg-blue-900/25 text-blue-900 font-medium cursor-pointer transition-colors"
+              >
+                Auto-Trim Box
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  updateElement(
+                    imgEl.id,
+                    {
+                      cropShape: 'rect',
+                      cropTop: 0,
+                      cropBottom: 0,
+                      cropLeft: 0,
+                      cropRight: 0,
+                      flipX: false,
+                      flipY: false,
+                    },
+                    true
+                  )
+                }
+                className="text-[9.5px] text-zinc-400 hover:text-blue-900 cursor-pointer"
+              >
+                Reset Crop
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-5 gap-1">
@@ -1499,20 +1551,49 @@ export const RightInspector: React.FC = () => {
             </button>
           </div>
 
+          {/* Fit Mode (Cover vs Contain) */}
+          <div className="flex items-center justify-between text-[10px] text-zinc-400 bg-zinc-900/60 p-1.5 rounded-lg border border-zinc-800">
+            <span>Fit Mode Foto:</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => updateElement(imgEl.id, { objectFit: 'cover' }, true)}
+                className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
+                  !imgEl.objectFit || imgEl.objectFit === 'cover'
+                    ? 'bg-blue-900 text-white font-medium'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Cover (Penuh)
+              </button>
+              <button
+                type="button"
+                onClick={() => updateElement(imgEl.id, { objectFit: 'contain' }, true)}
+                className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
+                  imgEl.objectFit === 'contain'
+                    ? 'bg-blue-900 text-white font-medium'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Contain (Utuh)
+              </button>
+            </div>
+          </div>
+
           {/* 4-Edge Crop Sliders */}
           <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-lg p-2 grid grid-cols-2 gap-2">
             {(
               [
-                { k: 'cropTop', label: 'Crop Top', val: imgEl.cropTop || 0 },
+                { k: 'cropTop', label: 'Potong Atas', val: imgEl.cropTop || 0 },
                 {
                   k: 'cropBottom',
-                  label: 'Crop Bottom',
+                  label: 'Potong Bawah',
                   val: imgEl.cropBottom || 0,
                 },
-                { k: 'cropLeft', label: 'Crop Left', val: imgEl.cropLeft || 0 },
+                { k: 'cropLeft', label: 'Potong Kiri', val: imgEl.cropLeft || 0 },
                 {
                   k: 'cropRight',
-                  label: 'Crop Right',
+                  label: 'Potong Kanan',
                   val: imgEl.cropRight || 0,
                 },
               ] as const
@@ -1525,7 +1606,7 @@ export const RightInspector: React.FC = () => {
                 <input
                   type="range"
                   min={0}
-                  max={42}
+                  max={60}
                   step={1}
                   value={c.val}
                   onChange={(e) =>

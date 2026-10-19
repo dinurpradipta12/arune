@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Crop,
   Eraser,
   FileText,
   FolderOpen,
@@ -24,7 +25,10 @@ import {
 } from '../../constants/themesAndPresets';
 import { useStudioStore } from '../../store/useStudioStore';
 import type { AspectRatioKey } from '../../types/studio';
-import { removeImageBackground } from '../../services/backgroundRemoval';
+import {
+  removeImageBackground,
+  trimTransparentImage,
+} from '../../services/backgroundRemoval';
 import { SlideStage } from '../canvas/SlideStage';
 
 export const CenterWorkspace: React.FC = () => {
@@ -67,7 +71,7 @@ export const CenterWorkspace: React.FC = () => {
 
   const [justSaved, setJustSaved] = useState(false);
   const [activePopover, setActivePopover] = useState<
-    'resize' | 'transparent' | 'color' | null
+    'resize' | 'transparent' | 'color' | 'crop' | null
   >(null);
   const [isErasingBg, setIsErasingBg] = useState(false);
   const [erasingProgress, setErasingProgress] = useState<string>('');
@@ -103,7 +107,7 @@ export const CenterWorkspace: React.FC = () => {
     commitElementHistory();
 
     try {
-      const transparentDataUrl = await removeImageBackground(
+      const res = await removeImageBackground(
         selectedElement.src,
         (p) => {
           setErasingProgress(
@@ -112,11 +116,48 @@ export const CenterWorkspace: React.FC = () => {
         }
       );
 
+      // Calculate tightly fitted bounding box keeping center position
+      const curW = selectedElement.width;
+      const curH = selectedElement.height;
+      const curCenterX = selectedElement.x + curW / 2;
+      const curCenterY = selectedElement.y + curH / 2;
+
+      let nextW = curW;
+      let nextH = curH;
+      if (res.trimmedWidth > 0 && res.trimmedHeight > 0) {
+        // Compute new width and height based on the trimmed ratio
+        const trimRatio = res.trimmedWidth / res.trimmedHeight;
+        // Keep either current height or width, whichever fits best
+        if (trimRatio >= 1) {
+          nextW = Math.round(Math.min(curW, curH * trimRatio));
+          nextH = Math.round(nextW / trimRatio);
+        } else {
+          nextH = Math.round(Math.min(curH, curW / trimRatio));
+          nextW = Math.round(nextH * trimRatio);
+        }
+        // Ensure reasonable minimums
+        nextW = Math.max(48, nextW);
+        nextH = Math.max(48, nextH);
+      }
+
+      const nextX = Math.round(curCenterX - nextW / 2);
+      const nextY = Math.round(curCenterY - nextH / 2);
+
       updateElement(
         selectedElement.id,
         {
-          src: transparentDataUrl,
+          src: res.dataUrl,
           originalSrc: selectedElement.originalSrc || selectedElement.src,
+          originalWidth: selectedElement.originalWidth || selectedElement.width,
+          originalHeight: selectedElement.originalHeight || selectedElement.height,
+          width: nextW,
+          height: nextH,
+          x: nextX,
+          y: nextY,
+          cropTop: 0,
+          cropBottom: 0,
+          cropLeft: 0,
+          cropRight: 0,
         },
         true
       );
@@ -134,11 +175,25 @@ export const CenterWorkspace: React.FC = () => {
   const handleRevertOriginalPhoto = () => {
     if (!selectedElement || selectedElement.type !== 'image' || !selectedElement.originalSrc) return;
     commitElementHistory();
+
+    const origW = selectedElement.originalWidth || selectedElement.width;
+    const origH = selectedElement.originalHeight || selectedElement.height;
+    const curCenterX = selectedElement.x + selectedElement.width / 2;
+    const curCenterY = selectedElement.y + selectedElement.height / 2;
+    const nextX = Math.round(curCenterX - origW / 2);
+    const nextY = Math.round(curCenterY - origH / 2);
+
     updateElement(
       selectedElement.id,
       {
         src: selectedElement.originalSrc,
         originalSrc: undefined,
+        originalWidth: undefined,
+        originalHeight: undefined,
+        width: origW,
+        height: origH,
+        x: nextX,
+        y: nextY,
       },
       true
     );
@@ -725,6 +780,28 @@ export const CenterWorkspace: React.FC = () => {
               )}
             </button>
 
+            {/* 7. Crop / Trim Bounding Box Tool */}
+            <button
+              type="button"
+              disabled={selectedElement?.type !== 'image'}
+              onClick={() => setActivePopover(activePopover === 'crop' ? null : 'crop')}
+              title={
+                selectedElement?.type === 'image'
+                  ? 'Crop / Potong Bounding Box Foto (Kiri, Kanan, Atas, Bawah)'
+                  : 'Pilih foto di canvas untuk memotong (crop) bounding box'
+              }
+              aria-label="Crop Bounding Box"
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                activePopover === 'crop'
+                  ? 'bg-blue-900 text-white shadow-xs'
+                  : selectedElement?.type === 'image'
+                  ? 'text-zinc-300 hover:text-white hover:bg-zinc-800/70'
+                  : 'opacity-35 text-zinc-500 cursor-not-allowed'
+              }`}
+            >
+              <Crop className="w-3.5 h-3.5" />
+            </button>
+
             {/* 6. Indikator Ganti Warna Object */}
             <button
               type="button"
@@ -1041,6 +1118,153 @@ export const CenterWorkspace: React.FC = () => {
                       style={{ backgroundColor: t.background }}
                     />
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* POPOVER: CROP & POTONG BOUNDING BOX */}
+          {activePopover === 'crop' && selectedElement?.type === 'image' && (
+            <div className="mt-2 p-3 rounded-xl border border-zinc-800 bg-zinc-950/95 shadow-2xl backdrop-blur-md w-72 space-y-3 text-xs z-50">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+                <div className="flex items-center gap-1.5 text-zinc-100 font-semibold text-xs">
+                  <Crop className="w-3.5 h-3.5 text-blue-900" />
+                  <span>Potong Bounding Box</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      commitElementHistory();
+                      const trimmed = await trimTransparentImage(selectedElement.src);
+                      const curCenterX = selectedElement.x + selectedElement.width / 2;
+                      const curCenterY = selectedElement.y + selectedElement.height / 2;
+                      let nextW = selectedElement.width;
+                      let nextH = selectedElement.height;
+                      if (trimmed.width > 0 && trimmed.height > 0) {
+                        const ratio = trimmed.width / trimmed.height;
+                        if (ratio >= 1) {
+                          nextW = Math.round(Math.min(selectedElement.width, selectedElement.height * ratio));
+                          nextH = Math.round(nextW / ratio);
+                        } else {
+                          nextH = Math.round(Math.min(selectedElement.height, selectedElement.width / ratio));
+                          nextW = Math.round(nextH * ratio);
+                        }
+                        nextW = Math.max(36, nextW);
+                        nextH = Math.max(36, nextH);
+                      }
+                      const nextX = Math.round(curCenterX - nextW / 2);
+                      const nextY = Math.round(curCenterY - nextH / 2);
+                      updateElement(
+                        selectedElement.id,
+                        {
+                          src: trimmed.dataUrl,
+                          width: nextW,
+                          height: nextH,
+                          x: nextX,
+                          y: nextY,
+                          cropTop: 0,
+                          cropBottom: 0,
+                          cropLeft: 0,
+                          cropRight: 0,
+                        },
+                        true
+                      );
+                    } catch (err) {
+                      console.error('Trim error:', err);
+                    }
+                  }}
+                  title="Pangkas Bounding Box Kosong (Auto-Trim Transparan)"
+                  className="text-[9.5px] px-2 py-0.5 rounded bg-blue-900 hover:bg-blue-800 text-white font-medium cursor-pointer transition-colors"
+                >
+                  ⚡ Auto-Fit Box
+                </button>
+              </div>
+
+              {/* 4-Edge Crop Sliders */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[10.5px] text-zinc-300 font-medium">
+                  <span>Potong Tepi (Kiri, Kanan, Atas, Bawah)</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateElement(
+                        selectedElement.id,
+                        {
+                          cropTop: 0,
+                          cropBottom: 0,
+                          cropLeft: 0,
+                          cropRight: 0,
+                        },
+                        true
+                      )
+                    }
+                    className="text-[9.5px] text-zinc-400 hover:text-blue-900 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 bg-zinc-900/60 p-2 rounded-lg border border-zinc-800">
+                  {(
+                    [
+                      { k: 'cropLeft', label: 'Potong Kiri', val: selectedElement.cropLeft || 0 },
+                      { k: 'cropRight', label: 'Potong Kanan', val: selectedElement.cropRight || 0 },
+                      { k: 'cropTop', label: 'Potong Atas', val: selectedElement.cropTop || 0 },
+                      { k: 'cropBottom', label: 'Potong Bawah', val: selectedElement.cropBottom || 0 },
+                    ] as const
+                  ).map((c) => (
+                    <div key={c.k}>
+                      <div className="flex justify-between text-[9px] text-zinc-400">
+                        <span>{c.label}</span>
+                        <span className="font-mono text-blue-900">{c.val}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={60}
+                        step={1}
+                        value={c.val}
+                        onChange={(e) =>
+                          updateElement(
+                            selectedElement.id,
+                            { [c.k]: Number(e.target.value) },
+                            false
+                          )
+                        }
+                        className="w-full accent-blue-900 cursor-pointer"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fit Mode */}
+              <div className="flex items-center justify-between pt-1 border-t border-zinc-800/80 text-[10px] text-zinc-400">
+                <span>Mode Tampilan:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updateElement(selectedElement.id, { objectFit: 'cover' }, true)}
+                    className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
+                      !selectedElement.objectFit || selectedElement.objectFit === 'cover'
+                        ? 'bg-blue-900 text-white font-medium'
+                        : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                    }`}
+                  >
+                    Cover
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateElement(selectedElement.id, { objectFit: 'contain' }, true)}
+                    className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
+                      selectedElement.objectFit === 'contain'
+                        ? 'bg-blue-900 text-white font-medium'
+                        : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                    }`}
+                  >
+                    Contain
+                  </button>
                 </div>
               </div>
             </div>

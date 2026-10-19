@@ -620,7 +620,9 @@ export const SlideStage: React.FC<SlideStageProps> = ({
           alt={el.alt || el.name}
           crossOrigin="anonymous"
           draggable={false}
-          className="w-full h-full object-cover pointer-events-none select-none"
+          className={`w-full h-full pointer-events-none select-none ${
+            el.objectFit === 'contain' ? 'object-contain' : 'object-cover'
+          }`}
           style={{
             objectPosition: `${el.panX}% ${el.panY}%`,
             transform: `scale(${el.zoom})`,

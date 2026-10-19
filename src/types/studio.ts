@@ -184,8 +184,12 @@ export interface ImageCanvasElement extends BaseCanvasElement {
   saturation?: number; // 0 to 200 (%)
   grayscale?: number; // 0 to 100 (%)
   blur?: number; // 0 to 20 (px)
+  objectFit?: 'cover' | 'contain';
+  isCropping?: boolean; // when true, handles crop edges instead of resizing
   backgroundColor?: string; // custom container background, default transparent
   originalSrc?: string; // backup if background was removed
+  originalWidth?: number;
+  originalHeight?: number;
 }
 
 export interface DividerCanvasElement extends BaseCanvasElement {
