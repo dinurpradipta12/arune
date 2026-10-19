@@ -608,7 +608,7 @@ export const SlideStage: React.FC<SlideStageProps> = ({
         style={{
           borderRadius: computedRadius,
           clipPath: clipPathValue,
-          backgroundColor: theme.surface,
+          backgroundColor: el.backgroundColor || 'transparent',
           border:
             el.borderWidth && el.borderWidth > 0
               ? `${el.borderWidth}px solid ${el.borderColor || theme.accent}`
