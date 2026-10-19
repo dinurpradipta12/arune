@@ -78,13 +78,42 @@ export const SlideStage: React.FC<SlideStageProps> = ({
     }
   }, [selectedElementId, editingTextId]);
 
-  const isDarkSlide =
+  const isColorDark = (hexOrRgb: string): boolean => {
+    if (!hexOrRgb) return false;
+    const str = hexOrRgb.trim().toLowerCase();
+    if (str.startsWith('#')) {
+      const hex = str.slice(1);
+      const fullHex = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
+      if (fullHex.length >= 6) {
+        const r = parseInt(fullHex.substring(0, 2), 16) || 0;
+        const g = parseInt(fullHex.substring(2, 4), 16) || 0;
+        const b = parseInt(fullHex.substring(4, 6), 16) || 0;
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        return lum < 145;
+      }
+    } else if (str.startsWith('rgb')) {
+      const match = str.match(/\(([^)]+)\)/);
+      if (match) {
+        const parts = match[1].split(',').map((p) => parseFloat(p.trim()));
+        if (parts.length >= 3) {
+          const lum = 0.299 * parts[0] + 0.587 * parts[1] + 0.114 * parts[2];
+          return lum < 145;
+        }
+      }
+    }
+    return false;
+  };
+
+  const isSlideDark =
     slide.layout === 'cover-overlay' ||
     slide.layout === 'full-bleed-bottom-story' ||
     slide.layout === 'media-outro-cta' ||
     slide.layout === 'playful-outro-cta' ||
     slide.layout.startsWith('typo-') ||
+    isColorDark(slide.backgroundColor) ||
     slide.backgroundColor.toLowerCase() === theme.darkBackground.toLowerCase();
+
+  const isDarkSlide = isSlideDark;
 
   const folioColor = isDarkSlide
     ? 'rgba(247, 244, 238, 0.68)'
@@ -545,25 +574,33 @@ export const SlideStage: React.FC<SlideStageProps> = ({
       {/* Smart Alignment Guide Lines (Interactive Mode Only) */}
       {interactive && guides.verticalCenter && (
         <div
-          className="absolute top-0 bottom-0 w-px bg-blue-900/90 z-[999] pointer-events-none"
+          className={`absolute top-0 bottom-0 w-px z-[999] pointer-events-none ${
+            isDarkSlide ? 'bg-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.8)]' : 'bg-blue-900/90'
+          }`}
           style={{ left: `${W / 2}px` }}
         />
       )}
       {interactive && guides.horizontalCenter && (
         <div
-          className="absolute left-0 right-0 h-px bg-blue-900/90 z-[999] pointer-events-none"
+          className={`absolute left-0 right-0 h-px z-[999] pointer-events-none ${
+            isDarkSlide ? 'bg-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.8)]' : 'bg-blue-900/90'
+          }`}
           style={{ top: `${H / 2}px` }}
         />
       )}
       {interactive && guides.leftMargin && (
         <div
-          className="absolute top-0 bottom-0 w-px bg-sky-400/75 z-[999] pointer-events-none"
+          className={`absolute top-0 bottom-0 w-px z-[999] pointer-events-none ${
+            isDarkSlide ? 'bg-sky-300/90' : 'bg-sky-500/80'
+          }`}
           style={{ left: `${EDITORIAL_MARGIN}px` }}
         />
       )}
       {interactive && guides.rightMargin && (
         <div
-          className="absolute top-0 bottom-0 w-px bg-sky-400/75 z-[999] pointer-events-none"
+          className={`absolute top-0 bottom-0 w-px z-[999] pointer-events-none ${
+            isDarkSlide ? 'bg-sky-300/90' : 'bg-sky-500/80'
+          }`}
           style={{ left: `${W - EDITORIAL_MARGIN}px` }}
         />
       )}
@@ -574,6 +611,28 @@ export const SlideStage: React.FC<SlideStageProps> = ({
 
         const isSelected = interactive && selectedElementId === el.id;
         const isDragging = isDraggingId === el.id;
+
+        // Determine if this element is over a dark background:
+        // Either the slide itself is dark, or there is an image element beneath this element
+        // that covers significant space, or if the element is an image itself.
+        const isElementOverDark = (() => {
+          if (isDarkSlide) return true;
+          // Check if there is an image element underneath
+          const hasImageBelow = sortedElements.some(
+            (other) =>
+              other.id !== el.id &&
+              other.type === 'image' &&
+              !other.hidden &&
+              other.zIndex < el.zIndex &&
+              other.width >= W * 0.5 &&
+              other.height >= H * 0.4 &&
+              el.x < other.x + other.width &&
+              el.x + el.width > other.x &&
+              el.y < other.y + other.height &&
+              el.y + el.height > other.y
+          );
+          return hasImageBelow;
+        })();
 
         const rot = el.rotation || 0;
         const fx = el.flipX ? -1 : 1;
@@ -625,7 +684,11 @@ export const SlideStage: React.FC<SlideStageProps> = ({
               interactive
                 ? `drag-handle ${isDragging ? 'dragging' : ''} ${
                     isSelected
-                      ? 'ring-1 ring-blue-900 shadow-[0_0_0_1px_rgba(30,58,138,0.5)]'
+                      ? isElementOverDark
+                        ? 'ring-1 ring-sky-300 shadow-[0_0_0_1px_rgba(255,255,255,0.7),0_0_8px_rgba(56,189,248,0.4)]'
+                        : 'ring-1 ring-blue-900 shadow-[0_0_0_1px_rgba(30,58,138,0.5),0_0_6px_rgba(30,58,138,0.2)]'
+                      : isElementOverDark
+                      ? 'hover:ring-1 hover:ring-sky-300/60'
                       : 'hover:ring-1 hover:ring-blue-900/40'
                   }`
                 : ''
@@ -659,7 +722,13 @@ export const SlideStage: React.FC<SlideStageProps> = ({
             {/* Selection Controls: Label Pill, Rotation Handle, and 8 Resize Handles */}
             {isSelected && editingTextId !== el.id && (
               <>
-                <div className="absolute -top-5 left-0 px-1.5 py-0.5 rounded bg-blue-900 text-white text-[9px] font-medium tracking-wider uppercase whitespace-nowrap pointer-events-none shadow-sm z-50">
+                <div
+                  className={`absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase whitespace-nowrap pointer-events-none shadow-md z-50 transition-colors ${
+                    isElementOverDark
+                      ? 'bg-sky-400 text-zinc-950 font-bold border border-white/60'
+                      : 'bg-blue-900 text-white border border-blue-950'
+                  }`}
+                >
                   {el.name} · {el.width}×{el.height}
                   {rot ? ` · ${rot}°` : ''}
                   {el.locked ? ' · LOCKED' : ''}
@@ -671,7 +740,11 @@ export const SlideStage: React.FC<SlideStageProps> = ({
                     <div
                       onPointerDown={(e) => startRotate(e, el)}
                       title="Drag to Rotate Object"
-                      className="absolute -top-7 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-blue-900 text-white border border-white shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing z-50"
+                      className={`absolute -top-7 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing z-50 transition-colors ${
+                        isElementOverDark
+                          ? 'bg-sky-400 text-zinc-950 border border-white hover:bg-sky-300'
+                          : 'bg-blue-900 text-white border border-white hover:bg-blue-800'
+                      }`}
                     >
                       <RotateCw className="w-3 h-3" />
                     </div>
@@ -715,7 +788,11 @@ export const SlideStage: React.FC<SlideStageProps> = ({
                       <div
                         key={h}
                         onPointerDown={(e) => startResize(e, el, h)}
-                        className={`absolute w-2.5 h-2.5 bg-white border border-blue-900 rounded-[2px] z-50 ${cls}`}
+                        className={`absolute w-2.5 h-2.5 rounded-[2px] z-50 shadow-xs transition-colors ${
+                          isElementOverDark
+                            ? 'bg-white border-2 border-sky-400 hover:border-white hover:bg-sky-300'
+                            : 'bg-white border-2 border-blue-900 hover:border-blue-700'
+                        } ${cls}`}
                       />
                     ))}
                   </>
