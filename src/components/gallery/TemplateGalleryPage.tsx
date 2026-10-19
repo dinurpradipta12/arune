@@ -97,18 +97,16 @@ export const TemplateGalleryPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   // Affinity / Photoshop "New Document" Builder State
-  const [newDocTitle, setNewDocTitle] = useState('Untitled Editorial Story');
+  const [newDocTitle, setNewDocTitle] = useState('Dokumen Baru');
   const [newDocRatio, setNewDocRatio] = useState<AspectRatioKey>(
     settings.defaultAspectRatio || '4:5'
   );
   const [newDocThemeId, setNewDocThemeId] = useState<string>(
     settings.defaultThemeId || THEME_PALETTES[0].id
   );
-  const [newDocSlideCount, setNewDocSlideCount] = useState<number>(
-    settings.defaultSlideCount || 6
-  );
+  const [newDocSlideCount, setNewDocSlideCount] = useState<number>(1);
   const [newDocLayout, setNewDocLayout] =
-    useState<LayoutPresetId>('cover-overlay');
+    useState<LayoutPresetId>('blank');
 
   const activeTheme = getActiveTheme();
 
@@ -171,13 +169,13 @@ export const TemplateGalleryPage: React.FC = () => {
 
   const handleQuickCreatePreset = async (ratio: AspectRatioKey) => {
     await createNewProject({
-      title: `Editorial ${ASPECT_RATIOS[ratio].shortLabel} #${
+      title: `Dokumen ${ASPECT_RATIOS[ratio].shortLabel} #${
         openDocuments.length + 1
       }`,
       aspectRatio: ratio,
       themeId: activeTheme.id,
-      slideCount: settings.defaultSlideCount || 6,
-      initialLayout: 'cover-overlay',
+      slideCount: 1,
+      initialLayout: 'blank',
       saveCurrentFirst: autoSaveBeforeSwitch,
       openInNewTab,
     });

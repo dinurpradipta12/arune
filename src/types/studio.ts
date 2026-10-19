@@ -11,6 +11,7 @@ export interface AspectRatioConfig {
 }
 
 export type LayoutPresetId =
+  | 'blank'
   // Classic Editorial / Magazine
   | 'cover-overlay'
   | 'editorial-dropcap'

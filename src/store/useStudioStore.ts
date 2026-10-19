@@ -387,24 +387,29 @@ function cloneSlides(slides: Slide[]): Slide[] {
   return JSON.parse(JSON.stringify(slides));
 }
 
+function createInitialBlankSlide(id = 'slide-1'): Slide {
+  return {
+    id,
+    layout: 'blank',
+    elements: [],
+    backgroundColor: '#ffffff',
+  };
+}
+
 function createInitialSlides(): Slide[] {
-  const defaultTheme = THEME_PALETTES[0];
-  const parsed = parseScriptToStructuredSlides(DEFAULT_SCRIPT);
-  return parsed.map((item, idx) =>
-    buildSlideFromParsedScript(item, idx, defaultTheme, '4:5')
-  );
+  return [createInitialBlankSlide()];
 }
 
 const INITIAL_SLIDES = createInitialSlides();
 
 const INITIAL_DOC_TAB: OpenDocumentTab = {
-  id: 'project-bandung-nest',
-  projectTitle: 'A Nest Above Bandung',
+  id: 'doc-blank-1',
+  projectTitle: 'Dokumen Baru',
   aspectRatio: '4:5',
   activeThemeId: THEME_PALETTES[0].id,
   themeOverride: {},
   branding: DEFAULT_BRANDING,
-  scriptText: DEFAULT_SCRIPT,
+  scriptText: '',
   slides: cloneSlides(INITIAL_SLIDES),
   activeSlideIndex: 0,
   canvasZoom: 0.9,
@@ -608,35 +613,14 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     const targetTheme = state.getActiveTheme();
     const tabNumber = state.openDocuments.length + 1;
     const newId = `doc-${Date.now().toString(36).slice(-5)}`;
-    const newTitle = `Editorial Doc ${String(tabNumber).padStart(2, '0')}`;
+    const newTitle = `Dokumen ${String(tabNumber).padStart(2, '0')}`;
 
-    const layoutRotation: LayoutPresetId[] = [
-      'cover-overlay',
-      'editorial-dropcap',
-      'top-photo-bottom-split',
-      'split-vertical-collage',
-      'full-bleed-bottom-story',
-    ];
-
-    const builtSlides: Slide[] = Array.from({ length: 5 }).map((_, idx) =>
-      buildSlideFromParsedScript(
-        {
-          layout: layoutRotation[idx % layoutRotation.length],
-          header: `${newTitle.toUpperCase()} — SLIDE 0${idx + 1}`,
-          kicker: idx === 0 ? 'EDITORIAL ISSUE' : `CHAPTER 0${idx}`,
-          title:
-            idx === 0
-              ? `Editorial *Issue 0${tabNumber}*`
-              : `Quiet *Moments* 0${idx}`,
-          lead: '*A curated visual essay crafted with unhurried typography and spatial balance.*',
-          body: '[W]e begin with light and proportion. Every frame invites the reader to pause and observe the subtle textures of the story.',
-          caption: '*Editorial studio notes · Archive series.*',
-        },
-        idx,
-        targetTheme,
-        ratio
-      )
-    );
+    const blankSlide: Slide = {
+      id: `slide-1`,
+      layout: 'blank',
+      elements: [],
+      backgroundColor: '#ffffff',
+    };
 
     const suggestedZoom =
       ratio === '9:16' ? 0.7 : ratio === '4:5' ? 0.9 : 0.95;
@@ -648,8 +632,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeThemeId: targetTheme.id,
       themeOverride: {},
       branding: { ...state.branding },
-      scriptText: DEFAULT_SCRIPT,
-      slides: cloneSlides(builtSlides),
+      scriptText: '',
+      slides: [blankSlide],
       activeSlideIndex: 0,
       canvasZoom: suggestedZoom,
       lastSavedAt: null,
@@ -667,7 +651,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       aspectRatio: ratio,
       activeThemeId: targetTheme.id,
       themeOverride: {},
-      slides: builtSlides,
+      slides: [blankSlide],
       activeSlideIndex: 0,
       selectedElementId: null,
       canvasZoom: suggestedZoom,
@@ -900,42 +884,50 @@ export const useStudioStore = create<StudioState>((set, get) => ({
             'editorial-bento-grid',
           ];
 
-    const count = Math.max(1, Math.min(12, options.slideCount || 5));
+    const count = Math.max(1, Math.min(12, options.slideCount || 1));
     const titleClean = options.title.trim() || 'Untitled Editorial Story';
 
-    const builtSlides: Slide[] = Array.from({ length: count }).map((_, idx) => {
-      const layout =
-        idx === 0
-          ? options.initialLayout
-          : layoutRotation[idx % layoutRotation.length];
-      if (layout.startsWith('typo-')) {
-        return buildSlideFromParsedScript(
-          { layout },
-          idx,
-          targetTheme,
-          options.aspectRatio
-        );
-      }
-      return buildSlideFromParsedScript(
-        {
-          layout,
-          header: `${titleClean.toUpperCase()} — SLIDE 0${idx + 1}`,
-          kicker: idx === 0 ? 'EDITORIAL ISSUE' : `CHAPTER 0${idx}`,
-          title:
-            idx === 0
-              ? `${titleClean.split(' ').slice(0, 2).join(' ')} *${
-                  titleClean.split(' ').slice(2).join(' ') || 'Edition'
-                }*`
-              : `Quiet *Moments* 0${idx}`,
-          lead: '*A curated visual essay crafted with unhurried typography and spatial balance.*',
-          body: '[W]e begin with light and proportion. Every frame invites the reader to pause and observe the subtle textures of the story.',
-          caption: '*Editorial studio notes · Archive series.*',
-        },
-        idx,
-        targetTheme,
-        options.aspectRatio
-      );
-    });
+    const builtSlides: Slide[] =
+      options.initialLayout === 'blank'
+        ? Array.from({ length: count }).map((_, idx) => ({
+            id: `slide-${idx + 1}-${Date.now().toString(36).slice(-4)}`,
+            layout: 'blank',
+            elements: [],
+            backgroundColor: '#ffffff',
+          }))
+        : Array.from({ length: count }).map((_, idx) => {
+            const layout =
+              idx === 0
+                ? options.initialLayout
+                : layoutRotation[idx % layoutRotation.length];
+            if (layout.startsWith('typo-')) {
+              return buildSlideFromParsedScript(
+                { layout },
+                idx,
+                targetTheme,
+                options.aspectRatio
+              );
+            }
+            return buildSlideFromParsedScript(
+              {
+                layout,
+                header: `${titleClean.toUpperCase()} — SLIDE 0${idx + 1}`,
+                kicker: idx === 0 ? 'EDITORIAL ISSUE' : `CHAPTER 0${idx}`,
+                title:
+                  idx === 0
+                    ? `${titleClean.split(' ').slice(0, 2).join(' ')} *${
+                        titleClean.split(' ').slice(2).join(' ') || 'Edition'
+                      }*`
+                    : `Quiet *Moments* 0${idx}`,
+                lead: '*A curated visual essay crafted with unhurried typography and spatial balance.*',
+                body: '[W]e begin with light and proportion. Every frame invites the reader to pause and observe the subtle textures of the story.',
+                caption: '*Editorial studio notes · Archive series.*',
+              },
+              idx,
+              targetTheme,
+              options.aspectRatio
+            );
+          });
 
     const suggestedZoom =
       options.aspectRatio === '9:16'
@@ -1333,29 +1325,17 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   setSelectedElementId: (id) => set({ selectedElementId: id }),
 
-  addSlide: (layout = 'editorial-dropcap') => {
+  addSlide: (layout?: LayoutPresetId) => {
     const state = get();
     state.pushHistory();
-    const theme = state.getActiveTheme();
-    const newIndex = state.slides.length;
-    const defaultParsed = layout.startsWith('typo-')
-      ? { layout }
-      : {
-          layout,
-          header: `${state.branding.publicationName} — CHAPTER ${newIndex + 1}`,
-          kicker: `CHAPTER ${newIndex + 1}`,
-          title: 'An Unhurried *Afternoon*',
-          lead: '*Quiet architecture and filtered light across the highland sanctuary.*',
-          body: '[T]he afternoon unfolds without urgency. Light shifts across timber and stone, inviting a slower way of looking at the world around us.',
-          caption: '*Field notes from the studio archive.*',
-        };
-    const created = buildSlideFromParsedScript(
-      defaultParsed,
-      newIndex,
-      theme,
-      state.aspectRatio
-    );
-    const nextSlides = [...state.slides, created];
+    const newId = `slide-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const newSlide: Slide = {
+      id: newId,
+      layout: layout || 'blank',
+      elements: [],
+      backgroundColor: '#ffffff',
+    };
+    const nextSlides = [...state.slides, newSlide];
     set({
       slides: nextSlides,
       activeSlideIndex: nextSlides.length - 1,

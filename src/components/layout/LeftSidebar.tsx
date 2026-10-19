@@ -1061,11 +1061,11 @@ export const LeftSidebar: React.FC = () => {
     settings,
   } = useStudioStore();
 
-  if (!leftSidebarOpen) return null;
-
   const [layoutFilter, setLayoutFilter] = useState<
     'All' | 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography'
   >('All');
+
+  if (!leftSidebarOpen) return null;
 
   const activeSlide = slides[activeSlideIndex] || slides[0];
   const activeTheme = getActiveTheme();

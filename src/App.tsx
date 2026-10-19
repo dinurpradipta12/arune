@@ -9,6 +9,7 @@ import { TopHeaderBar } from './components/layout/TopHeaderBar';
 import { StudioModals } from './components/modals/StudioModals';
 import { UpdateNotifier } from './components/modals/UpdateNotifier';
 import { DesktopUpdateModal } from './components/modals/DesktopUpdateModal';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { isDesktopApp } from './utils/platform';
 import { scanComputerFonts } from './services/fontManager';
 import { fetchCloudStudioData } from './services/supabaseTemplates';
@@ -216,67 +217,69 @@ export function App() {
   ]);
 
   return (
-    <div
-      className={`h-screen w-screen flex flex-col overflow-hidden transition-colors duration-200 ${
-        workspaceDarkMode
-          ? 'studio-theme-dark bg-[#050811] text-slate-100'
-          : 'studio-theme-light bg-white text-slate-900'
-      }`}
-    >
-      {/* Main View Switcher: Full-Screen Studio Home Hub vs 3-Column Studio Editor vs Theme Builder */}
-      {activeView === 'gallery' ? (
-        <TemplateGalleryPage />
-      ) : activeView === 'theme-builder' ? (
-        <ThemeBuilderPage />
-      ) : (
-        <>
-          <TopHeaderBar />
-          <div className="flex-1 flex min-h-0 overflow-hidden">
-            <LeftSidebar />
-            <CenterWorkspace />
-            <RightInspector />
-          </div>
-        </>
-      )}
-
-      {/* Quick Modals (Global Branding, JSON Import/Export, Supabase Sync, Local & Custom Fonts) */}
-      <StudioModals />
-
-      {/* Update Detector: In-App Desktop Updater for Electron, Web Deploy Notifier for Browser */}
-      {isDesktopApp() ? (
-        <DesktopUpdateModal />
-      ) : (
-        <UpdateNotifier darkMode={workspaceDarkMode} />
-      )}
-
-      {/* Offscreen 1:1 Stage Renderer for Batch HD (.ZIP) Export */}
+    <ErrorBoundary fallbackTitle="Terjadi Masalah pada Tampilan Studio">
       <div
-        id="offscreen-export-stage"
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          left: '-99999px',
-          top: 0,
-          pointerEvents: 'none',
-          opacity: 1,
-        }}
+        className={`h-screen w-screen flex flex-col overflow-hidden transition-colors duration-200 ${
+          workspaceDarkMode
+            ? 'studio-theme-dark bg-[#050811] text-slate-100'
+            : 'studio-theme-light bg-white text-slate-900'
+        }`}
       >
-        {slides.map((slide, idx) => (
-          <SlideStage
-            key={slide.id}
-            exportId={`export-slide-node-${idx}`}
-            slide={slide}
-            slideIndex={idx}
-            totalSlides={slides.length}
-            aspectRatio={aspectRatio}
-            theme={theme}
-            branding={branding}
-            scale={1}
-            interactive={false}
-          />
-        ))}
+        {/* Main View Switcher: Full-Screen Studio Home Hub vs 3-Column Studio Editor vs Theme Builder */}
+        {activeView === 'gallery' ? (
+          <TemplateGalleryPage />
+        ) : activeView === 'theme-builder' ? (
+          <ThemeBuilderPage />
+        ) : (
+          <>
+            <TopHeaderBar />
+            <div className="flex-1 flex min-h-0 overflow-hidden">
+              <LeftSidebar />
+              <CenterWorkspace />
+              <RightInspector />
+            </div>
+          </>
+        )}
+
+        {/* Quick Modals (Global Branding, JSON Import/Export, Supabase Sync, Local & Custom Fonts) */}
+        <StudioModals />
+
+        {/* Update Detector: In-App Desktop Updater for Electron, Web Deploy Notifier for Browser */}
+        {isDesktopApp() ? (
+          <DesktopUpdateModal />
+        ) : (
+          <UpdateNotifier darkMode={workspaceDarkMode} />
+        )}
+
+        {/* Offscreen 1:1 Stage Renderer for Batch HD (.ZIP) Export */}
+        <div
+          id="offscreen-export-stage"
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '-99999px',
+            top: 0,
+            pointerEvents: 'none',
+            opacity: 1,
+          }}
+        >
+          {slides.map((slide, idx) => (
+            <SlideStage
+              key={slide.id}
+              exportId={`export-slide-node-${idx}`}
+              slide={slide}
+              slideIndex={idx}
+              totalSlides={slides.length}
+              aspectRatio={aspectRatio}
+              theme={theme}
+              branding={branding}
+              scale={1}
+              interactive={false}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 
