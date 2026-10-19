@@ -4,6 +4,7 @@ import {
   Check,
   Clock,
   Copy,
+  Download,
   FileJson,
   FilePlus2,
   FolderHeart,
@@ -46,6 +47,7 @@ import {
   parseScriptToStructuredSlides,
 } from '../../utils/scriptParser';
 import { SlideStage } from '../canvas/SlideStage';
+import { DownloadStandaloneModal } from '../modals/DownloadStandaloneModal';
 
 type HomeNavTab = 'home' | 'new-project' | 'recent' | 'templates';
 
@@ -72,11 +74,15 @@ export const TemplateGalleryPage: React.FC = () => {
     openBlankDocumentTab,
     settings,
     cloudMasterTemplates,
+    lastSavedAt,
+    past,
   } = useStudioStore();
 
   const [activeTab, setActiveTab] = useState<HomeNavTab>('home');
   const [savedProjects, setSavedProjects] = useState<CloudTemplateRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const isUnsaved = !lastSavedAt || (past && past.length > 0);
   const [autoSaveBeforeSwitch, setAutoSaveBeforeSwitch] = useState(
     settings.autoSaveLocalCache
   );
@@ -415,11 +421,27 @@ export const TemplateGalleryPage: React.FC = () => {
         {/* Bottom Sidebar: Active Editor Session Card & Workspace Utilities */}
         <div className="space-y-3 pt-3 border-t border-zinc-800/80">
           {/* Open Document Tabs & Active Session Card */}
-          <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2.5">
+          <div
+            className={`p-3 rounded-xl space-y-2.5 transition-all ${
+              isUnsaved
+                ? 'bg-gradient-to-br from-amber-950/25 via-zinc-900/90 to-zinc-900 border border-amber-500/40 shadow-xs ring-1 ring-amber-500/20'
+                : 'bg-zinc-900 border border-zinc-800'
+            }`}
+          >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 whitespace-nowrap">
-                Dokumen ({openDocuments.length})
-              </span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 whitespace-nowrap">
+                  Dokumen ({openDocuments.length})
+                </span>
+                {isUnsaved ? (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+                    <span>Draft</span>
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-emerald-400 font-medium">✓ Saved</span>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => openBlankDocumentTab(aspectRatio)}
@@ -437,17 +459,25 @@ export const TemplateGalleryPage: React.FC = () => {
                 const isActive = doc.id === activeDocumentId;
                 const liveTitle = isActive ? projectTitle : doc.projectTitle;
                 const liveRatio = isActive ? aspectRatio : doc.aspectRatio;
+                const docUnsaved = isActive ? isUnsaved : !doc.lastSavedAt;
                 return (
                   <div
                     key={doc.id}
                     onClick={() => switchDocumentTab(doc.id)}
                     className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg text-[11px] cursor-pointer transition-colors ${
                       isActive
-                        ? 'bg-blue-900/10 border border-blue-900/30 text-zinc-100 font-semibold'
+                        ? docUnsaved
+                          ? 'bg-amber-500/15 border border-amber-500/40 text-amber-100 font-semibold shadow-xs'
+                          : 'bg-blue-900/10 border border-blue-900/30 text-zinc-100 font-semibold'
                         : 'bg-zinc-950/60 hover:bg-zinc-800/80 border border-zinc-800/70 text-zinc-300'
                     }`}
                   >
-                    <span className="truncate flex-1">{liveTitle}</span>
+                    <div className="flex items-center gap-1.5 truncate flex-1">
+                      {docUnsaved && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Ada perubahan belum disimpan" />
+                      )}
+                      <span className="truncate">{liveTitle}</span>
+                    </div>
                     <span className="text-[9.5px] font-mono text-zinc-400 shrink-0">
                       {liveRatio}
                     </span>
@@ -582,11 +612,12 @@ export const TemplateGalleryPage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setActiveView('editor')}
-              className="px-3.5 py-1.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+              onClick={() => setShowDownloadModal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 hover:from-blue-600 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-blue-950/40 cursor-pointer transition-all"
+              title="Unduh Installer Standalone untuk macOS atau Windows"
             >
-              <span>Lanjutkan Editor ({projectTitle})</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5" />
+              <span>Unduh Standalone App</span>
             </button>
           </div>
         </header>
@@ -982,11 +1013,21 @@ export const TemplateGalleryPage: React.FC = () => {
                   )}
 
                   {/* Active Session Quick Card in the 4th slot */}
-                  <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between gap-3 shadow-xs">
-                    <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`p-3.5 rounded-xl transition-all flex items-center justify-between gap-3 shadow-md ${
+                      isUnsaved
+                        ? 'bg-gradient-to-br from-amber-950/50 via-zinc-900 to-amber-900/30 border-2 border-amber-500/60 shadow-amber-950/40 ring-1 ring-amber-500/30'
+                        : 'bg-gradient-to-br from-emerald-950/30 via-zinc-900 to-zinc-900 border border-emerald-500/40 shadow-xs'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       {slides[0] && (
                         <div
-                          className="relative overflow-hidden rounded border border-zinc-700 shrink-0"
+                          className={`relative overflow-hidden rounded shrink-0 transition-all ${
+                            isUnsaved
+                              ? 'border-2 border-amber-500/70 ring-1 ring-amber-500/40 shadow-xs'
+                              : 'border border-zinc-700'
+                          }`}
                           style={{
                             width: `${Math.round(
                               ASPECT_RATIOS[aspectRatio].stageWidth * 0.09
@@ -1010,32 +1051,58 @@ export const TemplateGalleryPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      <div className="min-w-0">
-                        <span className="text-[9.5px] uppercase tracking-wider font-semibold text-blue-900 block">
-                          Sedang Diedit
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          {isUnsaved ? (
+                            <>
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                              </span>
+                              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-300">
+                                Sedang Diedit · Belum Disimpan
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-400">
+                                Sedang Diedit · Tersimpan {lastSavedAt ? `(${lastSavedAt})` : ''}
+                              </span>
+                            </>
+                          )}
+                        </div>
                         <input
                           type="text"
                           value={projectTitle}
                           onChange={(e) => setProjectTitle(e.target.value)}
                           aria-label="Judul Project Aktif"
-                          className="bg-transparent text-xs font-semibold text-zinc-100 focus:outline-none border-b border-transparent focus:border-blue-900 w-full truncate"
+                          className="bg-transparent text-xs font-bold text-zinc-100 focus:outline-none border-b border-zinc-700/60 focus:border-amber-400 w-full truncate pb-0.5"
                         />
-                        <div className="flex items-center gap-1.5 mt-1">
+                        <div className="flex items-center gap-2 mt-2">
                           <button
                             type="button"
                             onClick={() => setActiveView('editor')}
-                            className="text-[10.5px] font-semibold text-blue-900 hover:text-blue-800 cursor-pointer"
+                            className={`text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all shadow-xs ${
+                              isUnsaved
+                                ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950'
+                                : 'bg-blue-900 hover:bg-blue-800 text-white'
+                            }`}
                           >
-                            Lanjutkan →
+                            <span>Lanjutkan</span>
+                            <ArrowRight className="w-3 h-3" />
                           </button>
-                          <span className="text-zinc-600">·</span>
                           <button
                             type="button"
                             onClick={() => handleSaveCurrent(false)}
-                            className="text-[10.5px] text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                            className={`text-[11px] font-medium px-2 py-1 rounded-lg border cursor-pointer flex items-center gap-1 transition-colors ${
+                              isUnsaved
+                                ? 'bg-zinc-800/90 hover:bg-zinc-700 text-amber-200 border-amber-500/40'
+                                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                            }`}
                           >
-                            Simpan
+                            <Save className={`w-3 h-3 ${isUnsaved ? 'text-amber-400' : 'text-zinc-400'}`} />
+                            <span>Simpan</span>
                           </button>
                         </div>
                       </div>
@@ -1434,6 +1501,13 @@ export const TemplateGalleryPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Standalone Desktop App Download Modal */}
+      <DownloadStandaloneModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+      />
     </div>
   );
 };
+
