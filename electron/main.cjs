@@ -12,6 +12,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: 'Arune Editorial Studio',
+    icon: path.join(__dirname, '../build/icon.png'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     backgroundColor: '#09090b', // zinc-950
     show: false,
