@@ -241,6 +241,38 @@ export const TemplateGalleryPage: React.FC = () => {
     return [...fromCloud, ...builtIn];
   }, [cloudMasterTemplates]);
 
+  // Pre-build visual thumbnail slides for each layout preset using the selected theme & ratio
+  const layoutPreviews = useMemo(() => {
+    const selectedTheme =
+      THEME_PALETTES.find((t) => t.id === newDocThemeId) || THEME_PALETTES[0];
+    const map: Record<string, ReturnType<typeof buildSlideFromParsedScript>> = {};
+
+    for (const lp of LAYOUT_PRESETS) {
+      try {
+        const slide = buildSlideFromParsedScript(
+          {
+            layout: lp.id,
+            header: 'CAROUSEL EDITION · ISSUE 01',
+            kicker: 'CHAPTER 01 · PERSPECTIVE',
+            title: lp.name.split(' ').length > 2
+              ? `${lp.name.split(' ').slice(0, 2).join(' ')} *${lp.name.split(' ').slice(2).join(' ')}*`
+              : `${lp.name} *Visuals*`,
+            lead: '*A quiet visual exploration crafted with unhurried typography and spatial balance.*',
+            body: '[W]e begin with light and structure. Every frame invites the viewer to pause and experience design with purpose.',
+            caption: '*Studio Notes · 2026 Archive.*',
+          },
+          0,
+          selectedTheme,
+          newDocRatio
+        );
+        map[lp.id] = slide;
+      } catch (e) {
+        console.warn(`Failed to build preview for layout ${lp.id}:`, e);
+      }
+    }
+    return map;
+  }, [newDocThemeId, newDocRatio]);
+
   const templateCategories = useMemo(() => {
     const cats = new Set<string>(['All']);
     curatedPreviews.forEach(({ tpl }) => cats.add(tpl.category));
@@ -689,36 +721,94 @@ export const TemplateGalleryPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Step 3: Starting Cover Layout */}
-              <div className="space-y-2.5">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                  3. Pilih Layout Slide Pertama
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Step 3: Starting Cover Layout with Visual Design Thumbnails */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                    3. Pilih Layout Slide Pertama (Live Design Preview)
+                  </h2>
+                  <span className="text-[10px] text-zinc-400">
+                    Menampilkan {LAYOUT_PRESETS.length} layout visual dengan tema {selectedNewDocTheme.name}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                   {LAYOUT_PRESETS.map((lp) => {
                     const active = newDocLayout === lp.id;
+                    const previewSlide = layoutPreviews[lp.id];
+                    // Dynamic scale: 4:5 ~0.24, 9:16 ~0.20, 1:1 ~0.25
+                    const thumbScale =
+                      newDocRatio === '9:16'
+                        ? 0.20
+                        : newDocRatio === '4:5'
+                        ? 0.24
+                        : 0.25;
+                    const thumbW = Math.round(selectedNewDocDim.stageWidth * thumbScale);
+                    const thumbH = Math.round(selectedNewDocDim.stageHeight * thumbScale);
+
                     return (
                       <button
                         key={lp.id}
                         type="button"
                         onClick={() => setNewDocLayout(lp.id)}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        className={`group rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-sm ${
                           active
-                            ? 'bg-blue-900/10 border-blue-900/40 text-zinc-100'
-                            : 'bg-zinc-900/75 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                            ? 'bg-blue-900/15 border-blue-900 ring-2 ring-blue-900/40 text-zinc-100 shadow-md scale-[1.01]'
+                            : 'bg-zinc-900/75 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-zinc-100">
-                            {lp.name}
-                          </span>
-                          <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-blue-900 font-semibold">
-                            {lp.badge}
-                          </span>
+                        {/* Visual Live Slide Thumbnail Canvas */}
+                        <div className="bg-zinc-950/80 p-3.5 flex items-center justify-center border-b border-zinc-800/80 min-h-[175px] relative overflow-hidden">
+                          {previewSlide ? (
+                            <div
+                              className="relative overflow-hidden rounded shadow-lg ring-1 ring-white/10 group-hover:scale-[1.03] transition-transform duration-200"
+                              style={{
+                                width: `${thumbW}px`,
+                                height: `${thumbH}px`,
+                              }}
+                            >
+                              <div className="pointer-events-none">
+                                <SlideStage
+                                  slide={previewSlide}
+                                  slideIndex={0}
+                                  totalSlides={newDocSlideCount}
+                                  aspectRatio={newDocRatio}
+                                  theme={selectedNewDocTheme}
+                                  branding={branding}
+                                  scale={thumbScale}
+                                  interactive={false}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-zinc-500">
+                              Preview...
+                            </div>
+                          )}
+
+                          {/* Active Indicator Badge Overlay */}
+                          {active && (
+                            <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-blue-900 text-white text-[9px] font-semibold shadow-md flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Dipilih
+                            </span>
+                          )}
                         </div>
-                        <p className="text-[10.5px] text-zinc-400 mt-1 line-clamp-2">
-                          {lp.description}
-                        </p>
+
+                        {/* Layout Info Footer */}
+                        <div className="p-3 space-y-1 bg-zinc-900/90">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-semibold text-zinc-100 truncate">
+                              {lp.name}
+                            </span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-blue-900 font-semibold shrink-0">
+                              {lp.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 line-clamp-1 leading-snug">
+                            {lp.description}
+                          </p>
+                        </div>
                       </button>
                     );
                   })}
