@@ -41,6 +41,8 @@ export const DesktopUpdateModal: React.FC = () => {
   });
   const [errorMessage, setErrorMessage] = useState<string>('');
 
+  const [applyingLive, setApplyingLive] = useState(false);
+
   const checkForUpdates = async (isManual = false) => {
     if (!isDesktopApp() || typeof window === 'undefined') return;
     const desktop = (window as any).aruneDesktop;
@@ -52,7 +54,9 @@ export const DesktopUpdateModal: React.FC = () => {
     }
 
     try {
-      const res: DesktopUpdateInfo = await desktop.checkForUpdates();
+      const currentBuild =
+        typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
+      const res: DesktopUpdateInfo = await desktop.checkForUpdates(currentBuild);
       if (res && res.hasUpdate) {
         setUpdateInfo(res);
         setStatus('available');
@@ -66,6 +70,20 @@ export const DesktopUpdateModal: React.FC = () => {
         setStatus('error');
         setErrorMessage(err?.message || 'Gagal memeriksa pembaruan.');
       }
+    }
+  };
+
+  const handleApplyLiveDeploy = async () => {
+    setApplyingLive(true);
+    try {
+      const desktop = (window as any).aruneDesktop;
+      if (desktop?.reloadLatest) {
+        await desktop.reloadLatest();
+      } else {
+        window.location.reload();
+      }
+    } catch (e: any) {
+      window.location.reload();
     }
   };
 
@@ -229,20 +247,38 @@ export const DesktopUpdateModal: React.FC = () => {
           {/* Status: Update Available */}
           {status === 'available' && (
             <div className="space-y-3.5">
-              <div className="p-3.5 rounded-xl bg-blue-950/30 border border-blue-900/40 space-y-1.5">
-                <div className="flex items-center gap-2 text-xs font-semibold text-blue-400">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Fitur & Perbaikan Baru Tersedia</span>
+              <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-blue-400">
+                    <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <span>Pembaruan Live Deploy Tersedia!</span>
+                  </div>
+                  {updateInfo?.releaseDate && (
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      {new Date(updateInfo.releaseDate).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-zinc-300 leading-relaxed">
+                <p className="text-xs text-zinc-200 leading-relaxed font-medium">
                   {updateInfo?.changelog ||
-                    'Pembaruan performa, perbaikan logo resolusi tinggi, dan safe-area tombol kontrol Mac.'}
+                    'Pembaruan fitur editorial, perbaikan hover toolbar, dan elemen shape baru.'}
                 </p>
               </div>
 
-              <p className="text-[11px] text-zinc-400">
-                Pembaruan akan diunduh secara langsung di dalam aplikasi tanpa perlu membuka browser.
-              </p>
+              <div className="p-3 rounded-xl bg-zinc-800/60 border border-zinc-700/60 text-[11.5px] text-zinc-300 space-y-1">
+                <div className="font-semibold text-zinc-100 flex items-center gap-1.5">
+                  <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Instant Live Update (Tanpa Unduh Ulang 144MB)</span>
+                </div>
+                <p className="text-zinc-400 text-[11px] leading-relaxed">
+                  Cukup klik tombol <strong>Terapkan Pembaruan Sekarang</strong> untuk memuat hasil deploy terbaru secara langsung ke dalam aplikasi desktop.
+                </p>
+              </div>
             </div>
           )}
 
@@ -308,7 +344,7 @@ export const DesktopUpdateModal: React.FC = () => {
         {/* Footer Actions */}
         <div className="p-4 border-t border-zinc-800 bg-zinc-950/60 flex items-center justify-end gap-2.5">
           {status === 'available' && (
-            <>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -316,15 +352,33 @@ export const DesktopUpdateModal: React.FC = () => {
               >
                 Nanti Saja
               </button>
+
+              {updateInfo?.downloadUrl && (
+                <button
+                  type="button"
+                  onClick={handleStartDownload}
+                  title="Unduh Berkas Installer DMG Fisik (144MB)"
+                  className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh DMG</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={handleStartDownload}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-2 shadow-md shadow-blue-900/40 cursor-pointer transition-all"
+                disabled={applyingLive}
+                onClick={handleApplyLiveDeploy}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-950/40 cursor-pointer transition-all disabled:opacity-50"
               >
-                <Download className="w-4 h-4" />
-                <span>Unduh Pembaruan Sekarang</span>
+                {applyingLive ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                <span>Terapkan Pembaruan Sekarang</span>
               </button>
-            </>
+            </div>
           )}
 
           {status === 'downloaded' && (

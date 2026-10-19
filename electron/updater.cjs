@@ -108,57 +108,152 @@ function compareSemver(v1, v2) {
 }
 
 /**
+ * Helper to fetch and parse JSON over HTTP/HTTPS with timeout
+ */
+function fetchJsonWithTimeout(targetUrl, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const client = targetUrl.startsWith('https') ? https : http;
+    const req = client.get(
+      targetUrl,
+      {
+        headers: {
+          'User-Agent': 'Arune-Editorial-Studio-Desktop-Updater',
+          'Cache-Control': 'no-cache',
+          Accept: 'application/json',
+        },
+      },
+      (res) => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`Server merespons kode HTTP ${res.statusCode}`));
+        }
+        let data = '';
+        res.on('data', (c) => {
+          data += c;
+        });
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      reject(new Error('Koneksi waktu habis (Timeout)'));
+    });
+  });
+}
+
+/**
  * Configures Auto-Updater IPC listeners and background checking.
  */
 function setupAutoUpdater(mainWindow, app) {
   const currentAppVersion = app.getVersion();
 
-  // 1. Check for Desktop Updates
-  ipcMain.handle('desktop-check-update', async () => {
+  // 1. Check for Desktop Updates (Directly from Live Deploy & GitHub Commits)
+  ipcMain.handle('desktop-check-update', async (_event, clientVersion) => {
     try {
-      // Remote release manifest on GitHub
-      const releaseManifestUrl = 'https://raw.githubusercontent.com/dinurpradipta12/arune/main/public/desktop-release.json';
-      
-      const manifest = await new Promise((resolve, reject) => {
-        https.get(`${releaseManifestUrl}?t=${Date.now()}`, {
-          headers: { 'User-Agent': 'Arune-Editorial-Studio-Desktop-Updater' }
-        }, (res) => {
-          if (res.statusCode !== 200) {
-            return reject(new Error(`Server merespons kode: ${res.statusCode}`));
-          }
-          let rawData = '';
-          res.on('data', (chunk) => { rawData += chunk; });
-          res.on('end', () => {
-            try {
-              resolve(JSON.parse(rawData));
-            } catch (err) {
-              reject(err);
-            }
-          });
-        }).on('error', reject);
-      });
+      const liveDeployUrl = 'https://arune.pages.dev/version.json';
+      const githubCommitUrl = 'https://api.github.com/repos/dinurpradipta12/arune/commits/main';
+      const releaseManifestUrl =
+        'https://raw.githubusercontent.com/dinurpradipta12/arune/main/public/desktop-release.json';
+
+      // 1. Fetch live deploy version from Cloudflare Pages
+      let liveDeploy = null;
+      try {
+        liveDeploy = await fetchJsonWithTimeout(`${liveDeployUrl}?t=${Date.now()}`, 4000);
+      } catch (e) {
+        console.warn('[Updater] Failed to fetch live deploy version:', e.message);
+      }
+
+      // 2. Fetch latest commit from GitHub repository
+      let latestCommit = null;
+      try {
+        latestCommit = await fetchJsonWithTimeout(githubCommitUrl, 4000);
+      } catch (e) {
+        console.warn('[Updater] Failed to fetch github commit:', e.message);
+      }
+
+      // 3. Fetch desktop release manifest as fallback
+      let manifest = null;
+      try {
+        manifest = await fetchJsonWithTimeout(`${releaseManifestUrl}?t=${Date.now()}`, 3500);
+      } catch (e) {}
+
+      // Current running client version
+      const activeRunningVersion = clientVersion || currentAppVersion || '1.0.0';
+
+      // Determine latest version identifier
+      const latestSha = latestCommit?.sha ? latestCommit.sha.substring(0, 7) : '';
+      const deployVersion = liveDeploy?.version || latestSha || manifest?.version || '1.0.0';
+
+      let hasUpdate = false;
+
+      // Determine if a newer update is available
+      if (deployVersion && activeRunningVersion) {
+        if (latestSha && !activeRunningVersion.includes(latestSha)) {
+          hasUpdate = true;
+        } else if (
+          liveDeploy?.version &&
+          activeRunningVersion !== liveDeploy.version &&
+          !activeRunningVersion.includes(deployVersion)
+        ) {
+          hasUpdate = true;
+        } else if (manifest?.version && compareSemver(manifest.version, currentAppVersion) > 0) {
+          hasUpdate = true;
+        }
+      }
+
+      const changelog =
+        latestCommit?.commit?.message ||
+        manifest?.changelog ||
+        'Pembaruan fitur editorial, perbaikan hover icon toolbar, elemen shape baru, dan sinkronisasi live deploy.';
+
+      const releaseDate =
+        latestCommit?.commit?.committer?.date ||
+        liveDeploy?.builtAt ||
+        manifest?.releaseDate ||
+        new Date().toISOString();
 
       const isMac = process.platform === 'darwin';
-      const latestVersion = manifest.version || '1.0.0';
-      const hasUpdate = compareSemver(latestVersion, currentAppVersion) > 0;
-      const downloadUrl = isMac ? manifest.mac?.url : manifest.win?.url;
+      const downloadUrl = isMac
+        ? (manifest?.mac?.url || 'https://github.com/dinurpradipta12/arune/releases')
+        : (manifest?.win?.url || '');
 
       return {
         hasUpdate,
-        currentVersion: currentAppVersion,
-        latestVersion,
-        changelog: manifest.changelog || 'Pembaruan stabilitas dan peningkatan antarmuka.',
-        releaseDate: manifest.releaseDate || '',
-        downloadUrl
+        currentVersion: activeRunningVersion,
+        latestVersion: latestSha ? `${latestSha} (Live Deploy)` : deployVersion,
+        changelog,
+        releaseDate,
+        downloadUrl,
+        isLiveDeploy: true,
       };
     } catch (err) {
-      // If manifest fetch fails, return no update
       return {
         hasUpdate: false,
-        currentVersion: currentAppVersion,
-        error: err.message
+        currentVersion: clientVersion || currentAppVersion || '1.0.0',
+        error: err.message,
       };
     }
+  });
+
+  // 1b. Reload to latest live deploy without reinstalling DMG
+  ipcMain.handle('desktop-reload-latest', async () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try {
+        await mainWindow.webContents.session.clearCache();
+        mainWindow.loadURL('https://arune.pages.dev');
+        return { success: true };
+      } catch (err) {
+        mainWindow.webContents.reloadIgnoringCache();
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'Window tidak tersedia.' };
   });
 
   // 2. Start Download Update

@@ -30,7 +30,12 @@ const currentVersion =
 
 async function fetchRemoteVersion(): Promise<RemoteVersion | null> {
   try {
-    const res = await fetch(`/version.json?t=${Date.now()}`, {
+    const targetUrl =
+      typeof window !== 'undefined' && window.location.origin.startsWith('http')
+        ? `${window.location.origin}/version.json?t=${Date.now()}`
+        : `https://arune.pages.dev/version.json?t=${Date.now()}`;
+
+    const res = await fetch(targetUrl, {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' },
     });
@@ -97,6 +102,10 @@ export const UpdateNotifier: React.FC<{ darkMode?: boolean }> = ({
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((r) => r.update().catch(() => undefined)));
+      }
+      if (typeof window !== 'undefined' && (window as any).aruneDesktop?.reloadLatest) {
+        await (window as any).aruneDesktop.reloadLatest();
+        return;
       }
     } catch {
       /* non-fatal */

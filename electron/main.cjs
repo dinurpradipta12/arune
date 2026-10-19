@@ -26,8 +26,11 @@ function createWindow() {
     },
   });
 
-  // Open external links in user's default browser
+  // Open external links in user's default browser (keep arune.pages.dev internal)
   mainWindow.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
+    if (targetUrl.startsWith('https://arune.pages.dev')) {
+      return { action: 'allow' };
+    }
     if (targetUrl.startsWith('http:') || targetUrl.startsWith('https:')) {
       shell.openExternal(targetUrl);
       return { action: 'deny' };
@@ -48,7 +51,22 @@ function createWindow() {
     });
   } else {
     const distPath = path.join(__dirname, '../dist/index.html');
-    mainWindow.loadFile(distPath);
+    const liveDeployUrl = 'https://arune.pages.dev';
+
+    // Desktop App Production Loading Strategy:
+    // Try live deploy first so every GitHub push / Cloudflare deploy is instantly active.
+    // If offline or network unavailable, seamlessly fallback to local dist/index.html!
+    mainWindow.loadURL(liveDeployUrl).catch((err) => {
+      console.warn('[Main] Live deploy unreachable, falling back to local dist/index.html:', err?.message);
+      mainWindow.loadFile(distPath);
+    });
+
+    mainWindow.webContents.on('did-fail-load', (_event, _code, _desc, validatedURL) => {
+      if (validatedURL && validatedURL.startsWith(liveDeployUrl)) {
+        console.warn('[Main] Live deploy did-fail-load, falling back to local dist/index.html');
+        mainWindow.loadFile(distPath);
+      }
+    });
   }
 
   mainWindow.once('ready-to-show', () => {

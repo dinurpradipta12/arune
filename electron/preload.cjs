@@ -7,7 +7,8 @@ contextBridge.exposeInMainWorld('aruneDesktop', {
   version: '1.0.0',
 
   // Auto-Updater API
-  checkForUpdates: () => ipcRenderer.invoke('desktop-check-update'),
+  checkForUpdates: (clientVersion) => ipcRenderer.invoke('desktop-check-update', clientVersion),
+  reloadLatest: () => ipcRenderer.invoke('desktop-reload-latest'),
   startDownloadUpdate: (downloadUrl) => ipcRenderer.invoke('desktop-start-download', downloadUrl),
   installAndRelaunch: () => ipcRenderer.invoke('desktop-install-relaunch'),
 
