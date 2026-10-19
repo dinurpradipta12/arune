@@ -69,6 +69,76 @@ function createWindow() {
 
 // macOS dock and window lifecycle
 app.whenReady().then(() => {
+  const { session } = require('electron');
+
+  // Explicitly permit local-fonts / font-access in Electron
+  if (session && session.defaultSession) {
+    session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+      if (permission === 'local-fonts' || permission === 'font-access') {
+        callback(true);
+        return;
+      }
+      callback(true);
+    });
+
+    if (typeof session.defaultSession.setPermissionCheckHandler === 'function') {
+      session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+        if (permission === 'local-fonts' || permission === 'font-access') {
+          return true;
+        }
+        return true;
+      });
+    }
+  }
+
+  // Register Native System Fonts IPC Scanner for macOS & Desktop
+  ipcMain.handle('desktop-get-system-fonts', async () => {
+    try {
+      const fs = require('fs');
+      const fontDirs =
+        process.platform === 'darwin'
+          ? [
+              '/System/Library/Fonts',
+              '/System/Library/Fonts/Supplemental',
+              '/Library/Fonts',
+              path.join(app.getPath('home'), 'Library/Fonts'),
+            ]
+          : process.platform === 'win32'
+          ? [
+              'C:\\Windows\\Fonts',
+              path.join(app.getPath('home'), 'AppData\\Local\\Microsoft\\Windows\\Fonts'),
+            ]
+          : ['/usr/share/fonts', '/usr/local/share/fonts', path.join(app.getPath('home'), '.fonts')];
+
+      const fontFamilies = new Set();
+      for (const dir of fontDirs) {
+        if (fs.existsSync(dir)) {
+          try {
+            const files = fs.readdirSync(dir);
+            for (const file of files) {
+              if (/\.(ttf|otf|ttc|dfont)$/i.test(file)) {
+                const base = path.basename(file, path.extname(file));
+                const clean = base
+                  .replace(/[-_](Regular|Bold|Italic|Medium|Light|SemiBold|Thin|Black|Heavy|Display|Text|UI).*$/i, '')
+                  .replace(/[-_]/g, ' ')
+                  .trim();
+                if (clean && clean.length > 1) {
+                  fontFamilies.add(clean);
+                }
+              }
+            }
+          } catch {
+            // Ignore directory read errors
+          }
+        }
+      }
+      return Array.from(fontFamilies).sort((a, b) => a.localeCompare(b));
+    } catch (e) {
+      console.error('Failed to get system fonts:', e);
+      return [];
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {
@@ -83,3 +153,4 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+

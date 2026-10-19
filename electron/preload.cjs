@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('aruneDesktop', {
   startDownloadUpdate: (downloadUrl) => ipcRenderer.invoke('desktop-start-download', downloadUrl),
   installAndRelaunch: () => ipcRenderer.invoke('desktop-install-relaunch'),
 
+  // System Fonts API
+  getSystemFonts: () => ipcRenderer.invoke('desktop-get-system-fonts'),
+
   onDownloadProgress: (callback) => {
     const listener = (_event, progress) => callback(progress);
     ipcRenderer.on('desktop-download-progress', listener);

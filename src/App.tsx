@@ -9,6 +9,7 @@ import { TopHeaderBar } from './components/layout/TopHeaderBar';
 import { StudioModals } from './components/modals/StudioModals';
 import { UpdateNotifier } from './components/modals/UpdateNotifier';
 import { DesktopUpdateModal } from './components/modals/DesktopUpdateModal';
+import { LocalFontAccessModal } from './components/modals/LocalFontAccessModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { isDesktopApp } from './utils/platform';
 import { scanComputerFonts } from './services/fontManager';
@@ -243,6 +244,9 @@ export function App() {
 
         {/* Quick Modals (Global Branding, JSON Import/Export, Supabase Sync, Local & Custom Fonts) */}
         <StudioModals />
+
+        {/* Local Computer Fonts Access & Permission Modal (Prompt on launch) */}
+        <LocalFontAccessModal />
 
         {/* Update Detector: In-App Desktop Updater for Electron, Web Deploy Notifier for Browser */}
         {isDesktopApp() ? (

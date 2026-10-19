@@ -119,22 +119,6 @@ export function getInitialActiveView(): StudioViewMode {
       ) {
         return viewParam;
       }
-      const hash = window.location.hash.replace('#/', '').replace('#', '');
-      if (
-        hash === 'editor' ||
-        hash === 'gallery' ||
-        hash === 'theme-builder'
-      ) {
-        return hash;
-      }
-      const saved = localStorage.getItem(LOCAL_ACTIVE_VIEW_KEY);
-      if (
-        saved === 'editor' ||
-        saved === 'gallery' ||
-        saved === 'theme-builder'
-      ) {
-        return saved;
-      }
     }
   } catch {
     // ignore
@@ -387,37 +371,6 @@ function cloneSlides(slides: Slide[]): Slide[] {
   return JSON.parse(JSON.stringify(slides));
 }
 
-function createInitialBlankSlide(id = 'slide-1'): Slide {
-  return {
-    id,
-    layout: 'blank',
-    elements: [],
-    backgroundColor: '#ffffff',
-  };
-}
-
-function createInitialSlides(): Slide[] {
-  return [createInitialBlankSlide()];
-}
-
-const INITIAL_SLIDES = createInitialSlides();
-
-const INITIAL_DOC_TAB: OpenDocumentTab = {
-  id: 'doc-blank-1',
-  projectTitle: 'Dokumen Baru',
-  aspectRatio: '4:5',
-  activeThemeId: THEME_PALETTES[0].id,
-  themeOverride: {},
-  branding: DEFAULT_BRANDING,
-  scriptText: '',
-  slides: cloneSlides(INITIAL_SLIDES),
-  activeSlideIndex: 0,
-  canvasZoom: 0.9,
-  lastSavedAt: null,
-  past: [],
-  future: [],
-};
-
 function snapshotCurrentActiveDoc(state: StudioState): OpenDocumentTab {
   return {
     id: state.projectId,
@@ -441,6 +394,10 @@ function upsertOpenDocumentList(
   nextDoc: OpenDocumentTab,
   openInNewTab: boolean
 ): OpenDocumentTab[] {
+  if (!state.openDocuments || state.openDocuments.length === 0) {
+    return [nextDoc];
+  }
+
   // First sync the currently active document into the existing list
   const currentSnap = snapshotCurrentActiveDoc(state);
   const syncedList = state.openDocuments.map((doc) =>
@@ -463,20 +420,20 @@ function upsertOpenDocumentList(
 }
 
 export const useStudioStore = create<StudioState>((set, get) => ({
-  projectId: INITIAL_DOC_TAB.id,
-  projectTitle: INITIAL_DOC_TAB.projectTitle,
-  aspectRatio: INITIAL_DOC_TAB.aspectRatio,
-  activeThemeId: INITIAL_DOC_TAB.activeThemeId,
+  projectId: '',
+  projectTitle: '',
+  aspectRatio: '4:5',
+  activeThemeId: THEME_PALETTES[0].id,
   themeOverride: {},
   branding: DEFAULT_BRANDING,
-  scriptText: DEFAULT_SCRIPT,
-  slides: INITIAL_SLIDES,
+  scriptText: '',
+  slides: [],
   activeSlideIndex: 0,
   selectedElementId: null,
   lastSavedAt: null,
 
-  openDocuments: [INITIAL_DOC_TAB],
-  activeDocumentId: INITIAL_DOC_TAB.id,
+  openDocuments: [],
+  activeDocumentId: '',
 
   settings: loadSavedStudioSettings(),
   isAdminAuthenticated: loadSavedAdminAuth(),
@@ -707,7 +664,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   saveCurrentProjectToVault: async (options) => {
     const state = get();
-    const titleToUse = options?.customTitle?.trim() || state.projectTitle;
+    if (!state.projectId && state.slides.length === 0) {
+      return { mode: 'local', warning: 'Belum ada dokumen yang dibuka' };
+    }
+    const titleToUse = options?.customTitle?.trim() || state.projectTitle || 'Dokumen Carousel';
     const idToUse = options?.asNewCopy
       ? `proj-${Date.now().toString(36)}`
       : state.projectId ||

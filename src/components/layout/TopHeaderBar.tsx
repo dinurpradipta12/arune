@@ -83,8 +83,8 @@ export const TopHeaderBar: React.FC = () => {
           <span className="hidden sm:inline font-semibold">Home</span>
         </button>
 
-        {/* File Name Input: Only shown when document tabs are inactive (< 2 open docs), without logo */}
-        {openDocuments.length < 2 && (
+        {/* File Name Input: Only shown when exactly 1 document is open */}
+        {openDocuments.length === 1 && (
           <div className="flex items-center gap-1.5 border-r border-zinc-800 pr-2">
             <input
               type="text"

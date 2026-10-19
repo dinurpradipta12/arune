@@ -245,6 +245,30 @@ export async function scanComputerFonts(): Promise<{
 }> {
   const syncDetected = detectInstalledComputerFontsSync().map((f) => f.family);
 
+  // 1. If in Electron Desktop, query native system fonts
+  if (typeof window !== 'undefined') {
+    const w = window as unknown as {
+      aruneDesktop?: { getSystemFonts?: () => Promise<string[]> };
+    };
+    if (typeof w.aruneDesktop?.getSystemFonts === 'function') {
+      try {
+        const desktopFonts = await w.aruneDesktop.getSystemFonts();
+        if (desktopFonts && desktopFonts.length > 0) {
+          const uniqueFamilies = Array.from(
+            new Set([...desktopFonts, ...syncDetected])
+          ).sort((a, b) => a.localeCompare(b));
+          return {
+            families: uniqueFamilies,
+            method: 'queryLocalFonts',
+          };
+        }
+      } catch (e) {
+        console.warn('Native desktop font scan failed, falling back:', e);
+      }
+    }
+  }
+
+  // 2. Try Web API Local Font Access (window.queryLocalFonts)
   if (
     typeof window !== 'undefined' &&
     typeof window.queryLocalFonts === 'function'
@@ -268,7 +292,7 @@ export async function scanComputerFonts(): Promise<{
       return {
         families: syncDetected,
         method: 'system-probe',
-        warning: `Menampilkan ${syncDetected.length} font komputer yang terdeteksi secara otomatis. (Jika ingin membuka seluruh font tambahan melalui izin browser, pastikan izin Local Fonts diaktifkan pada ikon gembok URL browser).`,
+        warning: `Menampilkan ${syncDetected.length} font komputer yang terdeteksi secara otomatis.`,
       };
     }
   }
