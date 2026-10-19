@@ -980,7 +980,7 @@ export const TemplateGalleryPage: React.FC = () => {
                 </div>
 
                 {/* Affinity / Photoshop Quick Preset Strip */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-3 pt-1">
                   {(Object.keys(ASPECT_RATIOS) as AspectRatioKey[]).map(
                     (key) => {
                       const cfg = ASPECT_RATIOS[key];
@@ -989,7 +989,7 @@ export const TemplateGalleryPage: React.FC = () => {
                           key={key}
                           type="button"
                           onClick={() => handleQuickCreatePreset(key)}
-                          className="group p-3.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-blue-900/50 flex items-center gap-3.5 text-left transition-all cursor-pointer shadow-xs"
+                          className="group p-3.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-blue-900/50 flex items-center gap-3.5 text-left transition-all cursor-pointer shadow-xs min-w-0"
                         >
                           <div className="w-10 h-12 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shrink-0 group-hover:border-blue-900/40">
                             <div
@@ -1010,14 +1010,14 @@ export const TemplateGalleryPage: React.FC = () => {
                               }}
                             />
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-semibold text-zinc-100 group-hover:text-blue-900 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold text-zinc-100 group-hover:text-blue-900 transition-colors truncate">
                               + {cfg.shortLabel} Baru
                             </div>
-                            <div className="text-[10.5px] font-mono text-zinc-400">
+                            <div className="text-[10.5px] font-mono text-zinc-400 truncate">
                               {cfg.exportWidth} × {cfg.exportHeight} px
                             </div>
-                            <div className="text-[10px] text-blue-900 font-medium mt-0.5">
+                            <div className="text-[10px] text-blue-900 font-medium mt-0.5 truncate">
                               Klik untuk mulai cepat →
                             </div>
                           </div>
@@ -1028,22 +1028,22 @@ export const TemplateGalleryPage: React.FC = () => {
 
                   {/* Active Session Quick Card in the 4th slot */}
                   <div
-                    className={`p-3.5 rounded-xl transition-all flex items-center justify-between gap-3 shadow-xs bg-zinc-900 border ${
+                    className={`p-3.5 rounded-xl transition-all flex items-center justify-between gap-3 shadow-xs bg-zinc-900 border overflow-hidden min-w-0 ${
                       isUnsaved
                         ? 'border-2 border-blue-500 shadow-blue-950/20'
                         : 'border border-zinc-800'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
                       {slides[0] && (
                         <div
                           className="relative overflow-hidden rounded border border-zinc-700 shrink-0"
                           style={{
                             width: `${Math.round(
-                              ASPECT_RATIOS[aspectRatio].stageWidth * 0.09
+                              ASPECT_RATIOS[aspectRatio].stageWidth * 0.08
                             )}px`,
                             height: `${Math.round(
-                              ASPECT_RATIOS[aspectRatio].stageHeight * 0.09
+                              ASPECT_RATIOS[aspectRatio].stageHeight * 0.08
                             )}px`,
                           }}
                         >
@@ -1055,31 +1055,29 @@ export const TemplateGalleryPage: React.FC = () => {
                               aspectRatio={aspectRatio}
                               theme={activeTheme}
                               branding={branding}
-                              scale={0.09}
+                              scale={0.08}
                               interactive={false}
                             />
                           </div>
                         </div>
                       )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-1">
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1 min-w-0">
                           {isUnsaved ? (
                             <>
-                              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
-                              <span className="text-[10px] uppercase tracking-wider font-bold text-blue-500">
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-blue-400 shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
                                 Sedang Diedit
                               </span>
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30 font-semibold">
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold shrink-0">
                                 Belum Disimpan
                               </span>
                             </>
                           ) : (
-                            <>
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                              <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-500">
-                                Sedang Diedit · Tersimpan {lastSavedAt ? `(${lastSavedAt})` : ''}
-                              </span>
-                            </>
+                            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-emerald-400 truncate">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                              Tersimpan {lastSavedAt ? `(${lastSavedAt})` : ''}
+                            </span>
                           )}
                         </div>
                         <input
@@ -1089,22 +1087,23 @@ export const TemplateGalleryPage: React.FC = () => {
                           aria-label="Judul Project Aktif"
                           className="bg-transparent text-xs font-bold text-zinc-100 focus:outline-none border-b border-zinc-700/60 focus:border-blue-500 w-full truncate pb-0.5"
                         />
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-1.5 mt-2 min-w-0">
                           <button
                             type="button"
                             onClick={() => setActiveView('editor')}
-                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                            className="flex-1 min-w-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                           >
-                            <span>Lanjutkan</span>
-                            <ArrowRight className="w-3 h-3" />
+                            <span className="truncate">Lanjutkan</span>
+                            <ArrowRight className="w-3 h-3 shrink-0" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleSaveCurrent(false)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center gap-1.5 transition-colors"
+                            title="Simpan Sesi Project"
+                            className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center justify-center gap-1 transition-colors shrink-0"
                           >
-                            <Save className="w-3 h-3 text-zinc-400" />
-                            <span>Simpan</span>
+                            <Save className="w-3 h-3 text-zinc-400 shrink-0" />
+                            <span className="hidden sm:inline 2xl:inline">Simpan</span>
                           </button>
                         </div>
                       </div>
@@ -1398,7 +1397,7 @@ export const TemplateGalleryPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                   {filteredTemplates.map(
                     ({ tpl, theme, firstSlide, slideCount, cloudSlides }) => {
                       const dim = ASPECT_RATIOS[tpl.aspectRatio];
