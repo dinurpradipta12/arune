@@ -76,6 +76,7 @@ import {
   parseContentScriptRtf,
   type ParsedContentScript,
 } from '../../utils/rtfScriptImporter';
+import { studioLogo } from '../../assets/branding';
 
 type SettingsTabId =
   | 'interface'
@@ -1196,9 +1197,9 @@ export const StudioModals: React.FC = () => {
             <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img
-                  src="/favicon.png"
+                  src={studioLogo}
                   alt="Arune Studio Logo"
-                  className="w-9 h-9 object-contain shrink-0"
+                  className="w-9 h-9 object-contain shrink-0 rounded"
                 />
                 <div>
                   <div className="flex items-center gap-2">
@@ -2242,9 +2243,9 @@ create policy "Public read and admin write editorial_templates" on public.editor
                   }`}
                 />
                 <img
-                  src="/favicon.png"
+                  src={studioLogo}
                   alt="Arune Studio Logo"
-                  className="w-4 h-4 object-contain"
+                  className="w-4 h-4 object-contain rounded-xs"
                 />
                 <span className="text-[10.5px] text-zinc-500">
                   {settings.studioName} · v1.2

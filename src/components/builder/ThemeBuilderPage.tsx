@@ -47,6 +47,8 @@ import type {
 import { SlideStage } from '../canvas/SlideStage';
 import { RightInspector } from '../layout/RightInspector';
 import { LayoutVisualThumbnail } from '../layout/LeftSidebar';
+import { studioLogo } from '../../assets/branding';
+import { isElectronMac } from '../../utils/platform';
 
 interface DeveloperAccessGuardProps {
   onBack: () => void;
@@ -454,8 +456,12 @@ const ThemeBuilderContent: React.FC = () => {
       }`}
     >
       {/* 1. TOP HEADER BAR */}
-      <header className="h-13 px-4 border-b border-zinc-800/90 bg-zinc-900/95 flex items-center justify-between shrink-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
+      <header
+        className={`h-13 border-b border-zinc-800/90 bg-zinc-900/95 flex items-center justify-between shrink-0 z-30 mac-drag-region ${
+          isElectronMac() ? 'pl-22 pr-4' : 'px-4'
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0 mac-no-drag">
           <button
             type="button"
             onClick={() => setActiveView('editor')}
@@ -470,9 +476,9 @@ const ThemeBuilderContent: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <img
-              src="/favicon.png"
+              src={studioLogo}
               alt="Logo"
-              className="w-5 h-5 object-contain"
+              className="w-5 h-5 object-contain rounded"
             />
             <span className="text-xs font-bold text-zinc-100 truncate">
               Theme & Master Template Studio

@@ -29,8 +29,7 @@
     ],
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ],
       "category": "public.app-category.graphics-design",
       "icon": "build/icon.icns"

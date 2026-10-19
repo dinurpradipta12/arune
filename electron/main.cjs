@@ -14,6 +14,7 @@ function createWindow() {
     title: 'Arune Editorial Studio',
     icon: path.join(__dirname, '../build/icon.png'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    trafficLightPosition: process.platform === 'darwin' ? { x: 16, y: 14 } : undefined,
     backgroundColor: '#09090b', // zinc-950
     show: false,
     webPreferences: {

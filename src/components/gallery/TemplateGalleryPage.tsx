@@ -48,6 +48,8 @@ import {
 } from '../../utils/scriptParser';
 import { SlideStage } from '../canvas/SlideStage';
 import { DownloadStandaloneModal } from '../modals/DownloadStandaloneModal';
+import { studioLogo } from '../../assets/branding';
+import { isDesktopApp, isElectronMac } from '../../utils/platform';
 
 type HomeNavTab = 'home' | 'new-project' | 'recent' | 'templates';
 
@@ -317,14 +319,26 @@ export const TemplateGalleryPage: React.FC = () => {
       {/* ================================================================== */}
       {/* LEFT SIDEBAR RAIL (AFFINITY / PHOTOSHOP WELCOME DOCK)              */}
       {/* ================================================================== */}
-      <aside className="w-64 border-r border-zinc-800/80 bg-zinc-900/50 flex flex-col justify-between p-4 shrink-0">
+      <aside
+        className={`w-64 border-r border-zinc-800/80 bg-zinc-900/50 flex flex-col justify-between p-4 shrink-0 ${
+          isElectronMac() ? 'pt-11' : ''
+        }`}
+      >
         <div className="space-y-5">
+          {/* Mac Electron Window Drag Handle Area */}
+          {isElectronMac() && (
+            <div
+              className="h-2 w-full mac-drag-region -mt-1 -mb-1"
+              title="Drag Window"
+            />
+          )}
+
           {/* Studio Brand Header */}
           <div className="flex items-center gap-3 px-1">
             <img
-              src="/favicon.png"
+              src={studioLogo}
               alt="Arune Carousel Studio"
-              className="w-11 h-11 object-contain shrink-0"
+              className="w-11 h-11 object-contain shrink-0 rounded-lg shadow-sm"
             />
             <div className="min-w-0">
               <div className="text-[13px] font-bold tracking-tight text-zinc-100 leading-tight truncate">
@@ -561,8 +575,8 @@ export const TemplateGalleryPage: React.FC = () => {
       {/* ================================================================== */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Hub Bar (Search, New Tab Toggle, Auto-Save Toggle, & Quick Jump to Active Editor) */}
-        <header className="h-14 px-6 border-b border-zinc-800/80 bg-zinc-900/30 flex items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
+        <header className="h-14 px-6 border-b border-zinc-800/80 bg-zinc-900/30 flex items-center justify-between gap-4 shrink-0 mac-drag-region">
+          <div className="flex items-center gap-3 flex-1 max-w-md mac-no-drag">
             <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -575,7 +589,7 @@ export const TemplateGalleryPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 mac-no-drag">
             <label
               title="Jika dicentang, membuka project/template kedua akan otomatis membuka Tab baru di atas ruler"
               className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 cursor-pointer"
@@ -608,15 +622,17 @@ export const TemplateGalleryPage: React.FC = () => {
               <span className="hidden sm:inline">Script Generator</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setShowDownloadModal(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 hover:from-blue-600 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-blue-950/40 cursor-pointer transition-all"
-              title="Unduh Installer Standalone untuk macOS atau Windows"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Unduh Standalone App</span>
-            </button>
+            {!isDesktopApp() && (
+              <button
+                type="button"
+                onClick={() => setShowDownloadModal(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 hover:from-blue-600 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-blue-950/40 cursor-pointer transition-all"
+                title="Unduh Installer Standalone untuk macOS atau Windows"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Unduh Standalone App</span>
+              </button>
+            )}
           </div>
         </header>
 

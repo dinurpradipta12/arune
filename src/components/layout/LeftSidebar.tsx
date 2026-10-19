@@ -28,6 +28,7 @@ import {
   useStudioStore,
 } from '../../store/useStudioStore';
 import type { LayoutPresetId, ThemePalette } from '../../types/studio';
+import { studioLogo } from '../../assets/branding';
 
 /**
  * Renders a rich visual miniature thumbnail of each of the 6 editorial layouts
@@ -1075,9 +1076,9 @@ export const LeftSidebar: React.FC = () => {
       <div className="h-11 px-3 border-b border-zinc-800/80 bg-zinc-900/60 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <img
-            src="/favicon.png"
+            src={studioLogo}
             alt="Arune Studio Logo"
-            className="w-7 h-7 object-contain shrink-0"
+            className="w-7 h-7 object-contain shrink-0 rounded"
           />
           <span className="text-xs font-bold text-zinc-200 truncate">
             {settings.studioName || 'Arune Carousel Studio'}

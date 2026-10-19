@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useStudioStore } from '../../store/useStudioStore';
 import { exportSingleSlidePng } from '../../utils/exportEngine';
+import { isElectronMac } from '../../utils/platform';
 
 export const TopHeaderBar: React.FC = () => {
   const {
@@ -47,9 +48,13 @@ export const TopHeaderBar: React.FC = () => {
   } = useStudioStore();
 
   return (
-    <header className="h-12 px-3 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md flex items-center justify-between gap-2 select-none z-40 shrink-0">
+    <header
+      className={`h-12 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md flex items-center justify-between gap-2 select-none z-40 shrink-0 mac-drag-region ${
+        isElectronMac() ? 'pl-22 pr-3' : 'px-3'
+      }`}
+    >
       {/* LEFT: Sidebar Toggle + Home + File Name (Only when tabs inactive) + Undo/Redo */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-2 min-w-0 mac-no-drag">
         {activeView === 'editor' && (
           <button
             type="button"
@@ -124,7 +129,7 @@ export const TopHeaderBar: React.FC = () => {
       </div>
 
       {/* RIGHT: Canvas Zoom & Export Slide Ini + Utilities + Export HD (.ZIP) */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mac-no-drag">
         {/* Canvas Zoom & Single Slide Export (Editor Mode) */}
         {activeView === 'editor' && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-zinc-800 bg-zinc-900/90 text-zinc-200 shadow-xs">

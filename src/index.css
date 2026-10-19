@@ -339,3 +339,12 @@
   background-image: radial-gradient(#243354 1.5px, transparent 1.5px);
   background-size: 22px 22px;
 }
+
+/* Electron Window Drag Regions */
+.mac-drag-region {
+  -webkit-app-region: drag;
+}
+
+.mac-no-drag {
+  -webkit-app-region: no-drag;
+}
