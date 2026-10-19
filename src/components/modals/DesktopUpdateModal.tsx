@@ -59,6 +59,10 @@ export const DesktopUpdateModal: React.FC = () => {
         typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
       const res: DesktopUpdateInfo = await desktop.checkForUpdates(currentBuild);
       if (res && res.hasUpdate) {
+        const dismissedKey = `arune_dismissed_update_${res.latestVersion}`;
+        if (!isManual && sessionStorage.getItem(dismissedKey) === 'true') {
+          return;
+        }
         setUpdateInfo(res);
         setStatus('available');
         setIsOpen(true);
@@ -86,6 +90,18 @@ export const DesktopUpdateModal: React.FC = () => {
     } catch (e: any) {
       window.location.reload();
     }
+  };
+
+  const handleDismissModal = () => {
+    if (updateInfo?.latestVersion) {
+      try {
+        sessionStorage.setItem(
+          `arune_dismissed_update_${updateInfo.latestVersion}`,
+          'true'
+        );
+      } catch {}
+    }
+    setIsOpen(false);
   };
 
   useEffect(() => {
@@ -241,7 +257,7 @@ export const DesktopUpdateModal: React.FC = () => {
           {status !== 'downloading' && (
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
+              onClick={handleDismissModal}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 isDark
                   ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
@@ -477,7 +493,7 @@ export const DesktopUpdateModal: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={handleDismissModal}
                 className={`px-3.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
                   isDark
                     ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
@@ -533,7 +549,7 @@ export const DesktopUpdateModal: React.FC = () => {
           {status === 'idle' && (
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
+              onClick={handleDismissModal}
               className={`px-4 py-2 rounded-xl font-semibold text-xs cursor-pointer transition-colors ${
                 isDark
                   ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
@@ -548,7 +564,7 @@ export const DesktopUpdateModal: React.FC = () => {
             <>
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={handleDismissModal}
                 className={`px-3.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
                   isDark
                     ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'

@@ -190,21 +190,33 @@ function setupAutoUpdater(mainWindow, app) {
       const latestSha = latestCommit?.sha ? latestCommit.sha.substring(0, 7) : '';
       const deployVersion = liveDeploy?.version || latestSha || manifest?.version || '1.0.0';
 
+      // Check if the running client already has this commit or deploy version
+      const cleanRunning = String(activeRunningVersion).trim().toLowerCase();
+      const isAlreadyOnLatestCommit = Boolean(
+        latestSha && cleanRunning.includes(latestSha.toLowerCase())
+      );
+      const isAlreadyOnLatestDeploy = Boolean(
+        liveDeploy?.version &&
+          cleanRunning === String(liveDeploy.version).trim().toLowerCase()
+      );
+
       let hasUpdate = false;
 
-      // Determine if a newer update is available
-      if (deployVersion && activeRunningVersion) {
-        if (latestSha && !activeRunningVersion.includes(latestSha)) {
-          hasUpdate = true;
-        } else if (
-          liveDeploy?.version &&
-          activeRunningVersion !== liveDeploy.version &&
-          !activeRunningVersion.includes(deployVersion)
-        ) {
-          hasUpdate = true;
-        } else if (manifest?.version && compareSemver(manifest.version, currentAppVersion) > 0) {
-          hasUpdate = true;
-        }
+      // If client is already running the latest commit or deploy build, NO update is needed
+      if (isAlreadyOnLatestCommit || isAlreadyOnLatestDeploy) {
+        hasUpdate = false;
+      } else if (latestSha && !cleanRunning.includes(latestSha.toLowerCase())) {
+        hasUpdate = true;
+      } else if (
+        liveDeploy?.version &&
+        cleanRunning !== String(liveDeploy.version).toLowerCase()
+      ) {
+        hasUpdate = true;
+      } else if (
+        manifest?.version &&
+        compareSemver(manifest.version, currentAppVersion) > 0
+      ) {
+        hasUpdate = true;
       }
 
       const changelog =
