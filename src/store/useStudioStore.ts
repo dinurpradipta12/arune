@@ -318,7 +318,10 @@ interface StudioState {
   setSlideBackgroundColor: (slideIndex: number, color: string) => void;
 
   // Element management
-  addElement: (kind: 'text' | 'image' | 'divider' | 'badge') => void;
+  addElement: (
+    kind: 'text' | 'image' | 'divider' | 'badge',
+    initialProps?: Partial<CanvasElement>
+  ) => void;
   updateElement: (
     elementId: string,
     updater: Partial<CanvasElement> | ((prev: CanvasElement) => CanvasElement),
@@ -1460,7 +1463,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     set({ slides: nextSlides });
   },
 
-  addElement: (kind) => {
+  addElement: (kind, initialProps) => {
     const state = get();
     const slide = state.getActiveSlide();
     if (!slide) return;
@@ -1598,6 +1601,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         style: 'solid',
       };
       newElement = divEl;
+    }
+
+    if (initialProps) {
+      newElement = { ...newElement, ...initialProps } as CanvasElement;
     }
 
     const nextSlides = state.slides.map((s, idx) =>

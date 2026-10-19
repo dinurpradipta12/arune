@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Blend,
   Check,
@@ -8,6 +8,7 @@ import {
   Eraser,
   FileText,
   FolderOpen,
+  ImagePlus,
   Loader2,
   Plus,
   Save,
@@ -15,6 +16,7 @@ import {
   Sparkles,
   Trash2,
   Undo2,
+  Upload,
   Wand2,
   X,
 } from 'lucide-react';
@@ -48,6 +50,7 @@ export const CenterWorkspace: React.FC = () => {
     alignElementOnCanvas,
     setSlideBackgroundColor,
     commitElementHistory,
+    addElement,
     addSlide,
     duplicateSlide,
     deleteSlide,
@@ -71,6 +74,9 @@ export const CenterWorkspace: React.FC = () => {
   const [isErasingBg, setIsErasingBg] = useState(false);
   const [erasingProgress, setErasingProgress] = useState<string>('');
   const [erasingError, setErasingError] = useState<string | null>(null);
+  const [isDraggingFileOver, setIsDraggingFileOver] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const theme = getActiveTheme();
   const activeSlide = slides[activeSlideIndex] || slides[0];
@@ -139,6 +145,123 @@ export const CenterWorkspace: React.FC = () => {
       true
     );
     setActivePopover(null);
+  };
+
+  // Helper to read an image File or Blob and add it to canvas with appropriate dimensions
+  const insertImageFileToCanvas = (file: File | Blob, customName?: string) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const stageW = dim.stageWidth;
+        const stageH = dim.stageHeight;
+
+        // Calculate aspect-ratio-preserving width & height that fit nicely inside stage
+        const maxW = Math.round(stageW * 0.7);
+        const maxH = Math.round(stageH * 0.6);
+        let targetW = img.naturalWidth || 280;
+        let targetH = img.naturalHeight || 320;
+
+        const scaleRatio = Math.min(1, maxW / targetW, maxH / targetH);
+        targetW = Math.round(targetW * scaleRatio);
+        targetH = Math.round(targetH * scaleRatio);
+
+        // Center on canvas
+        const posX = Math.round(stageW / 2 - targetW / 2);
+        const posY = Math.round(stageH / 2 - targetH / 2);
+
+        const fileName = customName || (file instanceof File ? file.name : 'Pasted Photo');
+        addElement('image', {
+          name: fileName.replace(/\.[^/.]+$/, '').slice(0, 32) || 'Imported Photo',
+          src: dataUrl,
+          alt: fileName,
+          x: posX,
+          y: posY,
+          width: targetW,
+          height: targetH,
+        });
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    for (let i = 0; i < files.length; i++) {
+      insertImageFileToCanvas(files[i]);
+    }
+    e.target.value = '';
+  };
+
+  // Global Paste Listener for Images (Ctrl+V / Cmd+V anywhere on editor)
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      // Don't intercept paste if user is typing into an input or textarea
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            insertImageFileToCanvas(file, `Pasted Image ${new Date().toLocaleTimeString()}`);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [dim.stageWidth, dim.stageHeight]);
+
+  // Drag and drop handlers for canvas container
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingFileOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only deactivate if leaving the container boundaries
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingFileOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFileOver(false);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith('image/')) {
+        insertImageFileToCanvas(file);
+      }
+    }
   };
 
   // Determine active color for the object color indicator
@@ -414,8 +537,13 @@ export const CenterWorkspace: React.FC = () => {
               setActivePopover(null);
             }
           }}
-          className={`flex-1 relative overflow-auto flex flex-col items-center justify-between p-6 scroller ${
-            settings.showCanvasDotGrid
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`flex-1 relative overflow-auto flex flex-col items-center justify-between p-6 scroller transition-colors ${
+            isDraggingFileOver
+              ? 'ring-2 ring-blue-500/80 bg-blue-950/20'
+              : settings.showCanvasDotGrid
               ? workspaceDarkMode
                 ? 'canvas-dot-grid-dark'
                 : 'canvas-dot-grid-light'
@@ -424,6 +552,20 @@ export const CenterWorkspace: React.FC = () => {
               : 'bg-[#f8fafc]'
           }`}
         >
+          {/* Drag & Drop Visual Dropzone Overlay Banner */}
+          {isDraggingFileOver && (
+            <div className="absolute inset-4 z-50 rounded-2xl border-2 border-dashed border-blue-400 bg-blue-950/75 backdrop-blur-xs flex flex-col items-center justify-center pointer-events-none transition-all shadow-2xl">
+              <div className="w-14 h-14 rounded-full bg-blue-900/60 border border-blue-400 flex items-center justify-center text-white mb-2 shadow-lg">
+                <Upload className="w-6 h-6 animate-bounce" />
+              </div>
+              <p className="text-sm font-semibold text-white tracking-wide">
+                Lepaskan foto di sini untuk menambahkan ke slide
+              </p>
+              <p className="text-xs text-blue-200 mt-1">
+                Format didukung: PNG, JPG, WEBP, SVG
+              </p>
+            </div>
+          )}
           {/* Top Floating Icon-Only Quick Action Pill (Positioned cleanly below Top Ruler) */}
           <div className="sticky top-0 z-30 flex flex-col items-center mb-3">
             <div
@@ -522,7 +664,26 @@ export const CenterWorkspace: React.FC = () => {
               <Blend className="w-3.5 h-3.5" />
             </button>
 
-            {/* 5. AI Background Eraser / Remover Tool */}
+            {/* 5. Add / Upload Photo Button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              title="Add Photo / Upload Gambar (atau Paste Ctrl+V / Drag-Drop foto ke canvas)"
+              aria-label="Add Photo"
+              className="p-1.5 rounded-full hover:bg-zinc-800/70 text-zinc-300 hover:text-blue-900 cursor-pointer transition-colors"
+            >
+              <ImagePlus className="w-3.5 h-3.5" />
+            </button>
+
+            {/* 6. AI Background Eraser / Remover Tool */}
             <button
               type="button"
               onClick={() =>
