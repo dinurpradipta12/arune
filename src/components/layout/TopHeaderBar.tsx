@@ -123,141 +123,143 @@ export const TopHeaderBar: React.FC = () => {
         </div>
       </div>
 
-      {/* CENTER: Canvas Zoom & Export Slide Ini Controls (Editor Mode) */}
-      {activeView === 'editor' && (
-        <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-full border border-zinc-800 bg-zinc-900/90 text-zinc-200 shadow-xs">
+      {/* RIGHT: Canvas Zoom & Export Slide Ini + Utilities + Export HD (.ZIP) */}
+      <div className="flex items-center gap-2">
+        {/* Canvas Zoom & Single Slide Export (Editor Mode) */}
+        {activeView === 'editor' && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-zinc-800 bg-zinc-900/90 text-zinc-200 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setCanvasZoom(canvasZoom - 0.1)}
+              disabled={canvasZoom <= 0.5}
+              title="Zoom Out"
+              className="p-1 rounded hover:bg-zinc-700/50 disabled:opacity-30 cursor-pointer text-zinc-400 hover:text-zinc-100"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+
+            <input
+              type="range"
+              min={50}
+              max={150}
+              step={5}
+              value={Math.round(canvasZoom * 100)}
+              onChange={(e) => setCanvasZoom(Number(e.target.value) / 100)}
+              aria-label="Canvas Zoom Percentage"
+              className="w-16 sm:w-20 lg:w-24 accent-blue-900 cursor-pointer h-1"
+            />
+
+            <span className="text-[11px] font-mono w-9 text-center tabular-nums text-zinc-300">
+              {Math.round(canvasZoom * 100)}%
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setCanvasZoom(canvasZoom + 0.1)}
+              disabled={canvasZoom >= 1.5}
+              title="Zoom In"
+              className="p-1 rounded hover:bg-zinc-700/50 disabled:opacity-30 cursor-pointer text-zinc-400 hover:text-zinc-100"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCanvasZoom(aspectRatio === '9:16' ? 0.68 : 0.9)}
+              title="Reset Zoom to Fit"
+              className="p-1 rounded hover:bg-zinc-700/50 text-[10.5px] font-medium px-1.5 border-l border-zinc-700/50 cursor-pointer flex items-center gap-1 text-zinc-300 hover:text-white"
+            >
+              <Maximize2 className="w-3 h-3 text-zinc-400" />
+              <span>Fit</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const currentSlide = slides[activeSlideIndex];
+                exportSingleSlidePng({
+                  slideIndex: activeSlideIndex,
+                  slideLayout: currentSlide?.layout || 'slide',
+                  projectTitle,
+                  pixelRatio: 3,
+                });
+              }}
+              title="Export Slide Ini (HD PNG)"
+              className="p-1 rounded hover:bg-blue-900/30 text-blue-400 hover:text-blue-300 text-[10.5px] font-medium px-2 border-l border-zinc-700/50 cursor-pointer flex items-center gap-1.5 transition-colors"
+            >
+              <ImageDown className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Export Slide Ini</span>
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setCanvasZoom(canvasZoom - 0.1)}
-            disabled={canvasZoom <= 0.5}
-            title="Zoom Out"
-            className="p-1 rounded hover:bg-zinc-700/50 disabled:opacity-30 cursor-pointer text-zinc-400 hover:text-zinc-100"
+            onClick={() => setActiveModal('branding')}
+            title="Global Branding"
+            className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-900 transition-colors cursor-pointer"
           >
-            <Minus className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5 h-3.5 text-blue-900" />
           </button>
 
-          <input
-            type="range"
-            min={50}
-            max={150}
-            step={5}
-            value={Math.round(canvasZoom * 100)}
-            onChange={(e) => setCanvasZoom(Number(e.target.value) / 100)}
-            aria-label="Canvas Zoom Percentage"
-            className="w-20 lg:w-24 accent-blue-900 cursor-pointer h-1"
-          />
-
-          <span className="text-[11px] font-mono w-9 text-center tabular-nums text-zinc-300">
-            {Math.round(canvasZoom * 100)}%
-          </span>
-
           <button
             type="button"
-            onClick={() => setCanvasZoom(canvasZoom + 0.1)}
-            disabled={canvasZoom >= 1.5}
-            title="Zoom In"
-            className="p-1 rounded hover:bg-zinc-700/50 disabled:opacity-30 cursor-pointer text-zinc-400 hover:text-zinc-100"
+            onClick={() => setWorkspaceDarkMode(!workspaceDarkMode)}
+            title={
+              workspaceDarkMode
+                ? 'Switch Workspace to White Mode'
+                : 'Switch Workspace to Deep Midnight Navy (Biru Donker Gelap)'
+            }
+            className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
+            {workspaceDarkMode ? (
+              <Sun className="w-3.5 h-3.5" />
+            ) : (
+              <Moon className="w-3.5 h-3.5" />
+            )}
           </button>
 
           <button
             type="button"
-            onClick={() => setCanvasZoom(aspectRatio === '9:16' ? 0.68 : 0.9)}
-            title="Reset Zoom to Fit"
-            className="p-1 rounded hover:bg-zinc-700/50 text-[10.5px] font-medium px-1.5 border-l border-zinc-700/50 cursor-pointer flex items-center gap-1 text-zinc-300 hover:text-white"
+            onClick={() => setActiveModal('json')}
+            className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-zinc-100 transition-colors cursor-pointer"
+            title="Import or Export JSON Carousel Template"
           >
-            <Maximize2 className="w-3 h-3 text-zinc-400" />
-            <span>Fit</span>
+            <FileJson className="w-3.5 h-3.5 text-zinc-400" />
           </button>
 
           <button
             type="button"
-            onClick={() => {
-              const currentSlide = slides[activeSlideIndex];
-              exportSingleSlidePng({
-                slideIndex: activeSlideIndex,
-                slideLayout: currentSlide?.layout || 'slide',
-                projectTitle,
-                pixelRatio: 3,
-              });
-            }}
-            title="Export Slide Ini (HD PNG)"
-            className="p-1 rounded hover:bg-blue-900/30 text-blue-400 hover:text-blue-300 text-[10.5px] font-medium px-2 border-l border-zinc-700/50 cursor-pointer flex items-center gap-1.5 transition-colors"
+            onClick={() => setActiveModal('settings')}
+            className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-900 transition-colors cursor-pointer"
+            title="Pengaturan Studio (Settings, Hotkeys & Interface)"
+            aria-label="Settings"
           >
-            <ImageDown className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">Export Slide Ini</span>
+            <Settings className="w-3.5 h-3.5 text-zinc-400" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveModal('export')}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 active:bg-blue-950 text-white font-semibold text-xs shadow-sm transition-all disabled:opacity-60 cursor-pointer"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="max-w-[140px] truncate">
+                  {exportProgress || 'Exporting HD...'}
+                </span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5 stroke-[2.25]" />
+                <span>Export HD (.ZIP)</span>
+              </>
+            )}
           </button>
         </div>
-      )}
-
-      {/* RIGHT: Branding + Theme Mode + JSON + Settings + Export HD (.ZIP) Modal Trigger */}
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => setActiveModal('branding')}
-          title="Global Branding"
-          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-900 transition-colors cursor-pointer"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-blue-900" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setWorkspaceDarkMode(!workspaceDarkMode)}
-          title={
-            workspaceDarkMode
-              ? 'Switch Workspace to White Mode'
-              : 'Switch Workspace to Deep Midnight Navy (Biru Donker Gelap)'
-          }
-          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
-        >
-          {workspaceDarkMode ? (
-            <Sun className="w-3.5 h-3.5" />
-          ) : (
-            <Moon className="w-3.5 h-3.5" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveModal('json')}
-          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-zinc-100 transition-colors cursor-pointer"
-          title="Import or Export JSON Carousel Template"
-        >
-          <FileJson className="w-3.5 h-3.5 text-zinc-400" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveModal('settings')}
-          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-900 transition-colors cursor-pointer"
-          title="Pengaturan Studio (Settings, Hotkeys & Interface)"
-          aria-label="Settings"
-        >
-          <Settings className="w-3.5 h-3.5 text-zinc-400" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveModal('export')}
-          disabled={isExporting}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 active:bg-blue-950 text-white font-semibold text-xs shadow-sm transition-all disabled:opacity-60 cursor-pointer"
-        >
-          {isExporting ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span className="max-w-[140px] truncate">
-                {exportProgress || 'Exporting HD...'}
-              </span>
-            </>
-          ) : (
-            <>
-              <Download className="w-3.5 h-3.5 stroke-[2.25]" />
-              <span>Export HD (.ZIP)</span>
-            </>
-          )}
-        </button>
       </div>
     </header>
   );
