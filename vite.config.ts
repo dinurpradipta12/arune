@@ -52,6 +52,7 @@ function versionJsonPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [react(), tailwindcss(), versionJsonPlugin()],
   define: {
     __APP_VERSION__: JSON.stringify(BUILD_VERSION),
