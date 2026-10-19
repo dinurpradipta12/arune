@@ -13,9 +13,7 @@ import {
   Plus,
   Save,
   Scaling,
-  Sparkles,
   Trash2,
-  Undo2,
   Upload,
   Wand2,
   X,
@@ -69,7 +67,7 @@ export const CenterWorkspace: React.FC = () => {
 
   const [justSaved, setJustSaved] = useState(false);
   const [activePopover, setActivePopover] = useState<
-    'resize' | 'transparent' | 'color' | 'eraser' | null
+    'resize' | 'transparent' | 'color' | null
   >(null);
   const [isErasingBg, setIsErasingBg] = useState(false);
   const [erasingProgress, setErasingProgress] = useState<string>('');
@@ -683,32 +681,38 @@ export const CenterWorkspace: React.FC = () => {
               <ImagePlus className="w-3.5 h-3.5" />
             </button>
 
-            {/* 6. AI Background Eraser / Remover Tool */}
+            {/* 6. AI Background Eraser / Remover Tool (Direct 1-Click) */}
             <button
               type="button"
-              onClick={() =>
-                setActivePopover(activePopover === 'eraser' ? null : 'eraser')
-              }
+              disabled={isErasingBg || selectedElement?.type !== 'image'}
+              onClick={() => {
+                if (isErasingBg || !selectedElement || selectedElement.type !== 'image') return;
+                if (selectedElement.originalSrc) {
+                  // Jika background sudah dihapus sebelumnya, klik tombol ini akan mengembalikan foto asli
+                  handleRevertOriginalPhoto();
+                } else {
+                  // Langsung jalankan proses AI Background Eraser tanpa popup modal
+                  handleRemoveBackground();
+                }
+              }}
               title={
                 isErasingBg
                   ? erasingProgress || 'Sedang menghapus background...'
                   : selectedElement?.type === 'image'
                   ? selectedElement.originalSrc
-                    ? 'AI Background Eraser (Foto sudah transparan - Klik untuk opsi/revert)'
-                    : 'AI Background Eraser (Hapus Latar Foto Otomatis)'
-                  : 'AI Background Eraser (Pilih foto di canvas terlebih dahulu)'
+                    ? 'Kembalikan Foto Asli (Background sudah dihapus)'
+                    : 'Hapus Background Foto (1-Klik AI)'
+                  : 'Pilih foto di canvas terlebih dahulu untuk menghapus background'
               }
               aria-label="AI Background Eraser"
-              className={`p-1.5 rounded-full cursor-pointer transition-all relative ${
-                activePopover === 'eraser'
-                  ? 'bg-blue-900 text-white shadow-xs'
-                  : isErasingBg
-                  ? 'bg-blue-900/20 text-blue-400'
+              className={`p-1.5 rounded-full transition-all relative ${
+                isErasingBg
+                  ? 'bg-blue-900/30 text-blue-400 cursor-wait'
                   : selectedElement?.type === 'image'
                   ? selectedElement.originalSrc
-                    ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'
-                    : 'hover:bg-zinc-800/70 text-zinc-300 hover:text-blue-900'
-                  : 'opacity-40 hover:opacity-70 text-zinc-400'
+                    ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 cursor-pointer shadow-xs'
+                    : 'text-zinc-300 hover:text-white hover:bg-blue-900 cursor-pointer'
+                  : 'opacity-35 text-zinc-500 cursor-not-allowed'
               }`}
             >
               {isErasingBg ? (
@@ -716,7 +720,7 @@ export const CenterWorkspace: React.FC = () => {
               ) : (
                 <Eraser className="w-3.5 h-3.5" />
               )}
-              {selectedElement?.type === 'image' && selectedElement.originalSrc && (
+              {selectedElement?.type === 'image' && selectedElement.originalSrc && !isErasingBg && (
                 <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950" />
               )}
             </button>
@@ -1042,94 +1046,28 @@ export const CenterWorkspace: React.FC = () => {
             </div>
           )}
 
-          {/* POPOVER: AI BACKGROUND ERASER / REMOVER */}
-          {activePopover === 'eraser' && (
-            <div className="mt-2 p-3 rounded-xl border border-zinc-800 bg-zinc-950/95 shadow-2xl backdrop-blur-md w-72 space-y-3 text-xs z-50">
-              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                <div className="flex items-center gap-1.5 text-zinc-100 font-semibold text-xs">
-                  <Eraser className="w-3.5 h-3.5 text-blue-900" />
-                  <span>AI Background Eraser</span>
+          {/* Direct Feedback Toast for Background Removal */}
+          {(isErasingBg || erasingError) && (
+            <div className="mt-2 px-3 py-1.5 rounded-full bg-zinc-950/95 border border-zinc-800 text-xs shadow-xl backdrop-blur-md flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+              {isErasingBg ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                  <span className="text-zinc-200 text-[11px] font-medium">
+                    {erasingProgress || 'Sedang menghapus background...'}
+                  </span>
+                </>
+              ) : erasingError ? (
+                <div className="flex items-center gap-2 text-rose-400 text-[11px]">
+                  <span>{erasingError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setErasingError(null)}
+                    className="p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </div>
-                <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-blue-900/20 text-blue-400 font-mono">
-                  100% On-Device
-                </span>
-              </div>
-
-              {selectedElement?.type === 'image' ? (
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2 p-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                    <img
-                      src={selectedElement.src}
-                      alt="Thumbnail"
-                      className="w-10 h-10 object-cover rounded bg-zinc-950 shrink-0 border border-zinc-700"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-medium text-zinc-200 truncate">
-                        {selectedElement.name}
-                      </p>
-                      <p className="text-[9.5px] text-zinc-400">
-                        {selectedElement.originalSrc
-                          ? 'Status: Background dihapus (PNG transparan)'
-                          : 'Siap dipotong dengan AI'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {erasingError && (
-                    <div className="p-2 rounded bg-rose-500/10 border border-rose-500/30 text-[10.5px] text-rose-400 leading-tight">
-                      {erasingError}
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5 pt-1">
-                    <button
-                      type="button"
-                      disabled={isErasingBg}
-                      onClick={handleRemoveBackground}
-                      className="w-full py-2 px-3 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-60"
-                    >
-                      {isErasingBg ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>{erasingProgress || 'Sedang Menghapus...'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>
-                            {selectedElement.originalSrc
-                              ? 'Ulangi Hapus Background'
-                              : 'Hapus Background Foto (AI)'}
-                          </span>
-                        </>
-                      )}
-                    </button>
-
-                    {selectedElement.originalSrc && (
-                      <button
-                        type="button"
-                        disabled={isErasingBg}
-                        onClick={handleRevertOriginalPhoto}
-                        className="w-full py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <Undo2 className="w-3 h-3" />
-                        <span>Kembalikan Foto Asli</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <p className="text-[9.5px] text-zinc-400 leading-relaxed text-center">
-                    AI otomatis memisahkan objek/orang dari background langsung di browser tanpa upload ke server luar.
-                  </p>
-                </div>
-              ) : (
-                <div className="py-4 text-center space-y-1 text-zinc-400">
-                  <p className="text-xs text-zinc-300 font-medium">Belum ada foto yang dipilih</p>
-                  <p className="text-[10px] text-zinc-400">
-                    Klik salah satu elemen foto di canvas slide untuk mengaktifkan AI eraser.
-                  </p>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
