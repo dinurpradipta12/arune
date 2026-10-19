@@ -7,6 +7,7 @@ import type {
   DividerCanvasElement,
   GlobalBranding,
   ImageCanvasElement,
+  ShapeCanvasElement,
   Slide,
   TextCanvasElement,
   ThemePalette,
@@ -669,6 +670,34 @@ export const SlideStage: React.FC<SlideStageProps> = ({
     );
   };
 
+  const renderShapeNode = (el: ShapeCanvasElement) => {
+    const shadowCss = el.shadow?.enabled
+      ? `${el.shadow.offsetX}px ${el.shadow.offsetY}px ${el.shadow.blur}px ${el.shadow.color}`
+      : 'none';
+
+    let borderRadius = el.borderRadius ?? 0;
+    if (el.shapeKind === 'circle' || el.shapeKind === 'pill') {
+      borderRadius = 9999;
+    } else if (el.shapeKind === 'rectangle') {
+      borderRadius = 0;
+    }
+
+    return (
+      <div
+        className="w-full h-full relative select-none"
+        style={{
+          backgroundColor: el.fillColor || theme.accent,
+          borderRadius: `${borderRadius}px`,
+          border:
+            el.strokeWidth && el.strokeWidth > 0
+              ? `${el.strokeWidth}px solid ${el.strokeColor || '#000000'}`
+              : undefined,
+          boxShadow: shadowCss,
+        }}
+      />
+    );
+  };
+
   const renderTextNode = (el: TextCanvasElement) => {
     const isEditing = interactive && editingTextId === el.id;
 
@@ -1003,6 +1032,7 @@ export const SlideStage: React.FC<SlideStageProps> = ({
             >
               {el.type === 'image' && renderImageNode(el)}
               {el.type === 'divider' && renderDividerNode(el)}
+              {el.type === 'shape' && renderShapeNode(el as ShapeCanvasElement)}
               {(el.type === 'text' || el.type === 'badge') && renderTextNode(el)}
             </div>
 

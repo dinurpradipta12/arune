@@ -43,7 +43,7 @@ export type LayoutPresetId =
   | 'typo-cinematic-indie'
   | 'typo-split-journal';
 
-export type ElementType = 'text' | 'image' | 'divider' | 'badge';
+export type ElementType = 'text' | 'image' | 'divider' | 'badge' | 'shape';
 
 export type TextRole =
   | 'header'
@@ -201,10 +201,23 @@ export interface DividerCanvasElement extends BaseCanvasElement {
   style: 'solid' | 'dashed' | 'double' | 'dotted';
 }
 
+export type ShapeKind = 'rectangle' | 'rounded-rect' | 'circle' | 'pill';
+
+export interface ShapeCanvasElement extends BaseCanvasElement {
+  type: 'shape';
+  shapeKind: ShapeKind;
+  fillColor: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+  borderRadius?: number;
+  shadow?: TextShadowConfig;
+}
+
 export type CanvasElement =
   | TextCanvasElement
   | ImageCanvasElement
-  | DividerCanvasElement;
+  | DividerCanvasElement
+  | ShapeCanvasElement;
 
 export interface Slide {
   id: string;

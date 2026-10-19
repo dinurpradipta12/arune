@@ -26,6 +26,8 @@ import type {
   GlobalBranding,
   ImageCanvasElement,
   LayoutPresetId,
+  ShapeCanvasElement,
+  ShapeKind,
   Slide,
   TextCanvasElement,
   ThemePalette,
@@ -303,7 +305,7 @@ interface StudioState {
 
   // Element management
   addElement: (
-    kind: 'text' | 'image' | 'divider' | 'badge',
+    kind: 'text' | 'image' | 'divider' | 'badge' | 'shape',
     initialProps?: Partial<CanvasElement>
   ) => void;
   updateElement: (
@@ -1524,6 +1526,34 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         borderRadius: 0,
       };
       newElement = imgEl;
+    } else if (kind === 'shape') {
+      const shapeProps = initialProps as Partial<ShapeCanvasElement> | undefined;
+      const shapeKind: ShapeKind = shapeProps?.shapeKind || 'rounded-rect';
+      const shapeEl: ShapeCanvasElement = {
+        id,
+        type: 'shape',
+        name: shapeKind === 'circle' ? 'Circle Shape' : 'Editorial Shape Block',
+        shapeKind,
+        x: Math.round(dim.stageWidth / 2 - 80),
+        y: Math.round(dim.stageHeight / 2 - 80),
+        width: 160,
+        height: 160,
+        zIndex: maxZ + 1,
+        opacity: 1,
+        fillColor: theme.accent,
+        strokeColor: 'transparent',
+        strokeWidth: 0,
+        borderRadius:
+          shapeKind === 'rounded-rect' ? 16 : shapeKind === 'circle' ? 9999 : 0,
+        shadow: {
+          enabled: false,
+          offsetX: 0,
+          offsetY: 4,
+          blur: 12,
+          color: 'rgba(0,0,0,0.15)',
+        },
+      };
+      newElement = shapeEl;
     } else {
       const divEl: DividerCanvasElement = {
         id,

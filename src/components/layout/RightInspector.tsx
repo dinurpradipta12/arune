@@ -31,6 +31,7 @@ import {
   RefreshCcw,
   RotateCcw,
   RotateCw,
+  Shapes,
   Sliders,
   Sparkles,
   SunMedium,
@@ -55,12 +56,14 @@ import type {
   FontFamilyName,
   ImageCanvasElement,
   ImageCropShape,
+  ShapeCanvasElement,
   TextCanvasElement,
 } from '../../types/studio';
 
 type InspectorModuleId =
   | 'font'
   | 'crop'
+  | 'shape'
   | 'transform'
   | 'effects'
   | 'tone'
@@ -2117,6 +2120,163 @@ export const RightInspector: React.FC = () => {
   };
 
   // ============================================================================
+  // MODULAR PANEL: SHAPE & GEOMETRY MODAL
+  // ============================================================================
+  const renderShapeModalContent = (shapeEl: ShapeCanvasElement) => {
+    return (
+      <div className="space-y-3">
+        {/* Shape Kind Selector */}
+        <div>
+          <label className="text-[10px] text-zinc-400 block mb-1 font-medium">
+            Bentuk (Shape Kind)
+          </label>
+          <div className="grid grid-cols-4 gap-1">
+            {(
+              [
+                { id: 'rounded-rect', label: 'Rounded' },
+                { id: 'rectangle', label: 'Box' },
+                { id: 'circle', label: 'Circle' },
+                { id: 'pill', label: 'Pill' },
+              ] as const
+            ).map((sh) => (
+              <button
+                key={sh.id}
+                type="button"
+                onClick={() =>
+                  updateElement(
+                    shapeEl.id,
+                    {
+                      shapeKind: sh.id,
+                      borderRadius:
+                        sh.id === 'circle' || sh.id === 'pill'
+                          ? 9999
+                          : sh.id === 'rectangle'
+                          ? 0
+                          : shapeEl.borderRadius || 16,
+                    },
+                    true
+                  )
+                }
+                className={`py-1 rounded-lg border text-[10px] capitalize cursor-pointer transition-all ${
+                  shapeEl.shapeKind === sh.id
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-400 font-semibold shadow-xs'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {sh.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Fill Color */}
+        <div>
+          <label className="text-[10px] text-zinc-400 block mb-1 font-medium">
+            Warna Isi (Fill Color)
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={shapeEl.fillColor.startsWith('#') ? shapeEl.fillColor : '#3b82f6'}
+              onChange={(e) =>
+                updateElement(shapeEl.id, { fillColor: e.target.value }, true)
+              }
+              aria-label="Shape Fill Color"
+              className="w-7 h-7 rounded-lg cursor-pointer bg-zinc-900 border border-zinc-700"
+            />
+            <input
+              type="text"
+              value={shapeEl.fillColor}
+              onChange={(e) =>
+                updateElement(shapeEl.id, { fillColor: e.target.value }, false)
+              }
+              aria-label="Shape Fill Color Hex"
+              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-xs font-mono text-zinc-200"
+            />
+          </div>
+        </div>
+
+        {/* Stroke / Border Width & Color */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] text-zinc-400 block mb-1 font-medium">
+              Garis Batas (px)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={24}
+              value={shapeEl.strokeWidth || 0}
+              onChange={(e) =>
+                updateElement(
+                  shapeEl.id,
+                  { strokeWidth: Number(e.target.value) },
+                  true
+                )
+              }
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-xs font-mono text-zinc-200"
+            />
+          </div>
+          {shapeEl.shapeKind === 'rounded-rect' && (
+            <div>
+              <label className="text-[10px] text-zinc-400 block mb-1 font-medium">
+                Corner Radius (px)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={120}
+                value={shapeEl.borderRadius ?? 16}
+                onChange={(e) =>
+                  updateElement(
+                    shapeEl.id,
+                    { borderRadius: Number(e.target.value) },
+                    true
+                  )
+                }
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-xs font-mono text-zinc-200"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Stroke Color if strokeWidth > 0 */}
+        {(shapeEl.strokeWidth || 0) > 0 && (
+          <div>
+            <label className="text-[10px] text-zinc-400 block mb-1 font-medium">
+              Warna Garis Batas (Stroke Color)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={
+                  shapeEl.strokeColor?.startsWith('#')
+                    ? shapeEl.strokeColor
+                    : '#ffffff'
+                }
+                onChange={(e) =>
+                  updateElement(shapeEl.id, { strokeColor: e.target.value }, true)
+                }
+                aria-label="Stroke Color"
+                className="w-7 h-7 rounded-lg cursor-pointer bg-zinc-900 border border-zinc-700"
+              />
+              <input
+                type="text"
+                value={shapeEl.strokeColor || '#ffffff'}
+                onChange={(e) =>
+                  updateElement(shapeEl.id, { strokeColor: e.target.value }, false)
+                }
+                aria-label="Stroke Color Hex"
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-xs font-mono text-zinc-200"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================================
   // MODULAR PANEL 8: SLIDE BACKGROUND & THEME COLORS MODAL
   // ============================================================================
   const renderSlideThemeModalContent = () => {
@@ -2362,6 +2522,24 @@ export const RightInspector: React.FC = () => {
         render: () => renderTransformModalContent(selectedElement),
       }
     );
+  } else if (selectedElement.type === 'shape') {
+    const shapeEl = selectedElement as ShapeCanvasElement;
+    activeModulesConfig.push(
+      {
+        id: 'shape',
+        title: 'Shape & Geometry',
+        subtitle: shapeEl.shapeKind,
+        icon: <Shapes className="w-3.5 h-3.5" />,
+        render: () => renderShapeModalContent(shapeEl),
+      },
+      {
+        id: 'transform',
+        title: 'Transform & Posisi',
+        subtitle: `${selectedElement.rotation || 0}°`,
+        icon: <Sliders className="w-3.5 h-3.5" />,
+        render: () => renderTransformModalContent(selectedElement),
+      }
+    );
   } else {
     const divEl = selectedElement as DividerCanvasElement;
     activeModulesConfig.push(
@@ -2400,6 +2578,8 @@ export const RightInspector: React.FC = () => {
                   <ImageIcon className="w-3.5 h-3.5" />
                 ) : selectedElement.type === 'divider' ? (
                   <Layers className="w-3.5 h-3.5" />
+                ) : selectedElement.type === 'shape' ? (
+                  <Shapes className="w-3.5 h-3.5" />
                 ) : (
                   <Type className="w-3.5 h-3.5" />
                 )}

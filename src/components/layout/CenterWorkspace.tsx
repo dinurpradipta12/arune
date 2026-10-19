@@ -635,220 +635,258 @@ export const CenterWorkspace: React.FC = () => {
                   setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))
                 }
                 disabled={activeSlideIndex === 0}
-                className="p-1.5 rounded-full hover:bg-zinc-800/60 disabled:opacity-30 cursor-pointer transition-colors"
+                className={`p-1.5 rounded-full disabled:opacity-30 cursor-pointer transition-colors ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
+                }`}
                 title={`Slide Sebelumnya (${activeSlideIndex + 1}/${slides.length})`}
                 aria-label="Previous Slide"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
 
-              <div className="w-px h-4 bg-zinc-800/80 mx-0.5" />
-
-            {/* 1. Script Auto-Generator Icon */}
-            <button
-              type="button"
-              onClick={() => {
-                setActivePopover(null);
-                setActiveModal('script');
-              }}
-              title="Script Auto-Generator"
-              aria-label="Script Auto-Generator"
-              className="p-1.5 rounded-full hover:bg-zinc-800/70 text-blue-900 hover:text-blue-800 cursor-pointer transition-colors"
-            >
-              <Wand2 className="w-3.5 h-3.5" />
-            </button>
-
-            {/* 2. Save Project Icon */}
-            <button
-              type="button"
-              onClick={handleQuickSave}
-              title={
-                lastSavedAt
-                  ? `Simpan Project (Terakhir: ${lastSavedAt})`
-                  : 'Simpan Project'
-              }
-              aria-label="Simpan Project"
-              className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                justSaved
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'hover:bg-zinc-800/70 text-zinc-300 hover:text-blue-900'
-              }`}
-            >
-              {justSaved ? (
-                <Check className="w-3.5 h-3.5" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
-            </button>
-
-            {/* 3. Resize Canvas & Object Icon */}
-            <button
-              type="button"
-              onClick={() =>
-                setActivePopover(activePopover === 'resize' ? null : 'resize')
-              }
-              title={`Resize Canvas (${ASPECT_RATIOS[aspectRatio].shortLabel}) & Object`}
-              aria-label="Resize Canvas and Object"
-              className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                activePopover === 'resize'
-                  ? 'bg-blue-900/15 text-blue-900'
-                  : 'hover:bg-zinc-800/70 text-zinc-300 hover:text-blue-900'
-              }`}
-            >
-              <Scaling className="w-3.5 h-3.5" />
-            </button>
-
-            {/* 4. Transparent / Opacity Icon */}
-            <button
-              type="button"
-              onClick={() =>
-                setActivePopover(
-                  activePopover === 'transparent' ? null : 'transparent'
-                )
-              }
-              title={`Transparansi / Opacity (${Math.round(currentOpacity * 100)}%)`}
-              aria-label="Transparency and Opacity"
-              className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                activePopover === 'transparent' || currentOpacity < 1
-                  ? 'bg-blue-900/15 text-blue-900'
-                  : 'hover:bg-zinc-800/70 text-zinc-300 hover:text-blue-900'
-              }`}
-            >
-              <Blend className="w-3.5 h-3.5" />
-            </button>
-
-            {/* 5. Add / Upload Photo Button */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileInputChange}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              title="Add Photo / Upload Gambar (atau Paste Ctrl+V / Drag-Drop foto ke canvas)"
-              aria-label="Add Photo"
-              className="p-1.5 rounded-full hover:bg-zinc-800/70 text-zinc-300 hover:text-blue-900 cursor-pointer transition-colors"
-            >
-              <ImagePlus className="w-3.5 h-3.5" />
-            </button>
-
-            {/* 6. AI Background Eraser / Remover Tool (Direct 1-Click) */}
-            <button
-              type="button"
-              disabled={isErasingBg || selectedElement?.type !== 'image'}
-              onClick={() => {
-                if (isErasingBg || !selectedElement || selectedElement.type !== 'image') return;
-                if (selectedElement.originalSrc) {
-                  // Jika background sudah dihapus sebelumnya, klik tombol ini akan mengembalikan foto asli
-                  handleRevertOriginalPhoto();
-                } else {
-                  // Langsung jalankan proses AI Background Eraser tanpa popup modal
-                  handleRemoveBackground();
-                }
-              }}
-              title={
-                isErasingBg
-                  ? erasingProgress || 'Sedang menghapus background...'
-                  : selectedElement?.type === 'image'
-                  ? selectedElement.originalSrc
-                    ? 'Kembalikan Foto Asli (Background sudah dihapus)'
-                    : 'Hapus Background Foto (1-Klik AI)'
-                  : 'Pilih foto di canvas terlebih dahulu untuk menghapus background'
-              }
-              aria-label="AI Background Eraser"
-              className={`p-1.5 rounded-full transition-all relative ${
-                isErasingBg
-                  ? 'bg-blue-900/30 text-blue-400 cursor-wait'
-                  : selectedElement?.type === 'image'
-                  ? selectedElement.originalSrc
-                    ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 cursor-pointer shadow-xs'
-                    : 'text-zinc-300 hover:text-white hover:bg-blue-900 cursor-pointer'
-                  : 'opacity-35 text-zinc-500 cursor-not-allowed'
-              }`}
-            >
-              {isErasingBg ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Eraser className="w-3.5 h-3.5" />
-              )}
-              {selectedElement?.type === 'image' && selectedElement.originalSrc && !isErasingBg && (
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950" />
-              )}
-            </button>
-
-            {/* 7. Crop / Trim Bounding Box Tool */}
-            <button
-              type="button"
-              disabled={selectedElement?.type !== 'image'}
-              onClick={() => setActivePopover(activePopover === 'crop' ? null : 'crop')}
-              title={
-                selectedElement?.type === 'image'
-                  ? 'Crop / Potong Bounding Box Foto (Kiri, Kanan, Atas, Bawah)'
-                  : 'Pilih foto di canvas untuk memotong (crop) bounding box'
-              }
-              aria-label="Crop Bounding Box"
-              className={`p-1.5 rounded-full transition-all cursor-pointer ${
-                activePopover === 'crop'
-                  ? 'bg-blue-900 text-white shadow-xs'
-                  : selectedElement?.type === 'image'
-                  ? 'text-zinc-300 hover:text-white hover:bg-zinc-800/70'
-                  : 'opacity-35 text-zinc-500 cursor-not-allowed'
-              }`}
-            >
-              <Crop className="w-3.5 h-3.5" />
-            </button>
-
-            {/* 6. Indikator Ganti Warna Object */}
-            <button
-              type="button"
-              onClick={() =>
-                setActivePopover(activePopover === 'color' ? null : 'color')
-              }
-              title={
-                selectedElement
-                  ? `Ganti Warna ${selectedElement.name} (${currentObjectColor})`
-                  : `Ganti Warna Background Slide (${currentObjectColor})`
-              }
-              aria-label="Object Color Indicator"
-              className={`p-1 rounded-full cursor-pointer transition-all flex items-center justify-center ${
-                activePopover === 'color'
-                  ? 'ring-2 ring-blue-900 bg-zinc-800/60'
-                  : 'hover:bg-zinc-800/70'
-              }`}
-            >
-              <span
-                className="w-4 h-4 rounded-full border border-zinc-400/60 shadow-xs block"
-                style={{ backgroundColor: currentObjectColor }}
+              <div
+                className={`w-px h-4 mx-0.5 ${
+                  workspaceDarkMode ? 'bg-zinc-800' : 'bg-zinc-200'
+                }`}
               />
-            </button>
 
-            <div className="w-px h-4 bg-zinc-800/80 mx-0.5" />
+              {/* 1. Script Auto-Generator Icon */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActivePopover(null);
+                  setActiveModal('script');
+                }}
+                title="Script Auto-Generator"
+                aria-label="Script Auto-Generator"
+                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-blue-400 hover:text-blue-300'
+                    : 'hover:bg-blue-50 text-blue-600 hover:text-blue-700'
+                }`}
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+              </button>
 
-            {/* Next Slide */}
-            <button
-              type="button"
-              onClick={() =>
-                setActiveSlideIndex(
-                  Math.min(slides.length - 1, activeSlideIndex + 1)
-                )
-              }
-              disabled={activeSlideIndex === slides.length - 1}
-              className="p-1.5 rounded-full hover:bg-zinc-800/60 disabled:opacity-30 cursor-pointer transition-colors"
-              title={`Slide Berikutnya (${activeSlideIndex + 1}/${slides.length})`}
-              aria-label="Next Slide"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+              {/* 2. Save Project Icon */}
+              <button
+                type="button"
+                onClick={handleQuickSave}
+                title={
+                  lastSavedAt
+                    ? `Simpan Project (Terakhir: ${lastSavedAt})`
+                    : 'Simpan Project'
+                }
+                aria-label="Simpan Project"
+                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
+                  justSaved
+                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                    : workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
+                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
+                }`}
+              >
+                {justSaved ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+              </button>
+
+              {/* 3. Resize Canvas & Object Icon */}
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePopover(activePopover === 'resize' ? null : 'resize')
+                }
+                title={`Resize Canvas (${ASPECT_RATIOS[aspectRatio].shortLabel}) & Object`}
+                aria-label="Resize Canvas and Object"
+                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
+                  activePopover === 'resize'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
+                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
+                }`}
+              >
+                <Scaling className="w-3.5 h-3.5" />
+              </button>
+
+              {/* 4. Transparent / Opacity Icon */}
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePopover(
+                    activePopover === 'transparent' ? null : 'transparent'
+                  )
+                }
+                title={`Transparansi / Opacity (${Math.round(currentOpacity * 100)}%)`}
+                aria-label="Transparency and Opacity"
+                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
+                  activePopover === 'transparent' || currentOpacity < 1
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
+                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
+                }`}
+              >
+                <Blend className="w-3.5 h-3.5" />
+              </button>
+
+              {/* 5. Add / Upload Photo Button */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Add Photo / Upload Gambar (atau Paste Ctrl+V / Drag-Drop foto ke canvas)"
+                aria-label="Add Photo"
+                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
+                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
+                }`}
+              >
+                <ImagePlus className="w-3.5 h-3.5" />
+              </button>
+
+              {/* 6. AI Background Eraser / Remover Tool (Direct 1-Click) */}
+              <button
+                type="button"
+                disabled={isErasingBg || selectedElement?.type !== 'image'}
+                onClick={() => {
+                  if (isErasingBg || !selectedElement || selectedElement.type !== 'image') return;
+                  if (selectedElement.originalSrc) {
+                    handleRevertOriginalPhoto();
+                  } else {
+                    handleRemoveBackground();
+                  }
+                }}
+                title={
+                  isErasingBg
+                    ? erasingProgress || 'Sedang menghapus background...'
+                    : selectedElement?.type === 'image'
+                    ? selectedElement.originalSrc
+                      ? 'Kembalikan Foto Asli (Background sudah dihapus)'
+                      : 'Hapus Background Foto (1-Klik AI)'
+                    : 'Pilih foto di canvas terlebih dahulu untuk menghapus background'
+                }
+                aria-label="AI Background Eraser"
+                className={`p-1.5 rounded-full transition-all relative ${
+                  isErasingBg
+                    ? 'bg-blue-600/20 text-blue-500 cursor-wait'
+                    : selectedElement?.type === 'image'
+                    ? selectedElement.originalSrc
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/30 cursor-pointer shadow-xs'
+                      : workspaceDarkMode
+                      ? 'text-zinc-300 hover:text-white hover:bg-blue-600 cursor-pointer'
+                      : 'text-zinc-700 hover:text-blue-600 hover:bg-blue-50 cursor-pointer'
+                    : 'opacity-35 text-zinc-400 cursor-not-allowed'
+                }`}
+              >
+                {isErasingBg ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Eraser className="w-3.5 h-3.5" />
+                )}
+                {selectedElement?.type === 'image' && selectedElement.originalSrc && !isErasingBg && (
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950" />
+                )}
+              </button>
+
+              {/* 7. Crop / Trim Bounding Box Tool */}
+              <button
+                type="button"
+                disabled={selectedElement?.type !== 'image'}
+                onClick={() => setActivePopover(activePopover === 'crop' ? null : 'crop')}
+                title={
+                  selectedElement?.type === 'image'
+                    ? 'Crop / Potong Bounding Box Foto (Kiri, Kanan, Atas, Bawah)'
+                    : 'Pilih foto di canvas untuk memotong (crop) bounding box'
+                }
+                aria-label="Crop Bounding Box"
+                className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                  activePopover === 'crop'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : selectedElement?.type === 'image'
+                    ? workspaceDarkMode
+                      ? 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+                      : 'text-zinc-700 hover:text-blue-600 hover:bg-blue-50'
+                    : 'opacity-35 text-zinc-400 cursor-not-allowed'
+                }`}
+              >
+                <Crop className="w-3.5 h-3.5" />
+              </button>
+
+              {/* 8. Indikator Ganti Warna Object */}
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePopover(activePopover === 'color' ? null : 'color')
+                }
+                title={
+                  selectedElement
+                    ? `Ganti Warna ${selectedElement.name} (${currentObjectColor})`
+                    : `Ganti Warna Background Slide (${currentObjectColor})`
+                }
+                aria-label="Object Color Indicator"
+                className={`p-1 rounded-full cursor-pointer transition-all flex items-center justify-center ${
+                  activePopover === 'color'
+                    ? 'ring-2 ring-blue-500 ' + (workspaceDarkMode ? 'bg-zinc-800' : 'bg-blue-50')
+                    : workspaceDarkMode
+                    ? 'hover:bg-zinc-800'
+                    : 'hover:bg-zinc-100'
+                }`}
+              >
+                <span
+                  className="w-4 h-4 rounded-full border border-zinc-400/60 shadow-xs block"
+                  style={{ backgroundColor: currentObjectColor }}
+                />
+              </button>
+
+              <div
+                className={`w-px h-4 mx-0.5 ${
+                  workspaceDarkMode ? 'bg-zinc-800' : 'bg-zinc-200'
+                }`}
+              />
+
+              {/* Next Slide */}
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveSlideIndex(
+                    Math.min(slides.length - 1, activeSlideIndex + 1)
+                  )
+                }
+                disabled={activeSlideIndex === slides.length - 1}
+                className={`p-1.5 rounded-full disabled:opacity-30 cursor-pointer transition-colors ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
+                }`}
+                title={`Slide Berikutnya (${activeSlideIndex + 1}/${slides.length})`}
+                aria-label="Next Slide"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
           </div>
 
           {/* POPOVER 1: RESIZE CANVAS & OBJECT */}
           {activePopover === 'resize' && (
-            <div className="mt-2 p-2.5 rounded-xl border border-zinc-800 bg-zinc-950/95 shadow-xl backdrop-blur-md w-56 space-y-2.5 text-xs">
-              <div className="flex items-center justify-between text-[10px] text-zinc-400 font-medium">
+            <div className={`mt-2 p-2.5 rounded-xl border shadow-xl backdrop-blur-md w-56 space-y-2.5 text-xs ${
+              workspaceDarkMode
+                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
+                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
+            }`}>
+              <div className="flex items-center justify-between text-[10px] opacity-70 font-medium">
                 <span>Ukuran Canvas (Resize)</span>
                 <span className="font-mono text-[9.5px]">
                   {dim.exportWidth}×{dim.exportHeight}
@@ -865,8 +903,10 @@ export const CenterWorkspace: React.FC = () => {
                       onClick={() => setAspectRatio(key)}
                       className={`py-1.5 px-1.5 rounded-lg border text-[10px] font-medium cursor-pointer transition-all ${
                         active
-                          ? 'bg-blue-900/10 border-blue-900/40 text-blue-900 font-semibold'
-                          : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                          ? 'bg-blue-600/15 border-blue-600 text-blue-600 font-semibold'
+                          : workspaceDarkMode
+                          ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                          : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
                       }`}
                     >
                       {cfg.shortLabel}
@@ -876,8 +916,8 @@ export const CenterWorkspace: React.FC = () => {
               </div>
 
               {selectedElement && (
-                <div className="pt-2 border-t border-zinc-800/80 space-y-1.5">
-                  <span className="text-[10px] text-zinc-400 block">
+                <div className={`pt-2 border-t space-y-1.5 ${workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'}`}>
+                  <span className="text-[10px] opacity-70 block">
                     Resize Object ({selectedElement.name})
                   </span>
                   <div className="grid grid-cols-4 gap-1">
@@ -900,7 +940,11 @@ export const CenterWorkspace: React.FC = () => {
                         )
                       }
                       title="Perkecil Object -10%"
-                      className="py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] font-mono text-zinc-300 cursor-pointer"
+                      className={`py-1 rounded border text-[10px] font-mono cursor-pointer ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
+                      }`}
                     >
                       -10%
                     </button>
@@ -917,7 +961,11 @@ export const CenterWorkspace: React.FC = () => {
                         )
                       }
                       title="Perbesar Object +10%"
-                      className="py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] font-mono text-zinc-300 cursor-pointer"
+                      className={`py-1 rounded border text-[10px] font-mono cursor-pointer ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
+                      }`}
                     >
                       +10%
                     </button>
@@ -927,7 +975,11 @@ export const CenterWorkspace: React.FC = () => {
                         alignElementOnCanvas(selectedElement.id, 'fit-margin')
                       }
                       title="Fit ke Margin"
-                      className="py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] text-zinc-300 cursor-pointer"
+                      className={`py-1 rounded border text-[10px] cursor-pointer ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
+                      }`}
                     >
                       Margin
                     </button>
@@ -937,7 +989,11 @@ export const CenterWorkspace: React.FC = () => {
                         alignElementOnCanvas(selectedElement.id, 'fit-canvas')
                       }
                       title="Full Bleed Canvas"
-                      className="py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] text-zinc-300 cursor-pointer"
+                      className={`py-1 rounded border text-[10px] cursor-pointer ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
+                      }`}
                     >
                       Full
                     </button>
@@ -949,14 +1005,18 @@ export const CenterWorkspace: React.FC = () => {
 
           {/* POPOVER 2: TRANSPARENT / OPACITY */}
           {activePopover === 'transparent' && (
-            <div className="mt-2 p-2.5 rounded-xl border border-zinc-800 bg-zinc-950/95 shadow-xl backdrop-blur-md w-56 space-y-2 text-xs">
+            <div className={`mt-2 p-2.5 rounded-xl border shadow-xl backdrop-blur-md w-56 space-y-2 text-xs ${
+              workspaceDarkMode
+                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
+                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
+            }`}>
               {selectedElement ? (
                 <>
-                  <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                  <div className="flex items-center justify-between text-[10px] opacity-70">
                     <span className="truncate max-w-[140px]">
                       Transparansi ({selectedElement.name})
                     </span>
-                    <span className="font-mono text-blue-900 font-semibold">
+                    <span className="font-mono text-blue-600 font-semibold">
                       {Math.round(selectedElement.opacity * 100)}%
                     </span>
                   </div>
@@ -973,7 +1033,7 @@ export const CenterWorkspace: React.FC = () => {
                         false
                       )
                     }
-                    className="w-full accent-blue-900 cursor-pointer"
+                    className="w-full accent-blue-600 cursor-pointer"
                   />
                   <div className="grid grid-cols-5 gap-1">
                     {[
@@ -995,8 +1055,10 @@ export const CenterWorkspace: React.FC = () => {
                         }
                         className={`py-1 rounded border text-[9.5px] font-mono cursor-pointer ${
                           Math.abs(selectedElement.opacity - preset.val) < 0.03
-                            ? 'bg-blue-900/10 border-blue-900/40 text-blue-900 font-semibold'
-                            : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                            ? 'bg-blue-600/15 border-blue-600 text-blue-600 font-semibold'
+                            : workspaceDarkMode
+                            ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                            : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
                         }`}
                       >
                         {preset.label}
@@ -1014,7 +1076,11 @@ export const CenterWorkspace: React.FC = () => {
                           true
                         )
                       }
-                      className="w-full py-1 px-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] text-zinc-300 cursor-pointer"
+                      className={`w-full py-1 px-2 rounded-lg border text-[10px] cursor-pointer ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
+                      }`}
                     >
                       Set Background Box Transparan
                     </button>
@@ -1022,7 +1088,7 @@ export const CenterWorkspace: React.FC = () => {
                 </>
               ) : (
                 <div className="space-y-1.5">
-                  <span className="text-[10px] text-zinc-400 block">
+                  <span className="text-[10px] opacity-70 block">
                     Pilih objek di canvas untuk mengatur tingkat transparansi
                     objek, atau reset background slide:
                   </span>
@@ -1034,7 +1100,11 @@ export const CenterWorkspace: React.FC = () => {
                         theme.background
                       )
                     }
-                    className="w-full py-1.5 px-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] text-zinc-200 cursor-pointer"
+                    className={`w-full py-1.5 px-2 rounded-lg border text-[10px] cursor-pointer ${
+                      workspaceDarkMode
+                        ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200'
+                        : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-800'
+                    }`}
                   >
                     Reset ke Warna Kertas Default Theme
                   </button>
@@ -1045,8 +1115,12 @@ export const CenterWorkspace: React.FC = () => {
 
           {/* POPOVER 3: INDIKATOR GANTI WARNA OBJECT & THEME */}
           {activePopover === 'color' && (
-            <div className="mt-2 p-2.5 rounded-xl border border-zinc-800 bg-zinc-950/95 shadow-xl backdrop-blur-md w-60 space-y-2.5 text-xs">
-              <div className="flex items-center justify-between text-[10px] text-zinc-400">
+            <div className={`mt-2 p-2.5 rounded-xl border shadow-xl backdrop-blur-md w-60 space-y-2.5 text-xs ${
+              workspaceDarkMode
+                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
+                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
+            }`}>
+              <div className="flex items-center justify-between text-[10px] opacity-70">
                 <span className="truncate">
                   {selectedElement
                     ? `Warna: ${selectedElement.name}`
@@ -1067,13 +1141,21 @@ export const CenterWorkspace: React.FC = () => {
                   }
                   onChange={(e) => handleObjectColorChange(e.target.value)}
                   aria-label="Color Picker"
-                  className="w-7 h-7 rounded-lg cursor-pointer bg-zinc-900 border border-zinc-700 p-0.5 shrink-0"
+                  className={`w-7 h-7 rounded-lg cursor-pointer border p-0.5 shrink-0 ${
+                    workspaceDarkMode
+                      ? 'bg-zinc-900 border-zinc-700'
+                      : 'bg-white border-zinc-300'
+                  }`}
                 />
                 <input
                   type="text"
                   value={currentObjectColor}
                   onChange={(e) => handleObjectColorChange(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-[11px] font-mono text-zinc-100 focus:outline-none"
+                  className={`flex-1 border rounded-lg px-2 py-1 text-[11px] font-mono focus:outline-none ${
+                    workspaceDarkMode
+                      ? 'bg-zinc-900 border-zinc-800 text-zinc-100'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-900'
+                  }`}
                 />
               </div>
 
@@ -1094,15 +1176,17 @@ export const CenterWorkspace: React.FC = () => {
                     type="button"
                     onClick={() => handleObjectColorChange(swatch)}
                     title={swatch}
-                    className="w-5 h-5 rounded-full border border-zinc-700 hover:scale-110 transition-transform cursor-pointer"
+                    className="w-5 h-5 rounded-full border border-zinc-400/40 hover:scale-110 transition-transform cursor-pointer"
                     style={{ backgroundColor: swatch }}
                   />
                 ))}
               </div>
 
               {/* Global Theme Palette Quick Dots */}
-              <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
-                <span className="text-[10px] text-zinc-400">Theme Global</span>
+              <div className={`pt-2 border-t flex items-center justify-between ${
+                workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
+              }`}>
+                <span className="text-[10px] opacity-70">Theme Global</span>
                 <div className="flex items-center gap-1.5">
                   {THEME_PALETTES.map((t) => (
                     <button
@@ -1112,8 +1196,8 @@ export const CenterWorkspace: React.FC = () => {
                       title={t.name}
                       className={`w-4 h-4 rounded-full border transition-transform cursor-pointer ${
                         activeThemeId === t.id
-                          ? 'scale-115 border-blue-900 ring-1 ring-blue-900/50'
-                          : 'border-zinc-700 opacity-75 hover:opacity-100'
+                          ? 'scale-115 border-blue-600 ring-2 ring-blue-500/40'
+                          : 'border-zinc-400/40 opacity-75 hover:opacity-100'
                       }`}
                       style={{ backgroundColor: t.background }}
                     />
@@ -1125,10 +1209,16 @@ export const CenterWorkspace: React.FC = () => {
 
           {/* POPOVER: CROP & POTONG BOUNDING BOX */}
           {activePopover === 'crop' && selectedElement?.type === 'image' && (
-            <div className="mt-2 p-3 rounded-xl border border-zinc-800 bg-zinc-950/95 shadow-2xl backdrop-blur-md w-72 space-y-3 text-xs z-50">
-              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                <div className="flex items-center gap-1.5 text-zinc-100 font-semibold text-xs">
-                  <Crop className="w-3.5 h-3.5 text-blue-900" />
+            <div className={`mt-2 p-3 rounded-xl border shadow-2xl backdrop-blur-md w-72 space-y-3 text-xs z-50 ${
+              workspaceDarkMode
+                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
+                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
+            }`}>
+              <div className={`flex items-center justify-between border-b pb-2 ${
+                workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
+              }`}>
+                <div className="flex items-center gap-1.5 font-semibold text-xs">
+                  <Crop className="w-3.5 h-3.5 text-blue-600" />
                   <span>Potong Bounding Box</span>
                 </div>
                 <button
@@ -1175,7 +1265,7 @@ export const CenterWorkspace: React.FC = () => {
                     }
                   }}
                   title="Pangkas Bounding Box Kosong (Auto-Trim Transparan)"
-                  className="text-[9.5px] px-2 py-0.5 rounded bg-blue-900 hover:bg-blue-800 text-white font-medium cursor-pointer transition-colors"
+                  className="text-[9.5px] px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer transition-colors shadow-xs"
                 >
                   ⚡ Auto-Fit Box
                 </button>
@@ -1183,7 +1273,7 @@ export const CenterWorkspace: React.FC = () => {
 
               {/* 4-Edge Crop Sliders */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-[10.5px] text-zinc-300 font-medium">
+                <div className="flex items-center justify-between text-[10.5px] font-medium opacity-80">
                   <span>Potong Tepi (Kiri, Kanan, Atas, Bawah)</span>
                   <button
                     type="button"
@@ -1199,13 +1289,17 @@ export const CenterWorkspace: React.FC = () => {
                         true
                       )
                     }
-                    className="text-[9.5px] text-zinc-400 hover:text-blue-900 cursor-pointer"
+                    className="text-[9.5px] text-blue-600 hover:underline cursor-pointer"
                   >
                     Reset
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 bg-zinc-900/60 p-2 rounded-lg border border-zinc-800">
+                <div className={`grid grid-cols-2 gap-2 p-2 rounded-lg border ${
+                  workspaceDarkMode
+                    ? 'bg-zinc-900/60 border-zinc-800'
+                    : 'bg-zinc-50 border-zinc-200'
+                }`}>
                   {(
                     [
                       { k: 'cropLeft', label: 'Potong Kiri', val: selectedElement.cropLeft || 0 },
@@ -1215,9 +1309,9 @@ export const CenterWorkspace: React.FC = () => {
                     ] as const
                   ).map((c) => (
                     <div key={c.k}>
-                      <div className="flex justify-between text-[9px] text-zinc-400">
+                      <div className="flex justify-between text-[9px] opacity-70">
                         <span>{c.label}</span>
-                        <span className="font-mono text-blue-900">{c.val}%</span>
+                        <span className="font-mono text-blue-600 font-semibold">{c.val}%</span>
                       </div>
                       <input
                         type="range"
@@ -1232,7 +1326,7 @@ export const CenterWorkspace: React.FC = () => {
                             false
                           )
                         }
-                        className="w-full accent-blue-900 cursor-pointer"
+                        className="w-full accent-blue-600 cursor-pointer"
                       />
                     </div>
                   ))}
@@ -1240,7 +1334,9 @@ export const CenterWorkspace: React.FC = () => {
               </div>
 
               {/* Fit Mode */}
-              <div className="flex items-center justify-between pt-1 border-t border-zinc-800/80 text-[10px] text-zinc-400">
+              <div className={`flex items-center justify-between pt-1 border-t text-[10px] opacity-75 ${
+                workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
+              }`}>
                 <span>Mode Tampilan:</span>
                 <div className="flex items-center gap-1">
                   <button
@@ -1248,8 +1344,10 @@ export const CenterWorkspace: React.FC = () => {
                     onClick={() => updateElement(selectedElement.id, { objectFit: 'cover' }, true)}
                     className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
                       !selectedElement.objectFit || selectedElement.objectFit === 'cover'
-                        ? 'bg-blue-900 text-white font-medium'
-                        : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                        ? 'bg-blue-600 text-white font-medium shadow-xs'
+                        : workspaceDarkMode
+                        ? 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                        : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 border border-zinc-200'
                     }`}
                   >
                     Cover
@@ -1259,8 +1357,10 @@ export const CenterWorkspace: React.FC = () => {
                     onClick={() => updateElement(selectedElement.id, { objectFit: 'contain' }, true)}
                     className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
                       selectedElement.objectFit === 'contain'
-                        ? 'bg-blue-900 text-white font-medium'
-                        : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                        ? 'bg-blue-600 text-white font-medium shadow-xs'
+                        : workspaceDarkMode
+                        ? 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                        : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 border border-zinc-200'
                     }`}
                   >
                     Contain

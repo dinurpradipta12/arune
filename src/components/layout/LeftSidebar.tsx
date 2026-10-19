@@ -14,6 +14,7 @@ import {
   Lock,
   Minus,
   PlusCircle,
+  Shapes,
   Trash2,
   Type,
   Unlock,
@@ -1149,6 +1150,16 @@ export const LeftSidebar: React.FC = () => {
 
               <button
                 type="button"
+                onClick={() => addElement('shape')}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 hover:border-blue-500/50 text-zinc-200 transition-all cursor-pointer group"
+              >
+                <Shapes className="w-4 h-4 text-blue-900 group-hover:text-blue-400 transition-colors" />
+                <span className="text-xs font-medium">Shape</span>
+                <span className="text-[10px] text-zinc-500">Box / Circle</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => addElement('divider')}
                 className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 hover:border-blue-900/40 text-zinc-200 transition-all cursor-pointer"
               >
@@ -1160,11 +1171,11 @@ export const LeftSidebar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => addElement('badge')}
-                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 hover:border-blue-900/40 text-zinc-200 transition-all cursor-pointer"
+                className="col-span-2 flex items-center justify-center gap-2 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 hover:border-blue-900/40 text-zinc-200 transition-all cursor-pointer"
               >
                 <BadgeCheck className="w-4 h-4 text-blue-900" />
                 <span className="text-xs font-medium">Issue Badge</span>
-                <span className="text-[10px] text-zinc-500">Pill Stamp</span>
+                <span className="text-[10px] text-zinc-500">· Pill Stamp</span>
               </button>
             </div>
           </div>
@@ -1209,6 +1220,8 @@ export const LeftSidebar: React.FC = () => {
                             <BadgeCheck className="w-3.5 h-3.5" />
                           ) : el.type === 'divider' ? (
                             <Minus className="w-3.5 h-3.5" />
+                          ) : el.type === 'shape' ? (
+                            <Shapes className="w-3.5 h-3.5" />
                           ) : (
                             <Type className="w-3.5 h-3.5" />
                           )}
