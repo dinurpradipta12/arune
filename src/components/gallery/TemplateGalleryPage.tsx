@@ -422,10 +422,10 @@ export const TemplateGalleryPage: React.FC = () => {
         <div className="space-y-3 pt-3 border-t border-zinc-800/80">
           {/* Open Document Tabs & Active Session Card */}
           <div
-            className={`p-3 rounded-xl space-y-2.5 transition-all ${
+            className={`p-3 rounded-xl space-y-2.5 transition-all bg-zinc-900 border ${
               isUnsaved
-                ? 'bg-gradient-to-br from-amber-950/25 via-zinc-900/90 to-zinc-900 border border-amber-500/40 shadow-xs ring-1 ring-amber-500/20'
-                : 'bg-zinc-900 border border-zinc-800'
+                ? 'border-blue-500/50 shadow-xs'
+                : 'border-zinc-800'
             }`}
           >
             <div className="flex items-center justify-between gap-2">
@@ -434,8 +434,8 @@ export const TemplateGalleryPage: React.FC = () => {
                   Dokumen ({openDocuments.length})
                 </span>
                 {isUnsaved ? (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
                     <span>Draft</span>
                   </span>
                 ) : (
@@ -446,7 +446,7 @@ export const TemplateGalleryPage: React.FC = () => {
                 type="button"
                 onClick={() => openBlankDocumentTab(aspectRatio)}
                 title="Tambah Tab Dokumen Baru"
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-900/10 hover:bg-blue-900/20 border border-blue-900/30 text-blue-900 cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
               >
                 <Plus className="w-2.5 h-2.5" />
                 <span>Tab Baru</span>
@@ -466,15 +466,13 @@ export const TemplateGalleryPage: React.FC = () => {
                     onClick={() => switchDocumentTab(doc.id)}
                     className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg text-[11px] cursor-pointer transition-colors ${
                       isActive
-                        ? docUnsaved
-                          ? 'bg-amber-500/15 border border-amber-500/40 text-amber-100 font-semibold shadow-xs'
-                          : 'bg-blue-900/10 border border-blue-900/30 text-zinc-100 font-semibold'
+                        ? 'bg-blue-950/40 border border-blue-600/50 text-zinc-100 font-semibold'
                         : 'bg-zinc-950/60 hover:bg-zinc-800/80 border border-zinc-800/70 text-zinc-300'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 truncate flex-1">
                       {docUnsaved && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Ada perubahan belum disimpan" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" title="Ada perubahan draft" />
                       )}
                       <span className="truncate">{liveTitle}</span>
                     </div>
@@ -503,7 +501,7 @@ export const TemplateGalleryPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveView('editor')}
-                className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <span>Buka Editor</span>
                 <ArrowRight className="w-3 h-3" />
@@ -512,9 +510,9 @@ export const TemplateGalleryPage: React.FC = () => {
                 type="button"
                 onClick={() => handleSaveCurrent(false)}
                 title="Simpan Sesi Aktif"
-                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 cursor-pointer"
+                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center justify-center"
               >
-                <Save className="w-3.5 h-3.5 text-blue-900" />
+                <Save className="w-3.5 h-3.5 text-zinc-300" />
               </button>
             </div>
             {saveToast && (
@@ -1014,20 +1012,16 @@ export const TemplateGalleryPage: React.FC = () => {
 
                   {/* Active Session Quick Card in the 4th slot */}
                   <div
-                    className={`p-3.5 rounded-xl transition-all flex items-center justify-between gap-3 shadow-md ${
+                    className={`p-3.5 rounded-xl transition-all flex items-center justify-between gap-3 shadow-xs bg-zinc-900 border ${
                       isUnsaved
-                        ? 'bg-gradient-to-br from-amber-950/50 via-zinc-900 to-amber-900/30 border-2 border-amber-500/60 shadow-amber-950/40 ring-1 ring-amber-500/30'
-                        : 'bg-gradient-to-br from-emerald-950/30 via-zinc-900 to-zinc-900 border border-emerald-500/40 shadow-xs'
+                        ? 'border-2 border-blue-500 shadow-blue-950/20'
+                        : 'border border-zinc-800'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       {slides[0] && (
                         <div
-                          className={`relative overflow-hidden rounded shrink-0 transition-all ${
-                            isUnsaved
-                              ? 'border-2 border-amber-500/70 ring-1 ring-amber-500/40 shadow-xs'
-                              : 'border border-zinc-700'
-                          }`}
+                          className="relative overflow-hidden rounded border border-zinc-700 shrink-0"
                           style={{
                             width: `${Math.round(
                               ASPECT_RATIOS[aspectRatio].stageWidth * 0.09
@@ -1052,21 +1046,21 @@ export const TemplateGalleryPage: React.FC = () => {
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className="flex items-center gap-1.5 mb-1">
                           {isUnsaved ? (
                             <>
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
+                              <span className="text-[10px] uppercase tracking-wider font-bold text-blue-500">
+                                Sedang Diedit
                               </span>
-                              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-300">
-                                Sedang Diedit · Belum Disimpan
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30 font-semibold">
+                                Belum Disimpan
                               </span>
                             </>
                           ) : (
                             <>
-                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                              <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-400">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                              <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-500">
                                 Sedang Diedit · Tersimpan {lastSavedAt ? `(${lastSavedAt})` : ''}
                               </span>
                             </>
@@ -1077,17 +1071,13 @@ export const TemplateGalleryPage: React.FC = () => {
                           value={projectTitle}
                           onChange={(e) => setProjectTitle(e.target.value)}
                           aria-label="Judul Project Aktif"
-                          className="bg-transparent text-xs font-bold text-zinc-100 focus:outline-none border-b border-zinc-700/60 focus:border-amber-400 w-full truncate pb-0.5"
+                          className="bg-transparent text-xs font-bold text-zinc-100 focus:outline-none border-b border-zinc-700/60 focus:border-blue-500 w-full truncate pb-0.5"
                         />
                         <div className="flex items-center gap-2 mt-2">
                           <button
                             type="button"
                             onClick={() => setActiveView('editor')}
-                            className={`text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all shadow-xs ${
-                              isUnsaved
-                                ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950'
-                                : 'bg-blue-900 hover:bg-blue-800 text-white'
-                            }`}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                           >
                             <span>Lanjutkan</span>
                             <ArrowRight className="w-3 h-3" />
@@ -1095,13 +1085,9 @@ export const TemplateGalleryPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleSaveCurrent(false)}
-                            className={`text-[11px] font-medium px-2 py-1 rounded-lg border cursor-pointer flex items-center gap-1 transition-colors ${
-                              isUnsaved
-                                ? 'bg-zinc-800/90 hover:bg-zinc-700 text-amber-200 border-amber-500/40'
-                                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
-                            }`}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center gap-1.5 transition-colors"
                           >
-                            <Save className={`w-3 h-3 ${isUnsaved ? 'text-amber-400' : 'text-zinc-400'}`} />
+                            <Save className="w-3 h-3 text-zinc-400" />
                             <span>Simpan</span>
                           </button>
                         </div>
