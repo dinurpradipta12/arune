@@ -1009,77 +1009,73 @@ export const SlideStage: React.FC<SlideStageProps> = ({
             {/* Selection Controls: Label Pill, Rotation Handle, and 8 Resize Handles */}
             {isSelected && editingTextId !== el.id && (
               <>
-                <div
-                  className={`absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase whitespace-nowrap pointer-events-none shadow-md z-50 transition-colors ${
-                    isElementOverDark
-                      ? 'bg-sky-400 text-zinc-950 font-bold border border-white/60'
-                      : 'bg-blue-900 text-white border border-blue-950'
-                  }`}
-                >
-                  {el.name} · {el.width}×{el.height}
-                  {rot ? ` · ${rot}°` : ''}
-                  {el.locked ? ' · LOCKED' : ''}
-                </div>
+                {/* Minimalist Dynamic Label Pill: scales down with length, subtle padding */}
+                {(() => {
+                  const labelText = `${el.name} · ${el.width}×${el.height}${rot ? ` · ${rot}°` : ''}${el.locked ? ' · 🔒' : ''}`;
+                  // Dynamic font size: shorter = 8px, medium = 7px, long = 6.5px
+                  const fontSize = labelText.length > 35 ? '6.5px' : labelText.length > 20 ? '7.5px' : '8px';
+                  return (
+                    <div
+                      className="absolute -top-4 left-0 px-1 py-0.2 rounded-xs font-medium tracking-normal whitespace-nowrap pointer-events-none z-50 transition-colors backdrop-blur-xs max-w-[200px] truncate shadow-xs bg-zinc-950/75 text-zinc-300 border border-zinc-700/50"
+                      style={{ fontSize }}
+                    >
+                      {labelText}
+                    </div>
+                  );
+                })()}
 
                 {!el.locked && (
                   <>
-                    {/* Interactive Rotation Handle */}
+                    {/* Minimalist Transparent Rotation Handle */}
                     <div
                       onPointerDown={(e) => startRotate(e, el)}
                       title="Drag to Rotate Object"
-                      className={`absolute -top-7 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing z-50 transition-colors ${
-                        isElementOverDark
-                          ? 'bg-sky-400 text-zinc-950 border border-white hover:bg-sky-300'
-                          : 'bg-blue-900 text-white border border-white hover:bg-blue-800'
-                      }`}
+                      className="absolute -top-5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing z-50 transition-all bg-zinc-900/40 hover:bg-zinc-900/80 text-zinc-400 hover:text-white backdrop-blur-xs border border-white/20 hover:border-white/50"
                     >
-                      <RotateCw className="w-3 h-3" />
+                      <RotateCw className="w-2.5 h-2.5 opacity-80" />
                     </div>
 
+                    {/* Minimalist Solid Corner & Edge Dots (No Stroke, Clean Solid Dots) */}
                     {(
                       [
                         {
                           h: 'nw',
-                          cls: '-top-1.5 -left-1.5 cursor-nwse-resize',
+                          cls: '-top-1 -left-1 cursor-nwse-resize',
                         },
                         {
                           h: 'n',
-                          cls: '-top-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize',
+                          cls: '-top-1 left-1/2 -translate-x-1/2 cursor-ns-resize',
                         },
                         {
                           h: 'ne',
-                          cls: '-top-1.5 -right-1.5 cursor-nesw-resize',
+                          cls: '-top-1 -right-1 cursor-nesw-resize',
                         },
                         {
                           h: 'e',
-                          cls: 'top-1/2 -translate-y-1/2 -right-1.5 cursor-ew-resize',
+                          cls: 'top-1/2 -translate-y-1/2 -right-1 cursor-ew-resize',
                         },
                         {
                           h: 'se',
-                          cls: '-bottom-1.5 -right-1.5 cursor-nwse-resize',
+                          cls: '-bottom-1 -right-1 cursor-nwse-resize',
                         },
                         {
                           h: 's',
-                          cls: '-bottom-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize',
+                          cls: '-bottom-1 left-1/2 -translate-x-1/2 cursor-ns-resize',
                         },
                         {
                           h: 'sw',
-                          cls: '-bottom-1.5 -left-1.5 cursor-nesw-resize',
+                          cls: '-bottom-1 -left-1 cursor-nesw-resize',
                         },
                         {
                           h: 'w',
-                          cls: 'top-1/2 -translate-y-1/2 -left-1.5 cursor-ew-resize',
+                          cls: 'top-1/2 -translate-y-1/2 -left-1 cursor-ew-resize',
                         },
                       ] as { h: ResizeHandle; cls: string }[]
                     ).map(({ h, cls }) => (
                       <div
                         key={h}
                         onPointerDown={(e) => startResize(e, el, h)}
-                        className={`absolute w-2.5 h-2.5 rounded-[2px] z-50 shadow-xs transition-colors ${
-                          isElementOverDark
-                            ? 'bg-white border-2 border-sky-400 hover:border-white hover:bg-sky-300'
-                            : 'bg-white border-2 border-blue-900 hover:border-blue-700'
-                        } ${cls}`}
+                        className={`absolute w-1.5 h-1.5 rounded-xs z-50 bg-white hover:scale-135 transition-transform shadow-xs ${cls}`}
                       />
                     ))}
                   </>
