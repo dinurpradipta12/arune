@@ -184,6 +184,7 @@ export interface ImageCanvasElement extends BaseCanvasElement {
   saturation?: number; // 0 to 200 (%)
   grayscale?: number; // 0 to 100 (%)
   blur?: number; // 0 to 20 (px)
+  originalSrc?: string; // backup if background was removed
 }
 
 export interface DividerCanvasElement extends BaseCanvasElement {
