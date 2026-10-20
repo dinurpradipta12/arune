@@ -5,6 +5,69 @@ const url = require('url');
 
 let mainWindow = null;
 
+function setupTouchBar(win) {
+  if (process.platform !== 'darwin') return;
+  try {
+    const { TouchBar } = require('electron');
+    const { TouchBarButton, TouchBarSpacer } = TouchBar;
+
+    const prevSlideBtn = new TouchBarButton({
+      label: '◀ Slide',
+      backgroundColor: '#18181b',
+      click: () => {
+        win?.webContents?.send('touchbar-action', { type: 'prev-slide' });
+      },
+    });
+
+    const nextSlideBtn = new TouchBarButton({
+      label: 'Slide ▶',
+      backgroundColor: '#18181b',
+      click: () => {
+        win?.webContents?.send('touchbar-action', { type: 'next-slide' });
+      },
+    });
+
+    const zoomOutBtn = new TouchBarButton({
+      label: '🔍 − Zoom',
+      backgroundColor: '#27272a',
+      click: () => {
+        win?.webContents?.send('touchbar-action', { type: 'zoom-out' });
+      },
+    });
+
+    const zoomFitBtn = new TouchBarButton({
+      label: '100% Fit',
+      backgroundColor: '#1e3a8a',
+      click: () => {
+        win?.webContents?.send('touchbar-action', { type: 'zoom-fit' });
+      },
+    });
+
+    const zoomInBtn = new TouchBarButton({
+      label: '🔍 + Zoom',
+      backgroundColor: '#27272a',
+      click: () => {
+        win?.webContents?.send('touchbar-action', { type: 'zoom-in' });
+      },
+    });
+
+    const touchBar = new TouchBar({
+      items: [
+        prevSlideBtn,
+        nextSlideBtn,
+        new TouchBarSpacer({ size: 'small' }),
+        zoomOutBtn,
+        zoomFitBtn,
+        zoomInBtn,
+      ],
+    });
+
+    win.setTouchBar(touchBar);
+  } catch (err) {
+    console.warn('[TouchBar] Initialization error:', err?.message);
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1380,
@@ -71,6 +134,7 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    setupTouchBar(mainWindow);
     // Initialize Auto-Updater IPC
     try {
       const { setupAutoUpdater } = require('./updater.cjs');

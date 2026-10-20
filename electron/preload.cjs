@@ -38,4 +38,10 @@ contextBridge.exposeInMainWorld('aruneDesktop', {
     ipcRenderer.on('desktop-trigger-auto-check', listener);
     return () => ipcRenderer.removeListener('desktop-trigger-auto-check', listener);
   },
+
+  onTouchBarAction: (callback) => {
+    const listener = (_event, action) => callback(action);
+    ipcRenderer.on('touchbar-action', listener);
+    return () => ipcRenderer.removeListener('touchbar-action', listener);
+  },
 });

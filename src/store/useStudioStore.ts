@@ -1883,7 +1883,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   },
   setCanvasZoom: (canvasZoom) =>
     set({
-      canvasZoom: Math.max(0.5, Math.min(1.5, Number(canvasZoom.toFixed(2)))),
+      canvasZoom: Math.max(0.2, Math.min(2.5, Number(canvasZoom.toFixed(2)))),
     }),
   setWorkspaceDarkMode: (workspaceDarkMode) => set({ workspaceDarkMode }),
   setLeftSidebarOpen: (leftSidebarOpen) => set({ leftSidebarOpen }),

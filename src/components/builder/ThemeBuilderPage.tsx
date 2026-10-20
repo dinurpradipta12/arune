@@ -365,6 +365,32 @@ const ThemeBuilderContent: React.FC = () => {
     return () => clearTimeout(timer);
   }, [aspectRatio]);
 
+  // Option + Scroll Wheel or Trackpad Pinch to Zoom
+  useEffect(() => {
+    const el = previewContainerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.altKey || e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const isPinch = e.ctrlKey && !e.altKey && !e.metaKey;
+        const zoomRate = isPinch ? 0.008 : 0.0018;
+        const delta = -e.deltaY * zoomRate;
+
+        setCanvasZoom((prev) =>
+          Math.max(0.18, Math.min(2.0, Number((prev + delta).toFixed(2))))
+        );
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
   const activeSlide = slides[activeSlideIndex] || slides[0];
 
   // Publish to Cloud Database as a new Master Template

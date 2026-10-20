@@ -44,6 +44,7 @@ export const CenterWorkspace: React.FC = () => {
     getActiveTheme,
     branding,
     canvasZoom,
+    setCanvasZoom,
     workspaceDarkMode,
     selectedElementId,
     setSelectedElementId,
@@ -79,6 +80,7 @@ export const CenterWorkspace: React.FC = () => {
   const [isDraggingFileOver, setIsDraggingFileOver] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
 
   const theme = getActiveTheme();
   const activeSlide = slides[activeSlideIndex] || slides[0];
@@ -283,6 +285,63 @@ export const CenterWorkspace: React.FC = () => {
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
   }, [dim.stageWidth, dim.stageHeight]);
+
+  // Canvas zoom on Wheel: Option + Scroll (Mac), Cmd + Scroll, or Trackpad Pinch
+  useEffect(() => {
+    const el = canvasContainerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Mac Opt (Alt), Cmd (Meta), or Ctrl (Trackpad Pinch on Mac)
+      if (e.altKey || e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const isPinch = e.ctrlKey && !e.altKey && !e.metaKey;
+        const zoomRate = isPinch ? 0.008 : 0.0018;
+        const delta = -e.deltaY * zoomRate;
+
+        const currentZoom = useStudioStore.getState().canvasZoom;
+        const nextZoom = Math.max(0.2, Math.min(2.5, Number((currentZoom + delta).toFixed(2))));
+        setCanvasZoom(nextZoom);
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [setCanvasZoom]);
+
+  // Touch Bar support on Mac Electron
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const desktop = (window as any).aruneDesktop;
+    if (!desktop?.onTouchBarAction) return;
+
+    const unbind = desktop.onTouchBarAction((action: { type: string }) => {
+      const state = useStudioStore.getState();
+      if (action.type === 'zoom-in') {
+        state.setCanvasZoom(Math.min(2.5, Number((state.canvasZoom + 0.1).toFixed(2))));
+      } else if (action.type === 'zoom-out') {
+        state.setCanvasZoom(Math.max(0.2, Number((state.canvasZoom - 0.1).toFixed(2))));
+      } else if (action.type === 'zoom-fit') {
+        state.setCanvasZoom(state.aspectRatio === '9:16' ? 0.68 : 0.9);
+      } else if (action.type === 'prev-slide') {
+        if (state.activeSlideIndex > 0) {
+          state.setActiveSlideIndex(state.activeSlideIndex - 1);
+        }
+      } else if (action.type === 'next-slide') {
+        if (state.activeSlideIndex < state.slides.length - 1) {
+          state.setActiveSlideIndex(state.activeSlideIndex + 1);
+        }
+      }
+    });
+
+    return () => {
+      if (unbind) unbind();
+    };
+  }, []);
 
   // Drag and drop handlers for canvas container
   const handleDragOver = (e: React.DragEvent) => {
@@ -584,6 +643,7 @@ export const CenterWorkspace: React.FC = () => {
 
         {/* Main Dot-Grid Canvas Stage Area */}
         <div
+          ref={canvasContainerRef}
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) {
               setSelectedElementId(null);
