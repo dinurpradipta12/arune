@@ -192,30 +192,38 @@ function setupAutoUpdater(mainWindow, app) {
 
       // Check if the running client already has this commit or deploy version
       const cleanRunning = String(activeRunningVersion).trim().toLowerCase();
+
+      // Check commit SHA match (e.g. "0e297d1")
       const isAlreadyOnLatestCommit = Boolean(
         latestSha && cleanRunning.includes(latestSha.toLowerCase())
       );
-      const isAlreadyOnLatestDeploy = Boolean(
-        liveDeploy?.version &&
-          cleanRunning === String(liveDeploy.version).trim().toLowerCase()
+
+      // Check deploy build match (e.g. liveDeploy.build: "0e297d1-mvgwvyxb")
+      const deployBuildSha = liveDeploy?.build ? String(liveDeploy.build).substring(0, 7).toLowerCase() : '';
+      const isAlreadyOnLatestDeployBuild = Boolean(
+        deployBuildSha && cleanRunning.includes(deployBuildSha)
       );
 
       let hasUpdate = false;
 
-      // If client is already running the latest commit or deploy build, NO update is needed
-      if (isAlreadyOnLatestCommit || isAlreadyOnLatestDeploy) {
+      // 1. If semver in manifest is strictly greater than running app semver
+      if (manifest?.version && compareSemver(manifest.version, currentAppVersion) > 0) {
+        hasUpdate = true;
+      }
+      // 2. If semver in live deploy is strictly greater than running app semver
+      else if (liveDeploy?.version && compareSemver(liveDeploy.version, currentAppVersion) > 0) {
+        hasUpdate = true;
+      }
+      // 3. If client is already running the latest commit or deploy build, NO update is needed
+      else if (isAlreadyOnLatestCommit || isAlreadyOnLatestDeployBuild) {
         hasUpdate = false;
-      } else if (latestSha && !cleanRunning.includes(latestSha.toLowerCase())) {
+      }
+      // 4. If latest commit exists and running client doesn't have it
+      else if (latestSha && !cleanRunning.includes(latestSha.toLowerCase())) {
         hasUpdate = true;
-      } else if (
-        liveDeploy?.version &&
-        cleanRunning !== String(liveDeploy.version).toLowerCase()
-      ) {
-        hasUpdate = true;
-      } else if (
-        manifest?.version &&
-        compareSemver(manifest.version, currentAppVersion) > 0
-      ) {
+      }
+      // 5. If live deploy build exists and running client doesn't have it
+      else if (deployBuildSha && !cleanRunning.includes(deployBuildSha)) {
         hasUpdate = true;
       }
 

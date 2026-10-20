@@ -112,6 +112,77 @@ export const TemplateGalleryPage: React.FC = () => {
   const [selectedPresetRatio, setSelectedPresetRatio] = useState<AspectRatioKey>('4:5');
   const [projectNameInput, setProjectNameInput] = useState('');
 
+  // Desktop / Web Version Check State for Sidebar
+  const [updateAvailable, setUpdateAvailable] = useState<{
+    hasUpdate: boolean;
+    version: string;
+    releaseDate?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkAppVersion = async () => {
+      try {
+        if (typeof window !== 'undefined' && (window as any).aruneDesktop?.checkForUpdates) {
+          const currentBuild =
+            typeof __APP_BUILD_ID__ !== 'undefined'
+              ? __APP_BUILD_ID__
+              : typeof __APP_VERSION__ !== 'undefined'
+              ? __APP_VERSION__
+              : '1.0.0';
+          const res = await (window as any).aruneDesktop.checkForUpdates(currentBuild);
+          if (isMounted && res && res.hasUpdate) {
+            setUpdateAvailable({
+              hasUpdate: true,
+              version: res.latestVersion || '1.0.2',
+              releaseDate: res.releaseDate,
+            });
+            return;
+          }
+        }
+
+        // Web / Cloudflare Pages fallback check
+        const targetUrl =
+          typeof window !== 'undefined' && window.location.origin.startsWith('http')
+            ? `${window.location.origin}/version.json?t=${Date.now()}`
+            : `https://arune.pages.dev/version.json?t=${Date.now()}`;
+        const res = await fetch(targetUrl, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const currentBuild =
+          typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : '';
+        const currentVersion =
+          typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.1';
+
+        const hasRemoteUpdate = Boolean(
+          (data.build && currentBuild && !currentBuild.includes(data.build.slice(0, 7))) ||
+          (data.version && data.version !== currentVersion)
+        );
+
+        if (isMounted && hasRemoteUpdate) {
+          setUpdateAvailable({
+            hasUpdate: true,
+            version: data.version || '1.0.2',
+            releaseDate: data.builtAt,
+          });
+        }
+      } catch {
+        // ignore network error
+      }
+    };
+
+    void checkAppVersion();
+    const interval = setInterval(checkAppVersion, 45_000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const activeTheme = getActiveTheme();
 
   const handleOpenNewProjectModal = (ratio: AspectRatioKey = '4:5') => {
@@ -564,6 +635,35 @@ export const TemplateGalleryPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* New Version Available Notification Button */}
+          {updateAvailable?.hasUpdate && (
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
+              }}
+              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-800 hover:from-blue-800 hover:to-indigo-800 text-white shadow-lg border border-blue-500/50 flex items-center justify-between gap-2 cursor-pointer transition-all animate-pulse group"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-blue-500/30 text-blue-200 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="text-xs font-bold leading-tight flex items-center gap-1.5">
+                    <span>New Version!</span>
+                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-blue-500/30 text-blue-100">
+                      v{updateAvailable.version}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-zinc-300 truncate">
+                    Klik untuk perbarui aplikasi
+                  </div>
+                </div>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-blue-200 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </button>
+          )}
 
           {/* Workspace Mode & Studio Settings Footer */}
           <div className="flex items-center justify-between gap-1.5">

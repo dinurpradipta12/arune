@@ -22,11 +22,14 @@ const SNOOZE_MS = 10 * 60_000;
 
 interface RemoteVersion {
   version: string;
+  build?: string;
   builtAt?: string;
 }
 
 const currentVersion =
   typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+const currentBuild =
+  typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : '';
 
 async function fetchRemoteVersion(): Promise<RemoteVersion | null> {
   try {
@@ -59,11 +62,19 @@ export const UpdateNotifier: React.FC<{ darkMode?: boolean }> = ({
   const check = useCallback(async () => {
     if (import.meta.env.DEV) return;
     const data = await fetchRemoteVersion();
-    if (!data || data.version === currentVersion) return;
+    if (!data) return;
+
+    const hasNewBuild = Boolean(
+      (data.build && currentBuild && !currentBuild.includes(data.build.slice(0, 7))) ||
+      (data.version && data.version !== currentVersion)
+    );
+
+    if (!hasNewBuild) return;
 
     // A new build is live.
-    if (detectedVersion.current !== data.version) {
-      detectedVersion.current = data.version;
+    const key = data.build || data.version;
+    if (detectedVersion.current !== key) {
+      detectedVersion.current = key;
       snoozedUntil.current = 0; // a newer version overrides an earlier snooze
     }
     setRemote(data);

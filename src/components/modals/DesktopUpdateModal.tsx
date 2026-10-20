@@ -70,7 +70,11 @@ export const DesktopUpdateModal: React.FC = () => {
 
     try {
       const currentBuild =
-        typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
+        typeof __APP_BUILD_ID__ !== 'undefined'
+          ? __APP_BUILD_ID__
+          : typeof __APP_VERSION__ !== 'undefined'
+          ? __APP_VERSION__
+          : '1.0.0';
       const res: DesktopUpdateInfo = await desktop.checkForUpdates(currentBuild);
       if (res && res.hasUpdate) {
         const dismissedKey = `arune_dismissed_update_${res.latestVersion}`;

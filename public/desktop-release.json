@@ -1,9 +1,9 @@
 {
-  "version": "1.0.1",
-  "build": 2,
-  "commit": "7daf56d",
-  "releaseDate": "2026-10-20",
-  "changelog": "Perbaikan hover icon toolbar atas, penambahan elemen Shape (Box, Circle, Rounded, Pill), dan integrasi Live Deploy Sync.",
+  "version": "1.0.2",
+  "build": 3,
+  "commit": "0e297d1",
+  "releaseDate": "2026-10-21",
+  "changelog": "Modal pemilihan template susunan font saat generate script, perbaikan pergantian template slide, dan tombol New Version di sidebar beranda.",
   "deployUrl": "https://arune.pages.dev",
   "mac": {
     "url": "https://github.com/dinurpradipta12/arune/releases/download/v1.0.1/Arune-Editorial-Studio-1.0.1-arm64.dmg"
