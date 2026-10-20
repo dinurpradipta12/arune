@@ -145,7 +145,7 @@ export const UpdateNotifier: React.FC<{ darkMode?: boolean }> = ({
       <div
         className={`rounded-2xl border shadow-2xl overflow-hidden ${
           darkMode
-            ? 'bg-[#0b1324] border-[#1e2b4a] text-slate-100'
+            ? 'bg-[#0A1A2F] border-[#1E3A60] text-slate-100'
             : 'bg-white border-slate-200 text-slate-900'
         }`}
       >

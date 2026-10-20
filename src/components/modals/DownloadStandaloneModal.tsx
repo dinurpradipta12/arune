@@ -144,7 +144,7 @@ pause
       <div
         className={`w-full max-w-3xl rounded-2xl border shadow-2xl flex flex-col overflow-hidden max-h-[90vh] transition-colors ${
           isDark
-            ? 'bg-[#090f1e] text-slate-100 border-slate-800'
+            ? 'bg-[#0A1A2F] text-slate-100 border-[#1E3A60]'
             : 'bg-white text-zinc-900 border-zinc-200 shadow-xl'
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -153,7 +153,7 @@ pause
         <div
           className={`px-6 py-5 border-b flex items-center justify-between ${
             isDark
-              ? 'bg-[#0c1324] border-slate-800/90'
+              ? 'bg-[#0E223D] border-[#1E3A60]'
               : 'bg-zinc-50/80 border-zinc-200'
           }`}
         >
@@ -206,7 +206,7 @@ pause
         <div
           className={`flex border-b px-6 gap-2 pt-2 ${
             isDark
-              ? 'border-slate-800 bg-[#070b16]'
+              ? 'border-[#1E3A60] bg-[#0A1A2F]'
               : 'border-zinc-200 bg-zinc-50/50'
           }`}
         >
@@ -225,7 +225,7 @@ pause
                 className={`px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 ${
                   isActive
                     ? isDark
-                      ? 'border-blue-500 text-blue-400 bg-[#0c1324] font-bold'
+                      ? 'border-blue-500 text-blue-400 bg-[#0E223D] font-bold'
                       : 'border-blue-600 text-blue-600 bg-white font-bold shadow-xs'
                     : isDark
                     ? 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
@@ -285,7 +285,7 @@ pause
                 <div
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between space-y-4 shadow-xs ${
                     isDark
-                      ? 'bg-[#0f172a] border-slate-800 hover:border-blue-500/80'
+                      ? 'bg-[#122744] border-slate-800 hover:border-blue-500/80'
                       : 'bg-white border-zinc-200 hover:border-blue-500'
                   }`}
                 >
@@ -342,7 +342,7 @@ pause
                 <div
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between space-y-4 shadow-xs ${
                     isDark
-                      ? 'bg-[#0f172a] border-slate-800 hover:border-slate-700'
+                      ? 'bg-[#122744] border-slate-800 hover:border-slate-700'
                       : 'bg-white border-zinc-200 hover:border-zinc-300'
                   }`}
                 >
@@ -413,7 +413,7 @@ pause
               <div
                 className={`p-4 rounded-xl border space-y-2.5 ${
                   isDark
-                    ? 'bg-[#0c1324] border-slate-800'
+                    ? 'bg-[#0E223D] border-slate-800'
                     : 'bg-zinc-50 border-zinc-200'
                 }`}
               >
@@ -503,7 +503,7 @@ pause
                 <div
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between space-y-4 shadow-xs ${
                     isDark
-                      ? 'bg-[#0f172a] border-slate-800 hover:border-blue-500/80'
+                      ? 'bg-[#122744] border-slate-800 hover:border-blue-500/80'
                       : 'bg-white border-zinc-200 hover:border-blue-500'
                   }`}
                 >
@@ -563,7 +563,7 @@ pause
                 <div
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between space-y-4 shadow-xs ${
                     isDark
-                      ? 'bg-[#0f172a] border-slate-800 hover:border-slate-700'
+                      ? 'bg-[#122744] border-slate-800 hover:border-slate-700'
                       : 'bg-white border-zinc-200 hover:border-zinc-300'
                   }`}
                 >
@@ -668,7 +668,7 @@ pause
               <div
                 className={`p-4 rounded-xl border space-y-2 ${
                   isDark
-                    ? 'bg-[#0f172a] border-slate-800'
+                    ? 'bg-[#122744] border-slate-800'
                     : 'bg-white border-zinc-200'
                 }`}
               >
@@ -721,7 +721,7 @@ pause
               <div
                 className={`p-4 rounded-xl border space-y-2 ${
                   isDark
-                    ? 'bg-[#0f172a] border-slate-800'
+                    ? 'bg-[#122744] border-slate-800'
                     : 'bg-white border-zinc-200'
                 }`}
               >
@@ -780,7 +780,7 @@ pause
               <div
                 className={`p-4 rounded-xl border space-y-3 ${
                   isDark
-                    ? 'bg-[#0f172a] border-slate-800'
+                    ? 'bg-[#122744] border-slate-800'
                     : 'bg-white border-zinc-200'
                 }`}
               >
@@ -827,7 +827,7 @@ pause
                 <div
                   className={`p-3.5 rounded-xl border space-y-1 ${
                     isDark
-                      ? 'bg-[#0c1324] border-slate-800'
+                      ? 'bg-[#0E223D] border-slate-800'
                       : 'bg-zinc-50 border-zinc-200'
                   }`}
                 >
@@ -847,7 +847,7 @@ pause
                 <div
                   className={`p-3.5 rounded-xl border space-y-1 ${
                     isDark
-                      ? 'bg-[#0c1324] border-slate-800'
+                      ? 'bg-[#0E223D] border-slate-800'
                       : 'bg-zinc-50 border-zinc-200'
                   }`}
                 >
@@ -867,7 +867,7 @@ pause
                 <div
                   className={`p-3.5 rounded-xl border space-y-1 ${
                     isDark
-                      ? 'bg-[#0c1324] border-slate-800'
+                      ? 'bg-[#0E223D] border-slate-800'
                       : 'bg-zinc-50 border-zinc-200'
                   }`}
                 >
@@ -892,7 +892,7 @@ pause
         <div
           className={`px-6 py-4 border-t flex items-center justify-between ${
             isDark
-              ? 'border-slate-800 bg-[#0c1324]'
+              ? 'border-slate-800 bg-[#0E223D]'
               : 'border-zinc-200 bg-zinc-50/80'
           }`}
         >

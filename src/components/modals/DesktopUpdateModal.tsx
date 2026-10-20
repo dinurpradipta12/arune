@@ -225,7 +225,7 @@ export const DesktopUpdateModal: React.FC = () => {
       <div
         className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden flex flex-col transition-colors ${
           isDark
-            ? 'bg-[#090f1e] text-slate-100 border-slate-800'
+            ? 'bg-[#0A1A2F] text-slate-100 border-[#1E3A60]'
             : 'bg-white text-zinc-900 border-zinc-200 shadow-2xl'
         }`}
       >
@@ -233,7 +233,7 @@ export const DesktopUpdateModal: React.FC = () => {
         <div
           className={`p-4 border-b flex items-center justify-between ${
             isDark
-              ? 'bg-[#0c1324] border-slate-800/90'
+              ? 'bg-[#0E223D] border-[#1E3A60]'
               : 'bg-zinc-50/80 border-zinc-200'
           }`}
         >
@@ -503,7 +503,7 @@ export const DesktopUpdateModal: React.FC = () => {
         <div
           className={`p-4 border-t flex items-center justify-end gap-2.5 ${
             isDark
-              ? 'bg-[#0c1324] border-slate-800/90'
+              ? 'bg-[#0E223D] border-[#1E3A60]'
               : 'bg-zinc-50/80 border-zinc-200'
           }`}
         >

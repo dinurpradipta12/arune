@@ -661,7 +661,7 @@ export const CenterWorkspace: React.FC = () => {
                 ? 'canvas-dot-grid-dark'
                 : 'canvas-dot-grid-light'
               : workspaceDarkMode
-              ? 'bg-[#090d16]'
+              ? 'bg-[#071322]'
               : 'bg-[#f8fafc]'
           }`}
         >

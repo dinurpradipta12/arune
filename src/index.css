@@ -24,21 +24,25 @@
 
 /* ==========================================================================
    WORKSPACE THEME ENGINE:
-   - Dark Mode: Ultra-Deep Midnight Navy / Biru Donker Gelap (#050811 / #090F1E / #0E172C)
+   - Dark Mode: SaaS Brand Guideline (Deep Navy Blue #0A1A2F, Muted Silver #B0B7C0, Soft Lavender #DCD0FF)
+     Flat colors only, strictly no glow.
    - Light Mode: Crisp White Studio (#FFFFFF / #F8FAFC / #F1F5F9)
    ========================================================================== */
 .studio-theme-dark {
-  --ws-bg-primary: #050811;
-  --ws-bg-secondary: #090f1e;
-  --ws-bg-tertiary: #0e172c;
-  --ws-bg-elevated: #14203b;
-  --ws-border: #16223d;
-  --ws-border-subtle: #0f182c;
-  --ws-text-primary: #f1f5f9;
-  --ws-text-secondary: #94a3b8;
-  --ws-text-muted: #64748b;
-  --ws-canvas-bg: #04070f;
-  --ws-canvas-dot: #15223d;
+  --ws-bg-primary: #0A1A2F;      /* Deep Navy Blue from guideline */
+  --ws-bg-secondary: #0D1E37;    /* Elevated Navy Surface */
+  --ws-bg-tertiary: #122744;     /* Card / Component Surface */
+  --ws-bg-elevated: #162E50;     /* Hover Surface */
+  --ws-border: #1E3A60;          /* Flat Border */
+  --ws-border-subtle: #142845;   /* Subtle Divider Border */
+  --ws-text-primary: #FFFFFF;    /* Heading 1: Elegant Clean */
+  --ws-text-secondary: #B0B7C0;  /* Body text: Sophisticated digital aesthetic */
+  --ws-text-muted: #8290A4;      /* Muted Labels & Kickers */
+  --ws-accent: #DCD0FF;          /* Soft Lavender */
+  --ws-accent-hover: #C9B8F8;    /* Slightly deeper lavender for hover */
+  --ws-accent-text: #0A1A2F;     /* Deep Navy Blue for text on lavender */
+  --ws-canvas-bg: #071322;
+  --ws-canvas-dot: #182C4A;
 }
 
 .studio-theme-light {
@@ -55,7 +59,28 @@
   --ws-canvas-dot: #cbd5e1;
 }
 
-/* Override utility classes inside .studio-theme-dark (Biru Donker Gelap) and .studio-theme-light (White Mode) */
+/* Base dark mode canvas & container */
+.studio-theme-dark {
+  background-color: var(--ws-bg-primary) !important;
+  color: var(--ws-text-primary) !important;
+}
+
+/* Strictly FLAT color rule in dark mode: No glow, no neon drop-shadows */
+.studio-theme-dark,
+.studio-theme-dark * {
+  text-shadow: none !important;
+}
+
+.studio-theme-dark [class*="shadow-blue-"],
+.studio-theme-dark [class*="shadow-indigo-"],
+.studio-theme-dark [class*="shadow-purple-"],
+.studio-theme-dark [class*="shadow-emerald-"],
+.studio-theme-dark [class*="drop-shadow"] {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* Override utility classes inside .studio-theme-dark (Deep Navy Blue #0A1A2F) */
 .studio-theme-dark .bg-zinc-950,
 .studio-theme-dark .bg-zinc-950\/95,
 .studio-theme-dark .bg-zinc-950\/90,
@@ -94,7 +119,8 @@
 .studio-theme-dark .bg-zinc-800\/90,
 .studio-theme-dark .bg-zinc-800\/80,
 .studio-theme-dark .bg-zinc-800\/70,
-.studio-theme-dark .bg-zinc-800\/60 {
+.studio-theme-dark .bg-zinc-800\/60,
+.studio-theme-dark .bg-zinc-800\/50 {
   background-color: var(--ws-bg-tertiary) !important;
 }
 
@@ -111,8 +137,84 @@
 .studio-theme-dark .border-zinc-800\/70,
 .studio-theme-dark .border-zinc-800\/60,
 .studio-theme-dark .border-zinc-700,
-.studio-theme-dark .border-zinc-700\/80 {
+.studio-theme-dark .border-zinc-700\/80,
+.studio-theme-dark .border-zinc-700\/70 {
   border-color: var(--ws-border) !important;
+}
+
+/* Typography Guideline: Heading 1 in crisp White, Body Text in Muted Silver #B0B7C0 */
+.studio-theme-dark .text-zinc-100,
+.studio-theme-dark .text-zinc-200,
+.studio-theme-dark .text-slate-100,
+.studio-theme-dark .text-slate-200,
+.studio-theme-dark h1,
+.studio-theme-dark h2,
+.studio-theme-dark h3 {
+  color: var(--ws-text-primary) !important;
+}
+
+.studio-theme-dark .text-zinc-300,
+.studio-theme-dark .text-zinc-400,
+.studio-theme-dark .text-slate-300,
+.studio-theme-dark .text-slate-400,
+.studio-theme-dark p {
+  color: var(--ws-text-secondary) !important; /* Muted Silver #B0B7C0 */
+}
+
+.studio-theme-dark .text-zinc-500,
+.studio-theme-dark .text-slate-500 {
+  color: var(--ws-text-muted) !important;
+}
+
+/* Accent: Soft Lavender #DCD0FF flat button & active pills */
+.studio-theme-dark .bg-blue-900,
+.studio-theme-dark .bg-blue-800,
+.studio-theme-dark .bg-blue-700,
+.studio-theme-dark .bg-blue-600 {
+  background-color: var(--ws-accent) !important;
+  color: var(--ws-accent-text) !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+.studio-theme-dark .bg-blue-900:hover,
+.studio-theme-dark .bg-blue-800:hover,
+.studio-theme-dark .bg-blue-700:hover,
+.studio-theme-dark .bg-blue-600:hover {
+  background-color: var(--ws-accent-hover) !important;
+  color: var(--ws-accent-text) !important;
+}
+
+.studio-theme-dark .text-blue-900,
+.studio-theme-dark .text-blue-600,
+.studio-theme-dark .text-blue-500,
+.studio-theme-dark .text-blue-400,
+.studio-theme-dark .text-indigo-400 {
+  color: var(--ws-accent) !important;
+}
+
+.studio-theme-dark .bg-blue-900\/10,
+.studio-theme-dark .bg-blue-900\/15,
+.studio-theme-dark .bg-blue-900\/20,
+.studio-theme-dark .bg-blue-600\/20,
+.studio-theme-dark .bg-blue-600\/25,
+.studio-theme-dark .bg-blue-500\/15 {
+  background-color: rgba(220, 208, 255, 0.12) !important;
+  color: var(--ws-accent) !important;
+  border-color: rgba(220, 208, 255, 0.22) !important;
+}
+
+.studio-theme-dark .border-blue-900,
+.studio-theme-dark .border-blue-600,
+.studio-theme-dark .border-blue-500 {
+  border-color: var(--ws-accent) !important;
+}
+
+.studio-theme-dark .ring-blue-900,
+.studio-theme-dark .ring-blue-600,
+.studio-theme-dark .ring-blue-500 {
+  --tw-ring-color: rgba(220, 208, 255, 0.35) !important;
 }
 
 /* Full Crisp White Mode overrides when .studio-theme-light is active */
@@ -329,14 +431,14 @@
 }
 
 .canvas-dot-grid-dark {
-  background-color: #04070f;
-  background-image: radial-gradient(#14203b 1.25px, transparent 1.25px);
+  background-color: #071322;
+  background-image: radial-gradient(#182C4A 1.25px, transparent 1.25px);
   background-size: 20px 20px;
 }
 
 .canvas-dot-grid-slate {
-  background-color: #0d1424;
-  background-image: radial-gradient(#243354 1.5px, transparent 1.5px);
+  background-color: #0A1A2F;
+  background-image: radial-gradient(#1E3A60 1.5px, transparent 1.5px);
   background-size: 22px 22px;
 }
 

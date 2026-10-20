@@ -91,7 +91,7 @@ const DeveloperAccessGuard: React.FC<DeveloperAccessGuardProps> = ({
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#070A12] text-zinc-100 p-6 select-none relative">
+    <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#0A1A2F] text-zinc-100 p-6 select-none relative">
       <div className="max-w-md w-full p-6 sm:p-7 rounded-2xl bg-zinc-900 border border-zinc-800 text-center space-y-4 shadow-2xl relative overflow-hidden">
         {/* TITIK RAHASIA DI SUDUT ATAS BOX SEBAGAI TOMBOL TERSEMBUNYI */}
         <button
@@ -477,7 +477,7 @@ const ThemeBuilderContent: React.FC = () => {
     <div
       className={`h-screen w-screen flex flex-col select-none overflow-hidden transition-colors duration-200 ${
         workspaceDarkMode
-          ? 'studio-theme-dark bg-[#050811] text-slate-100'
+          ? 'studio-theme-dark bg-[#0A1A2F] text-slate-100'
           : 'studio-theme-light bg-white text-slate-900'
       }`}
     >
@@ -1226,7 +1226,7 @@ const ThemeBuilderContent: React.FC = () => {
 
         {/* CENTER COLUMN: LIVE INTERACTIVE WYSIWYG CANVAS */}
         <main className={`flex-1 flex flex-col min-w-0 h-full overflow-hidden relative transition-colors ${
-          workspaceDarkMode ? 'bg-[#050811]' : 'bg-slate-50'
+          workspaceDarkMode ? 'bg-[#0A1A2F]' : 'bg-slate-50'
         }`}>
           {/* Top Sub-bar with Canvas Tools */}
           <div className="h-10 border-b border-zinc-800/80 bg-zinc-900/60 px-4 flex items-center justify-between shrink-0 select-none text-xs">

@@ -222,7 +222,7 @@ export function App() {
       <div
         className={`h-screen w-screen flex flex-col overflow-hidden transition-colors duration-200 ${
           workspaceDarkMode
-            ? 'studio-theme-dark bg-[#050811] text-slate-100'
+            ? 'studio-theme-dark bg-[#0A1A2F] text-slate-100'
             : 'studio-theme-light bg-white text-slate-900'
         }`}
       >

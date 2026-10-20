@@ -13,7 +13,7 @@ function setupTouchBar(win) {
 
     const prevSlideBtn = new TouchBarButton({
       label: '◀ Slide',
-      backgroundColor: '#18181b',
+      backgroundColor: '#0E223D',
       click: () => {
         win?.webContents?.send('touchbar-action', { type: 'prev-slide' });
       },
@@ -21,7 +21,7 @@ function setupTouchBar(win) {
 
     const nextSlideBtn = new TouchBarButton({
       label: 'Slide ▶',
-      backgroundColor: '#18181b',
+      backgroundColor: '#0E223D',
       click: () => {
         win?.webContents?.send('touchbar-action', { type: 'next-slide' });
       },
@@ -29,7 +29,7 @@ function setupTouchBar(win) {
 
     const zoomOutBtn = new TouchBarButton({
       label: '🔍 − Zoom',
-      backgroundColor: '#27272a',
+      backgroundColor: '#132D50',
       click: () => {
         win?.webContents?.send('touchbar-action', { type: 'zoom-out' });
       },
@@ -37,7 +37,7 @@ function setupTouchBar(win) {
 
     const zoomFitBtn = new TouchBarButton({
       label: '100% Fit',
-      backgroundColor: '#1e3a8a',
+      backgroundColor: '#1E3A60',
       click: () => {
         win?.webContents?.send('touchbar-action', { type: 'zoom-fit' });
       },
@@ -45,7 +45,7 @@ function setupTouchBar(win) {
 
     const zoomInBtn = new TouchBarButton({
       label: '🔍 + Zoom',
-      backgroundColor: '#27272a',
+      backgroundColor: '#132D50',
       click: () => {
         win?.webContents?.send('touchbar-action', { type: 'zoom-in' });
       },
@@ -78,7 +78,7 @@ function createWindow() {
     icon: path.join(__dirname, '../build/icon.png'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: process.platform === 'darwin' ? { x: 16, y: 14 } : undefined,
-    backgroundColor: '#09090b', // zinc-950
+    backgroundColor: '#0A1A2F', // Deep Navy Blue
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
