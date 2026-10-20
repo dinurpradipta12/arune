@@ -3,6 +3,7 @@ import {
   CURATED_EDITORIAL_IMAGES,
 } from '../constants/themesAndPresets';
 import { SINGLE_FEEDS_PRESETS } from '../constants/singleFeedsTemplates';
+import { CAROUSEL_COVER_PRESETS } from '../constants/carouselCoverTemplates';
 import type {
   AspectRatioKey,
   CanvasElement,
@@ -62,6 +63,13 @@ const VALID_LAYOUTS: LayoutPresetId[] = [
   'feed-backspace-content',
   'feed-designer-gatekeep',
   'feed-burnout-designer',
+  // Aesthetic Carousel Covers (6 Distinct Layouts)
+  'cover-scrapbook-boost',
+  'cover-cozy-didyouknow',
+  'cover-tips-content-king',
+  'cover-pastel-consistency',
+  'cover-berry-batching-date',
+  'cover-magenta-playbook',
 ];
 
 function createDefaultShadow(enabled = false, color = 'rgba(0,0,0,0.45)') {
@@ -4744,6 +4752,19 @@ export function buildSlideFromParsedScript(
       layout,
       backgroundColor: singleFeedDef.backgroundColor,
       elements: singleFeedDef.createElements(W, H),
+    };
+  }
+
+  // ============================================================================
+  // AESTHETIC CAROUSEL COVERS (6 Distinct Editable Carousel Cover Themes)
+  // ============================================================================
+  const carouselCoverDef = CAROUSEL_COVER_PRESETS.find((c) => c.id === layout);
+  if (carouselCoverDef) {
+    return {
+      id: slideId,
+      layout,
+      backgroundColor: carouselCoverDef.backgroundColor,
+      elements: carouselCoverDef.createElements(W, H),
     };
   }
 

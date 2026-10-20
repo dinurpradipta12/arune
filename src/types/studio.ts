@@ -47,7 +47,14 @@ export type LayoutPresetId =
   | 'feed-action-clarity'
   | 'feed-backspace-content'
   | 'feed-designer-gatekeep'
-  | 'feed-burnout-designer';
+  | 'feed-burnout-designer'
+  // Aesthetic Carousel Covers (Cutouts, Sticker Typography & Scrapbook)
+  | 'cover-scrapbook-boost'
+  | 'cover-cozy-didyouknow'
+  | 'cover-tips-content-king'
+  | 'cover-pastel-consistency'
+  | 'cover-berry-batching-date'
+  | 'cover-magenta-playbook';
 
 export type ElementType = 'text' | 'image' | 'divider' | 'badge' | 'shape';
 

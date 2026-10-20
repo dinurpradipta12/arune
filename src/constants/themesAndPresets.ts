@@ -503,7 +503,7 @@ export const THEME_PALETTES: ThemePalette[] = [
 export interface LayoutPresetDefinition {
   id: LayoutPresetId;
   name: string;
-  category: 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography' | 'Single Feeds';
+  category: 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography' | 'Single Feeds' | 'Carousel Covers';
   badge: string;
   description: string;
 }
@@ -728,6 +728,49 @@ export const LAYOUT_PRESETS: LayoutPresetDefinition[] = [
     category: 'Single Feeds',
     badge: 'Feed 05',
     description: 'Chunky graphic pop poster with white boxed words, sunny yellow burnout pill, and quote note.',
+  },
+  // ===================== AESTHETIC CAROUSEL COVERS =====================
+  {
+    id: 'cover-scrapbook-boost',
+    name: 'Scrapbook Boost Income',
+    category: 'Carousel Covers',
+    badge: 'Cover 01',
+    description: 'Chunky yellow bubble headline, cutout photo collage with white sticker borders, and doodle stars.',
+  },
+  {
+    id: 'cover-cozy-didyouknow',
+    name: 'Cozy Did You Know',
+    category: 'Carousel Covers',
+    badge: 'Cover 02',
+    description: 'Chunky white rounded bubble letters, yellow notepad card, coffee cutout, and statue aesthetic.',
+  },
+  {
+    id: 'cover-tips-content-king',
+    name: 'Top Tips Content King',
+    category: 'Carousel Covers',
+    badge: 'Cover 03',
+    description: 'Yellow bubble heading "CONTENT IS KING", flatlay cafe backdrop, and campaign callout pill.',
+  },
+  {
+    id: 'cover-pastel-consistency',
+    name: 'Pastel Consistent Creator',
+    category: 'Carousel Covers',
+    badge: 'Cover 04',
+    description: 'Baby blue puffy typography, pastel pink sticky note underlay, and clean studio creator vibe.',
+  },
+  {
+    id: 'cover-berry-batching-date',
+    name: 'Berry Content Batching',
+    category: 'Carousel Covers',
+    badge: 'Cover 05',
+    description: 'Strawberry cafe pancake backdrop with thick white-bordered deep berry serif typography & stamp.',
+  },
+  {
+    id: 'cover-magenta-playbook',
+    name: 'Magenta Carousel Playbook',
+    category: 'Carousel Covers',
+    badge: 'Cover 06',
+    description: 'Deep berry magenta canvas, floating polaroid cards with white borders, and sticker serif headline.',
   },
 ];
 

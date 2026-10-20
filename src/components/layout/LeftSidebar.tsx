@@ -1142,6 +1142,148 @@ export const LayoutVisualThumbnail: React.FC<{
     );
   }
 
+  if (layoutId === 'cover-scrapbook-boost') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between shadow-inner bg-[#9DA3A4] text-white border border-black/10">
+        <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=400&q=70)' }} />
+        <div className="relative z-10 flex justify-between items-center text-[4px] font-bold text-white/90">
+          <span className="text-[5px]">✧ ⋆</span>
+          <span>@dinurpradiptaa</span>
+        </div>
+        <div className="relative z-10 my-auto flex flex-col items-start pl-0.5">
+          <div className="text-[12px] font-black leading-none text-[#FACC15] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" style={{ WebkitTextStroke: '0.5px white' }}>
+            BOOST
+          </div>
+          <div className="text-[7.5px] font-extrabold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            YOUR INCOME,
+          </div>
+          <div className="bg-[#FACC15] text-black text-[3.5px] font-bold px-1.5 py-0.2 rounded-full shadow-xs mt-1">
+            GET IN TOUCH
+          </div>
+        </div>
+        <div className="relative z-10 flex justify-between items-end">
+          <div className="w-8 h-6 bg-white/90 rounded-[2px] shadow -rotate-6 border border-black/10" />
+          <div className="w-9 h-7 bg-white/90 rounded-[2px] shadow rotate-6 border border-black/10" />
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === 'cover-cozy-didyouknow') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between items-center text-center shadow-inner bg-[#8C9294] text-white border border-black/10">
+        <div className="absolute inset-0 bg-cover bg-center opacity-50" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=400&q=70)' }} />
+        <div className="relative z-10 text-[3.5px] tracking-widest text-white/80 font-bold uppercase">EDITORIAL ARCHIVE</div>
+        <div className="relative z-10 my-auto flex flex-col items-center">
+          <div className="text-[10px] font-black leading-tight text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]" style={{ WebkitTextStroke: '0.4px black' }}>
+            DID YOU<br />KNOW?
+          </div>
+          <div className="bg-[#FACC15] text-black text-[3.5px] font-bold p-1 rounded-xs shadow-xs mt-1 max-w-[85%] border border-black/20">
+            Content that connects always solves one problem.
+          </div>
+        </div>
+        <div className="relative z-10 text-[3.5px] font-semibold text-white/90">@dinurpradiptaa</div>
+      </div>
+    );
+  }
+
+  if (layoutId === 'cover-tips-content-king') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between shadow-inner bg-[#7A8082] text-white border border-black/10">
+        <div className="absolute inset-0 bg-cover bg-center opacity-50" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=400&q=70)' }} />
+        <div className="relative z-10 flex justify-between text-[4px] font-bold text-white/90">
+          <span>🕶️ TOP TIPS</span>
+          <span>@dinurpradiptaa</span>
+        </div>
+        <div className="relative z-10 my-auto flex flex-col items-center text-center">
+          <div className="text-[10.5px] font-black leading-none text-[#FACC15] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" style={{ WebkitTextStroke: '0.5px black' }}>
+            CONTENT<br />IS KING
+          </div>
+          <div className="bg-[#FACC15] text-black text-[3.5px] font-black px-1.5 py-0.5 rounded-xs mt-1 border border-black shadow-xs">
+            CRAFTING DIGITAL CAMPAIGNS
+          </div>
+        </div>
+        <div className="relative z-10 flex justify-start">
+          <div className="w-6 h-6 rounded-full bg-white/80 border border-white shadow" />
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === 'cover-pastel-consistency') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between items-center text-center shadow-inner bg-[#F0F9FF] text-zinc-900 border border-black/10">
+        <div className="w-full flex justify-between items-center text-[3.5px] font-bold text-blue-600">
+          <span>HOW TO BE</span>
+          <span>⊞</span>
+        </div>
+        <div className="my-auto flex flex-col items-center w-full px-1">
+          <div className="w-full bg-white border border-sky-200 rounded p-1 shadow-xs flex flex-col items-center">
+            <div className="text-[6.5px] font-black text-sky-600 leading-tight">
+              CONSISTENT ON<br />SOCIAL MEDIA
+            </div>
+            <div className="bg-sky-100 text-sky-800 text-[3px] font-bold px-1 rounded-xs mt-0.5">
+              *without losing your sanity*
+            </div>
+          </div>
+        </div>
+        <div className="w-full flex justify-between items-center text-[3.5px] pt-1">
+          <span className="font-semibold text-sky-600">@dinurpradiptaa</span>
+          <span className="bg-pink-100 text-pink-600 font-bold px-1 py-0.2 rounded-full">5 TIPS ➔</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === 'cover-berry-batching-date') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between shadow-inner bg-[#FFFDF9] text-[#6B1D2F] border border-black/10">
+        <div className="absolute inset-0 bg-cover bg-center opacity-65" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=400&q=70)' }} />
+        <div className="relative z-10 flex justify-between text-[4px] font-bold">
+          <span>📌</span>
+          <span className="bg-pink-600 text-white text-[3px] px-1 py-0.2 rounded-full">Come along</span>
+        </div>
+        <div className="relative z-10 my-auto flex flex-col items-center text-center">
+          <div className="text-[8.5px] font-serif font-black leading-none text-[#6B1D2F] drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]" style={{ WebkitTextStroke: '0.6px white' }}>
+            Weekly<br />content<br />batching<br />date
+          </div>
+          <div className="mt-1 border border-pink-700 bg-pink-50 text-pink-700 text-[3px] font-bold px-1.5 py-0.5 rounded-full -rotate-6 shadow-xs">
+            ★ ARUNE · @dinurpradiptaa
+          </div>
+        </div>
+        <div className="relative z-10 flex justify-between text-[3.5px] font-bold">
+          <span className="font-serif italic">New</span>
+          <span>@dinurpradiptaa</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === 'cover-magenta-playbook') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between items-center text-center shadow-inner bg-[#7A1437] text-white border border-black/10">
+        <div className="w-full flex justify-between items-center">
+          <div className="w-7 h-8 bg-white/90 rounded-[2px] shadow -rotate-6 border border-white" />
+          <div className="border border-pink-400 bg-pink-900/60 text-pink-300 text-[3px] px-1 py-0.5 rounded-full font-bold">
+            @dinurpradiptaa
+          </div>
+          <div className="w-7 h-8 bg-white/90 rounded-[2px] shadow rotate-6 border border-white" />
+        </div>
+        <div className="my-auto flex flex-col items-center px-1">
+          <div className="text-[7.5px] font-serif font-black leading-tight drop-shadow-md">
+            Things I do<br />every week to<br />make content<br />much easier
+          </div>
+          <div className="bg-pink-500 text-white text-[3px] font-bold px-1.5 py-0.2 rounded-full mt-1">
+            + it's a rinse + repeat
+          </div>
+        </div>
+        <div className="text-[3px] font-bold tracking-widest text-pink-200">
+          CURATED BY @dinurpradiptaa
+        </div>
+      </div>
+    );
+  }
+
   // 'playful-outro-cta' / default
   return (
     <div
@@ -1201,7 +1343,7 @@ export const LeftSidebar: React.FC = () => {
   } = useStudioStore();
 
   const [layoutFilter, setLayoutFilter] = useState<
-    'All' | 'Single Feeds' | 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography'
+    'All' | 'Carousel Covers' | 'Single Feeds' | 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography'
   >('All');
   const [layoutScope, setLayoutScope] = useState<'current' | 'all'>('current');
 
@@ -1518,7 +1660,7 @@ export const LeftSidebar: React.FC = () => {
 
             {/* Layout Category Filter Pills */}
             <div className="flex items-center gap-1 overflow-x-auto pb-1 scroller-none text-[10px]">
-              {(['All', 'Single Feeds', 'Editorial', 'Media', 'Minimalist', 'Playful', 'Typography'] as const).map(
+              {(['All', 'Carousel Covers', 'Single Feeds', 'Editorial', 'Media', 'Minimalist', 'Playful', 'Typography'] as const).map(
                 (cat) => (
                   <button
                     key={cat}
