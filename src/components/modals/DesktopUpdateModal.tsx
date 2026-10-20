@@ -28,6 +28,20 @@ interface DownloadProgress {
   speedMBs: string;
 }
 
+/**
+ * Format string versi agar selalu menampilkan nomor versi resmi yang bersih (misal: v1.0.1)
+ * dan menyembunyikan hash/kode commit deploy internal seperti 'cc29711-xxxx'.
+ */
+function formatDisplayVersion(rawVersion?: string, fallback = '1.0.1'): string {
+  if (!rawVersion) return `v${fallback}`;
+  const trimmed = String(rawVersion).trim();
+  const semverMatch = trimmed.match(/\b\d+\.\d+(\.\d+)?\b/);
+  if (semverMatch) {
+    return `v${semverMatch[0]}`;
+  }
+  return `v${fallback}`;
+}
+
 export const DesktopUpdateModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<DesktopUpdateInfo | null>(null);
@@ -241,7 +255,7 @@ export const DesktopUpdateModal: React.FC = () => {
                       : 'bg-blue-50 text-blue-700 border-blue-200'
                   }`}
                 >
-                  v{updateInfo?.latestVersion || '1.0.0'}
+                  {formatDisplayVersion(updateInfo?.latestVersion, '1.0.1')}
                 </span>
               </div>
               <p
@@ -249,7 +263,7 @@ export const DesktopUpdateModal: React.FC = () => {
                   isDark ? 'text-zinc-400' : 'text-zinc-500'
                 }`}
               >
-                Versi saat ini: v{updateInfo?.currentVersion || '1.0.0'}
+                Versi saat ini: {formatDisplayVersion(updateInfo?.currentVersion, '1.0.1')}
               </p>
             </div>
           </div>
@@ -301,9 +315,9 @@ export const DesktopUpdateModal: React.FC = () => {
                   isDark ? 'text-zinc-400' : 'text-zinc-600'
                 }`}
               >
-                Anda sudah berada di versi v
-                {updateInfo?.currentVersion || '1.0.0'}. Tidak ada pembaruan
-                yang diperlukan.
+                Anda sudah berada di versi{' '}
+                {formatDisplayVersion(updateInfo?.currentVersion, '1.0.1')}.
+                Tidak ada pembaruan yang diperlukan.
               </p>
             </div>
           )}

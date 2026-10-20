@@ -235,10 +235,15 @@ function setupAutoUpdater(mainWindow, app) {
         ? (manifest?.mac?.url || 'https://github.com/dinurpradipta12/arune/releases')
         : (manifest?.win?.url || '');
 
+      // Extract clean semver version (e.g. "1.0.1") to display to users
+      const semverVersion = manifest?.version || currentAppVersion || '1.0.1';
+
       return {
         hasUpdate,
-        currentVersion: activeRunningVersion,
-        latestVersion: latestSha ? `${latestSha} (Live Deploy)` : deployVersion,
+        currentVersion: semverVersion,
+        latestVersion: semverVersion,
+        buildId: activeRunningVersion,
+        latestBuildId: latestSha || deployVersion,
         changelog,
         releaseDate,
         downloadUrl,
@@ -247,7 +252,8 @@ function setupAutoUpdater(mainWindow, app) {
     } catch (err) {
       return {
         hasUpdate: false,
-        currentVersion: clientVersion || currentAppVersion || '1.0.0',
+        currentVersion: currentAppVersion || '1.0.1',
+        latestVersion: currentAppVersion || '1.0.1',
         error: err.message,
       };
     }

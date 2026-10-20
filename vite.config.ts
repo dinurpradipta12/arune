@@ -1,16 +1,18 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
+import fs from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
+
+const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf-8'))
+const APP_SEMVER = pkg.version || '1.0.1'
 
 /**
  * Build Version Stamp
  * -------------------
- * Each production build gets a unique version id. On Cloudflare Pages the
+ * Each production build gets a unique build id. On Cloudflare Pages the
  * commit SHA is provided via CF_PAGES_COMMIT_SHA; locally we fall back to the
- * git HEAD SHA, then to a timestamp. The id is:
- *   1. baked into the JS bundle as __APP_VERSION__
- *   2. emitted as /version.json (fetched by the client to detect new deploys)
+ * git HEAD SHA, then to a timestamp.
  */
 function resolveBuildVersion(): string {
   const sha =
@@ -41,7 +43,11 @@ function versionJsonPlugin(): Plugin {
         type: 'asset',
         fileName: 'version.json',
         source: JSON.stringify(
-          { version: BUILD_VERSION, builtAt: BUILD_TIME },
+          {
+            version: APP_SEMVER,
+            build: BUILD_VERSION,
+            builtAt: BUILD_TIME,
+          },
           null,
           2
         ),
@@ -55,7 +61,8 @@ export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss(), versionJsonPlugin()],
   define: {
-    __APP_VERSION__: JSON.stringify(BUILD_VERSION),
+    __APP_VERSION__: JSON.stringify(APP_SEMVER),
+    __APP_BUILD_ID__: JSON.stringify(BUILD_VERSION),
     __APP_BUILD_TIME__: JSON.stringify(BUILD_TIME),
   },
 })
