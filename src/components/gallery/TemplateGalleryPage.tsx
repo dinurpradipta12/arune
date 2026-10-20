@@ -636,32 +636,36 @@ export const TemplateGalleryPage: React.FC = () => {
             )}
           </div>
 
-          {/* New Version Available Notification Button */}
+          {/* New Version Available Notification Button - Green with Pulse Effect */}
           {updateAvailable?.hasUpdate && (
             <button
               type="button"
               onClick={() => {
                 window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
               }}
-              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-800 hover:from-blue-800 hover:to-indigo-800 text-white shadow-lg border border-blue-500/50 flex items-center justify-between gap-2 cursor-pointer transition-all animate-pulse group"
+              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-950/40 border-2 border-emerald-300/80 ring-2 ring-emerald-400/40 flex items-center justify-between gap-2.5 cursor-pointer transition-all animate-pulse group"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded-lg bg-blue-500/30 text-blue-200 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-black/20 text-white flex items-center justify-center shrink-0 shadow-xs relative">
+                  <Sparkles className="w-4 h-4 text-emerald-100" />
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-80" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                  </span>
                 </div>
                 <div className="text-left min-w-0">
-                  <div className="text-xs font-bold leading-tight flex items-center gap-1.5">
+                  <div className="text-xs font-extrabold text-white leading-tight flex items-center gap-1.5 drop-shadow-xs">
                     <span>New Version!</span>
-                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-blue-500/30 text-blue-100">
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/25 text-white border border-white/30">
                       v{updateAvailable.version}
                     </span>
                   </div>
-                  <div className="text-[10px] text-zinc-300 truncate">
+                  <div className="text-[10.5px] font-semibold text-emerald-50 drop-shadow-xs truncate mt-0.5">
                     Klik untuk perbarui aplikasi
                   </div>
                 </div>
               </div>
-              <ArrowRight className="w-3.5 h-3.5 text-blue-200 group-hover:translate-x-0.5 transition-transform shrink-0" />
+              <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform shrink-0 stroke-[2.5]" />
             </button>
           )}
 
