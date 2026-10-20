@@ -713,7 +713,10 @@ export const SlideStage: React.FC<SlideStageProps> = ({
       el.textTransform || (el.uppercase ? 'uppercase' : 'none');
 
     const fontStyle: React.CSSProperties = {
-      fontFamily: `'${el.fontFamily}', Georgia, serif`,
+      fontFamily:
+        el.fontFamily?.includes(',') || el.fontFamily?.includes("'")
+          ? el.fontFamily
+          : `'${el.fontFamily}', Georgia, serif`,
       fontWeight: el.fontWeight,
       fontSize: `${el.fontSize}px`,
       fontStyle: el.italic ? 'italic' : 'normal',

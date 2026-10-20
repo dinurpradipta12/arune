@@ -30,6 +30,7 @@ import {
 } from '../../store/useStudioStore';
 import type { LayoutPresetId, ThemePalette } from '../../types/studio';
 import { studioLogo } from '../../assets/branding';
+import { FontCombinationsPanel } from './FontCombinationsPanel';
 
 /**
  * Renders a rich visual miniature thumbnail of each of the 6 editorial layouts
@@ -1089,12 +1090,13 @@ export const LeftSidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* 2-Tab Switcher Header: Add Elements (First) & Layouts & Themes (Second) */}
-      <div className="grid grid-cols-2 p-2 gap-1.5 bg-zinc-900/50 border-b border-zinc-800/80 shrink-0">
+      {/* 3-Tab Switcher Header: Add Elements, Layouts & Themes, Font Combinations */}
+      <div className="grid grid-cols-3 p-1.5 gap-1 bg-zinc-900/50 border-b border-zinc-800/80 shrink-0">
         {(
           [
-            { id: 'elements', label: 'Add Elements', icon: PlusCircle },
-            { id: 'templates', label: 'Layouts & Themes', icon: LayoutGrid },
+            { id: 'elements', label: 'Elements', icon: PlusCircle },
+            { id: 'templates', label: 'Layouts', icon: LayoutGrid },
+            { id: 'font-combinations', label: 'Font Pairs', icon: Type },
           ] as { id: LeftSidebarTab; label: string; icon: React.ElementType }[]
         ).map((tab) => {
           const Icon = tab.icon;
@@ -1104,14 +1106,14 @@ export const LeftSidebar: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveLeftTab(tab.id)}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
                 active
                   ? 'bg-zinc-800 text-blue-900 font-semibold shadow-xs border border-zinc-700/70'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{tab.label}</span>
             </button>
           );
         })}
@@ -1531,6 +1533,9 @@ export const LeftSidebar: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* TAB 3: CURATED FONT COMBINATIONS (Adobe 10 & Canva Pairings) */}
+      {activeLeftTab === 'font-combinations' && <FontCombinationsPanel />}
     </aside>
   );
 };

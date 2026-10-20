@@ -16,6 +16,9 @@ import {
   getCachedGlobalStudioConfig,
   upsertTemplate,
 } from '../services/supabaseTemplates';
+import {
+  type FontCombinationPreset,
+} from '../constants/fontCombinations';
 import type {
   AspectRatioKey,
   CanvasElement,
@@ -195,7 +198,7 @@ function loadSavedAdminAuth(): boolean {
   }
 }
 
-export type LeftSidebarTab = 'templates' | 'elements';
+export type LeftSidebarTab = 'templates' | 'elements' | 'font-combinations';
 export type StudioModalType =
   | 'branding'
   | 'settings'
@@ -307,6 +310,10 @@ interface StudioState {
   reorderSlide: (fromIndex: number, direction: 'left' | 'right') => void;
   applyLayoutToSlide: (slideIndex: number, layout: LayoutPresetId) => void;
   applyLayoutToAllSlides: (layout: LayoutPresetId) => void;
+  applyFontCombination: (
+    preset: FontCombinationPreset,
+    mode?: 'insert' | 'blank' | 'new-slide'
+  ) => void;
   setSlideBackgroundColor: (slideIndex: number, color: string) => void;
 
   // Element management
@@ -1474,6 +1481,105 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       idx === slideIndex ? { ...s, backgroundColor: color } : s
     );
     set({ slides: nextSlides });
+  },
+
+  applyFontCombination: (preset, mode = 'insert') => {
+    const state = get();
+    const slide = state.getActiveSlide();
+    if (!slide) return;
+    state.pushHistory();
+
+    const dim = ASPECT_RATIOS[state.aspectRatio];
+    const centerX = Math.round(dim.stageWidth / 2);
+    const centerY = Math.round(dim.stageHeight / 2);
+
+    const baseZ =
+      mode === 'blank'
+        ? 1
+        : slide.elements.reduce((m, e) => Math.max(m, e.zIndex), 0) + 1;
+
+    const newElements: TextCanvasElement[] = preset.items.map((item, idx) => {
+      const elWidth = item.width;
+      const elHeight = item.height;
+      const x = Math.round(centerX - elWidth / 2 + (item.offsetX || 0));
+      const y = Math.round(centerY + item.offsetY - elHeight / 2);
+
+      return {
+        id: `el-fontcomb-${Date.now().toString(36).slice(-5)}-${idx}`,
+        type: 'text',
+        name: `${preset.name} - ${item.content.replace(/\n/g, ' ').slice(0, 20)}`,
+        role: 'custom',
+        content: item.content,
+        x,
+        y,
+        width: elWidth,
+        height: elHeight,
+        zIndex: baseZ + idx,
+        opacity: 1,
+        fontFamily: item.fontFamily,
+        fontWeight: item.fontWeight,
+        fontSize: item.fontSize,
+        italic: item.italic,
+        uppercase: item.uppercase,
+        dropCap: false,
+        textAlign: item.textAlign,
+        lineHeight: item.lineHeight,
+        letterSpacing: item.letterSpacing,
+        color: item.color || '#000000',
+        shadow: {
+          enabled: false,
+          offsetX: 0,
+          offsetY: 2,
+          blur: 8,
+          color: 'rgba(0,0,0,0.35)',
+        },
+        stroke: item.stroke
+          ? { ...item.stroke }
+          : {
+              enabled: false,
+              width: 1,
+              color: '#000000',
+            },
+      };
+    });
+
+    if (mode === 'new-slide') {
+      const newId = `slide-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const newSlide: Slide = {
+        id: newId,
+        layout: 'blank' as LayoutPresetId,
+        elements: newElements,
+        backgroundColor: '#ffffff',
+      };
+      const nextSlides = [...state.slides, newSlide];
+      set({
+        slides: nextSlides,
+        activeSlideIndex: nextSlides.length - 1,
+        selectedElementId: newElements[0]?.id || null,
+      });
+      return;
+    }
+
+    const nextSlides: Slide[] = state.slides.map((s, idx) => {
+      if (idx !== state.activeSlideIndex) return s;
+      if (mode === 'blank') {
+        return {
+          ...s,
+          layout: 'blank' as LayoutPresetId,
+          backgroundColor: '#ffffff',
+          elements: newElements,
+        };
+      }
+      return {
+        ...s,
+        elements: [...s.elements, ...newElements],
+      };
+    });
+
+    set({
+      slides: nextSlides,
+      selectedElementId: newElements[0]?.id || null,
+    });
   },
 
   addElement: (kind, initialProps) => {
