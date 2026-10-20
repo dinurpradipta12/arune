@@ -41,7 +41,13 @@ export type LayoutPresetId =
   | 'typo-playful-arch'
   | 'typo-brush-satire'
   | 'typo-cinematic-indie'
-  | 'typo-split-journal';
+  | 'typo-split-journal'
+  // Curated Single Feeds (5 Distinct Interactive Feeds)
+  | 'feed-plm-community'
+  | 'feed-action-clarity'
+  | 'feed-backspace-content'
+  | 'feed-designer-gatekeep'
+  | 'feed-burnout-designer';
 
 export type ElementType = 'text' | 'image' | 'divider' | 'badge' | 'shape';
 

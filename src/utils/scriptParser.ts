@@ -2,6 +2,7 @@ import {
   ASPECT_RATIOS,
   CURATED_EDITORIAL_IMAGES,
 } from '../constants/themesAndPresets';
+import { SINGLE_FEEDS_PRESETS } from '../constants/singleFeedsTemplates';
 import type {
   AspectRatioKey,
   CanvasElement,
@@ -55,6 +56,12 @@ const VALID_LAYOUTS: LayoutPresetId[] = [
   'typo-brush-satire',
   'typo-cinematic-indie',
   'typo-split-journal',
+  // Curated Single Feeds (5 Distinct Layouts)
+  'feed-plm-community',
+  'feed-action-clarity',
+  'feed-backspace-content',
+  'feed-designer-gatekeep',
+  'feed-burnout-designer',
 ];
 
 function createDefaultShadow(enabled = false, color = 'rgba(0,0,0,0.45)') {
@@ -4724,6 +4731,19 @@ export function buildSlideFromParsedScript(
       layout,
       backgroundColor: '#121512',
       elements,
+    };
+  }
+
+  // ============================================================================
+  // CURATED SINGLE FEEDS (5 Distinct Interactive Feeds with Movable Elements)
+  // ============================================================================
+  const singleFeedDef = SINGLE_FEEDS_PRESETS.find((f) => f.id === layout);
+  if (singleFeedDef) {
+    return {
+      id: slideId,
+      layout,
+      backgroundColor: singleFeedDef.backgroundColor,
+      elements: singleFeedDef.createElements(W, H),
     };
   }
 

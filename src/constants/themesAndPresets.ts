@@ -503,7 +503,7 @@ export const THEME_PALETTES: ThemePalette[] = [
 export interface LayoutPresetDefinition {
   id: LayoutPresetId;
   name: string;
-  category: 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography';
+  category: 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography' | 'Single Feeds';
   badge: string;
   description: string;
 }
@@ -692,6 +692,42 @@ export const LAYOUT_PRESETS: LayoutPresetDefinition[] = [
     category: 'Typography',
     badge: 'Typo 05',
     description: '50/50 top-bottom dual photo split ("// day 22 Ramadhan", "reminder today with resting", bookmark & Kohh archive credit).',
+  },
+  // ===================== CURATED SINGLE FEEDS =====================
+  {
+    id: 'feed-plm-community',
+    name: 'PLM Social Community',
+    category: 'Single Feeds',
+    badge: 'Feed 01',
+    description: 'Chunky retro editorial serif with pink highlighter, green callouts, floating cursor tags and stickers.',
+  },
+  {
+    id: 'feed-action-clarity',
+    name: 'Action Creates Clarity',
+    category: 'Single Feeds',
+    badge: 'Feed 02',
+    description: 'Modern neo-grotesque social quote with profile header, underline, and pink clarity highlighter.',
+  },
+  {
+    id: 'feed-backspace-content',
+    name: 'Backspace Better Content',
+    category: 'Single Feeds',
+    badge: 'Feed 03',
+    description: 'Sophisticated agency aesthetic with espresso typography, periwinkle accent bar, and chat CTA.',
+  },
+  {
+    id: 'feed-designer-gatekeep',
+    name: "Designers Don't Gatekeep",
+    category: 'Single Feeds',
+    badge: 'Feed 04',
+    description: 'High-fashion condensed editorial serif with electric blue loop circle, folder sticker, and script edition.',
+  },
+  {
+    id: 'feed-burnout-designer',
+    name: 'Atin Burn-out Designer',
+    category: 'Single Feeds',
+    badge: 'Feed 05',
+    description: 'Chunky graphic pop poster with white boxed words, sunny yellow burnout pill, and quote note.',
   },
 ];
 

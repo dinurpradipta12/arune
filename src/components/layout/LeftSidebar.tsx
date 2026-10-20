@@ -1006,6 +1006,142 @@ export const LayoutVisualThumbnail: React.FC<{
     );
   }
 
+  if (layoutId === 'feed-plm-community') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between shadow-inner bg-[#FAF9F5] text-zinc-900 border border-black/10">
+        <div className="flex justify-between items-center text-[5px] font-serif font-bold text-zinc-800">
+          <span>&lt; plm.</span>
+          <span className="font-sans text-[4px] opacity-75">≡ 🔍 +</span>
+        </div>
+        <div className="relative my-auto flex flex-col items-center leading-tight">
+          <div className="absolute -top-3 left-1 bg-[#B7E4A8] border border-black text-[3px] px-1 py-0.2 rounded font-serif">
+            Courses &amp; Tools
+          </div>
+          <span className="text-[7.5px] font-black font-serif tracking-tight">the</span>
+          <div className="relative w-full flex justify-center items-center">
+            <div className="absolute inset-x-0 h-3 bg-[#FBCFE8] rounded-xs -z-0" />
+            <span className="relative z-10 text-[7px] font-black font-serif tracking-tight">community</span>
+          </div>
+          <span className="text-[7px] font-black font-serif tracking-tight">for social</span>
+          <span className="text-[8px] font-black font-serif tracking-tight">media</span>
+          <span className="text-[7.5px] font-black font-serif tracking-tight">marketers.</span>
+          <div className="absolute right-0 top-3 bg-white border border-black text-[3px] px-1 py-0.2 rounded-full font-bold shadow-xs">
+            ● Community ↖
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <div className="bg-[#BAE6FD] border border-black px-1.5 py-0.5 rounded text-[5px] font-serif font-bold">
+            plm. ↖
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === 'feed-action-clarity') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between items-center text-center shadow-inner bg-[#F3F4F6] text-zinc-900 border border-black/10">
+        <div className="flex items-center gap-1 text-[4px] font-bold text-zinc-800 pt-0.5">
+          <span className="w-2 h-2 rounded-full bg-black text-white flex items-center justify-center text-[3px]">E.</span>
+          <span>ELLA CONTENT CLUB</span>
+          <span className="bg-blue-500 text-white px-1 py-0.2 rounded-[2px] text-[3px]">Follow</span>
+        </div>
+        <div className="my-auto flex flex-col items-center">
+          <div className="text-[5px] mb-0.5 opacity-60">💬</div>
+          <div className="text-[6.5px] font-black underline tracking-tight">Action creates</div>
+          <div className="relative px-2 py-0.5 bg-[#FCE7F3] border border-[#F472B6] rounded-xs my-0.5">
+            <span className="text-[12px] font-black tracking-tight leading-none">clarity.</span>
+            <span className="absolute -top-1 -right-2 text-[6px]">✨</span>
+          </div>
+          <div className="text-[5px] font-normal text-zinc-600 mt-0.5">Not overthinking.</div>
+        </div>
+        <div className="w-6 h-[1px] bg-zinc-300 mb-0.5" />
+      </div>
+    );
+  }
+
+  if (layoutId === 'feed-backspace-content') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between shadow-inner bg-[#F5F4F0] text-[#1F1917] border border-black/10">
+        <div className="flex justify-between items-center text-[4px] font-bold">
+          <span>backspace | STUDIO</span>
+          <span className="text-[3.5px] font-normal opacity-70">studiobackspace.com</span>
+        </div>
+        <div className="my-auto flex flex-col items-start pl-1">
+          <div className="text-[7.5px] font-extrabold tracking-tight leading-none text-[#33221E]">your brand</div>
+          <div className="text-[8.5px] font-extrabold tracking-tight leading-none text-[#33221E]">deserves</div>
+          <div className="relative w-full max-w-[85%] bg-[#D8DEFD] border border-[#3B49DF] rounded-xs px-1 py-0.5 my-0.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#2B3BE5] absolute -top-1 -left-1" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[#2B3BE5] absolute -bottom-1 -right-1" />
+            <span className="text-[8px] font-serif italic font-bold text-[#2E2259] leading-none block">better content</span>
+          </div>
+          <div className="text-[4.5px] font-normal text-[#292524] mt-0.5">And <em>this</em> is where that begins.</div>
+          <div className="bg-[#18181B] text-white px-1.5 py-0.5 rounded-[3px] text-[3.5px] font-semibold mt-1.5 flex items-center gap-1">
+            <span>let's chat</span>
+            <span className="text-[2.5px]">▶</span>
+          </div>
+        </div>
+        <div />
+      </div>
+    );
+  }
+
+  if (layoutId === 'feed-designer-gatekeep') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between items-center text-center shadow-inner bg-[#FAF8F5] text-zinc-900 border border-black/10">
+        <div className="text-[3.5px] font-bold tracking-widest uppercase opacity-75">TIPS + TRICKS FOR DESIGNERS</div>
+        <div className="my-auto flex flex-col items-center">
+          <span className="text-[8px]">👩‍💻</span>
+          <div className="text-[9px] font-serif font-black leading-none tracking-tight">Designers</div>
+          <div className="relative w-full my-0.5 flex justify-center items-center">
+            <div className="absolute inset-0 border border-[#1D4ED8] rounded-full scale-105" />
+            <span className="absolute -left-1 text-[5px]">📁</span>
+            <span className="text-[10px] font-serif font-black leading-none tracking-tight">don't</span>
+          </div>
+          <div className="text-[10px] font-serif font-black leading-none tracking-tight relative">
+            gatekeep.
+            <span className="absolute -right-2 top-0 text-[5px]">👀</span>
+          </div>
+          <div className="text-[6px] font-serif italic font-bold text-[#1E40AF] mt-0.5 -rotate-3">Designer Edition</div>
+        </div>
+        <div className="text-[3px] font-semibold tracking-wider text-zinc-500">————→ @MINELOVESDESIGN</div>
+      </div>
+    );
+  }
+
+  if (layoutId === 'feed-burnout-designer') {
+    return (
+      <div className="w-full aspect-4/5 rounded-sm overflow-hidden relative p-1.5 flex flex-col justify-between shadow-inner bg-white text-zinc-900 border border-black/10">
+        <div className="text-center text-[6px] font-black text-[#0F3B59]">Atin✦</div>
+        <div className="my-auto flex flex-col items-start pl-1 space-y-0.5">
+          <div className="flex items-center gap-1">
+            <span className="border border-black px-1 text-[5.5px] font-black">One</span>
+            <span className="text-[6px]">✏️</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[8.5px] font-black tracking-tight leading-none">Sentence</span>
+            <span className="border border-black px-0.5 text-[5px] font-black">for</span>
+          </div>
+          <div className="flex items-center gap-1 w-full">
+            <span className="text-[8.5px] font-black tracking-tight leading-none">the</span>
+            <span className="bg-[#FACC15] text-black px-1.5 py-0.2 rounded-full text-[7.5px] font-black">Burn-out</span>
+          </div>
+          <div className="flex items-center justify-between w-full pr-1">
+            <span className="text-[8.5px] font-black tracking-tight leading-none">Designer</span>
+            <span className="bg-[#FEF08A] border border-black text-[3px] px-0.5 py-0.2 rounded">📌 66</span>
+          </div>
+          <div className="border border-black px-1 py-0.2 text-[3.5px] font-bold -rotate-2 mt-1">
+            Rest is part of the process ↖
+          </div>
+        </div>
+        <div className="border-t border-black pt-0.5 flex justify-between text-[3px] font-bold text-zinc-700">
+          <span>Creative minds</span>
+          <span>Design inspire</span>
+        </div>
+      </div>
+    );
+  }
+
   // 'playful-outro-cta' / default
   return (
     <div
@@ -1065,7 +1201,7 @@ export const LeftSidebar: React.FC = () => {
   } = useStudioStore();
 
   const [layoutFilter, setLayoutFilter] = useState<
-    'All' | 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography'
+    'All' | 'Single Feeds' | 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography'
   >('All');
   const [layoutScope, setLayoutScope] = useState<'current' | 'all'>('current');
 
@@ -1382,7 +1518,7 @@ export const LeftSidebar: React.FC = () => {
 
             {/* Layout Category Filter Pills */}
             <div className="flex items-center gap-1 overflow-x-auto pb-1 scroller-none text-[10px]">
-              {(['All', 'Editorial', 'Media', 'Minimalist', 'Playful', 'Typography'] as const).map(
+              {(['All', 'Single Feeds', 'Editorial', 'Media', 'Minimalist', 'Playful', 'Typography'] as const).map(
                 (cat) => (
                   <button
                     key={cat}
