@@ -4741,30 +4741,64 @@ export function extractParsedScriptFromSlide(slide: Slide): ParsedSlideScript {
     layout: slide.layout,
   };
 
-  for (const el of slide.elements) {
-    if (el.type === 'text' || el.type === 'badge') {
-      if (
-        el.role === 'header' ||
-        el.role === 'kicker' ||
-        el.role === 'title' ||
-        el.role === 'lead' ||
-        el.role === 'body' ||
-        el.role === 'caption'
-      ) {
+  const textElements = slide.elements.filter(
+    (el): el is TextCanvasElement => el.type === 'text' || el.type === 'badge'
+  );
+
+  for (const el of textElements) {
+    if (
+      el.role === 'header' ||
+      el.role === 'kicker' ||
+      el.role === 'title' ||
+      el.role === 'lead' ||
+      el.role === 'body' ||
+      el.role === 'caption'
+    ) {
+      if (!result[el.role]) {
         result[el.role] = el.content;
       }
     }
   }
 
-  // Provide defaults if switching to a layout that expects certain fields
-  if (!result.kicker) result.kicker = 'CHAPTER NOTE';
-  if (!result.title) result.title = 'Quiet *moments*';
-  if (!result.body) {
-    result.body =
-      '[W]hen the afternoon slows down, every detail in the room begins to speak in a softer register.';
+  // Heuristic fallback if title or body is missing but text elements exist
+  if (!result.title && textElements.length > 0) {
+    const candidate =
+      textElements.find((t) => /title|heading|header/i.test(t.name)) ||
+      [...textElements].sort((a, b) => (b.fontSize || 16) - (a.fontSize || 16))[0];
+    if (candidate && candidate.content) {
+      result.title = candidate.content;
+    }
   }
-  if (!result.header) result.header = 'EDITORIAL CHRONICLE — VOL. XIV';
-  if (!result.caption) result.caption = '*Notes from the highland sanctuary.*';
+
+  if (!result.body && textElements.length > 1) {
+    const candidate =
+      textElements.find((t) => /body|content|paragraph|desc/i.test(t.name)) ||
+      [...textElements]
+        .filter((el) => el.content !== result.title)
+        .sort((a, b) => (b.content?.length || 0) - (a.content?.length || 0))[0];
+    if (candidate && candidate.content) {
+      result.body = candidate.content;
+    }
+  }
+
+  // Provide light defaults ONLY if completely missing and the slide was empty
+  const hasAnyContent = Boolean(
+    result.title || result.body || result.lead || result.header || result.kicker
+  );
+
+  if (!hasAnyContent) {
+    result.kicker = 'EDITORIAL ISSUE';
+    result.title = 'Quiet *moments*';
+    result.lead = '*Refined visual balance and modern typography.*';
+    result.body =
+      'Every detail in the composition begins to speak in a softer, more deliberate rhythm.';
+    result.header = 'EDITORIAL CHRONICLE';
+    result.caption = '*Curated visual story.*';
+  } else {
+    // If some content was found, fill minimal kicker/header if needed by the layout
+    if (!result.kicker) result.kicker = 'CHAPTER NOTE';
+    if (!result.header) result.header = 'EDITORIAL CHRONICLE';
+  }
 
   return result;
 }

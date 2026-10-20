@@ -1053,6 +1053,7 @@ export const LeftSidebar: React.FC = () => {
     slides,
     activeSlideIndex,
     applyLayoutToSlide,
+    applyLayoutToAllSlides,
     addElement,
     selectedElementId,
     setSelectedElementId,
@@ -1065,6 +1066,7 @@ export const LeftSidebar: React.FC = () => {
   const [layoutFilter, setLayoutFilter] = useState<
     'All' | 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography'
   >('All');
+  const [layoutScope, setLayoutScope] = useState<'current' | 'all'>('current');
 
   if (!leftSidebarOpen) return null;
 
@@ -1341,11 +1343,39 @@ export const LeftSidebar: React.FC = () => {
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider">
-                Slide {String(activeSlideIndex + 1).padStart(2, '0')} Layout
+                {layoutScope === 'all'
+                  ? `Format Semua Slide (${slides.length})`
+                  : `Slide ${String(activeSlideIndex + 1).padStart(2, '0')} Layout`}
               </h3>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/10 text-blue-900 border border-blue-900/30 font-medium">
                 {LAYOUT_PRESETS.length} Layouts
               </span>
+            </div>
+
+            {/* Scope Toggle: Single Slide vs All Slides */}
+            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setLayoutScope('current')}
+                className={`flex-1 py-1 px-2 rounded-md font-medium transition-colors cursor-pointer ${
+                  layoutScope === 'current'
+                    ? 'bg-blue-900 text-white shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Slide Ini ({String(activeSlideIndex + 1).padStart(2, '0')})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayoutScope('all')}
+                className={`flex-1 py-1 px-2 rounded-md font-medium transition-colors cursor-pointer ${
+                  layoutScope === 'all'
+                    ? 'bg-blue-900 text-white shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Semua Slide ({slides.length})
+              </button>
             </div>
 
             {/* Layout Category Filter Pills */}
@@ -1377,7 +1407,13 @@ export const LeftSidebar: React.FC = () => {
                   <button
                     key={preset.id}
                     type="button"
-                    onClick={() => applyLayoutToSlide(activeSlideIndex, preset.id)}
+                    onClick={() => {
+                      if (layoutScope === 'all') {
+                        applyLayoutToAllSlides(preset.id);
+                      } else {
+                        applyLayoutToSlide(activeSlideIndex, preset.id);
+                      }
+                    }}
                     title={preset.description}
                     className={`group text-left p-1.5 rounded-lg border transition-all flex flex-col gap-1.5 cursor-pointer ${
                       isCurrent

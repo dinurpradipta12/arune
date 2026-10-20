@@ -415,8 +415,26 @@ function safeLine(text: string): string {
     .replace(/^---/gm, '—');
 }
 
-function pickLayout(index: number, total: number, sequence: LayoutPresetId[]): LayoutPresetId {
-  const seq = sequence.length > 0 ? sequence : (['cover-overlay', 'editorial-dropcap'] as LayoutPresetId[]);
+function pickLayout(
+  index: number,
+  total: number,
+  sequence: LayoutPresetId[],
+  defaultLayout?: LayoutPresetId
+): LayoutPresetId {
+  if (defaultLayout && defaultLayout !== 'blank') {
+    return defaultLayout;
+  }
+
+  const validSeq = sequence.filter((s) => s && s !== 'blank');
+  const defaultSeq: LayoutPresetId[] = [
+    'cover-overlay',
+    'editorial-dropcap',
+    'split-vertical-collage',
+    'editorial-bento-grid',
+    'top-photo-bottom-split',
+    'full-bleed-bottom-story',
+  ];
+  const seq = validSeq.length > 0 ? validSeq : defaultSeq;
   if (index === 0) return seq[0];
   if (seq.length === 1) return seq[0];
   if (index === total - 1 && total > 2 && seq.length > 2) return seq[seq.length - 1];
@@ -430,7 +448,8 @@ function pickLayout(index: number, total: number, sequence: LayoutPresetId[]): L
  */
 export function contentScriptToStudioScript(
   parsed: ParsedContentScript,
-  layoutSequence: LayoutPresetId[]
+  layoutSequence: LayoutPresetId[],
+  defaultLayout?: LayoutPresetId
 ): string {
   const total = parsed.slides.length;
   const headerBase = [parsed.pillar, parsed.contentType]
@@ -440,7 +459,7 @@ export function contentScriptToStudioScript(
 
   return parsed.slides
     .map((slide, idx) => {
-      const layout = pickLayout(idx, total, layoutSequence);
+      const layout = pickLayout(idx, total, layoutSequence, defaultLayout);
       const titleRows = slide.rows.filter((r) => TITLE_TYPES.test(r.type));
       const otherRows = slide.rows.filter((r) => !TITLE_TYPES.test(r.type));
 

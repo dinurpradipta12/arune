@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
 import {
+  ArrowLeft,
   Check,
   Cloud,
   Copy,
@@ -66,7 +67,8 @@ import {
   type StudioHotkeys,
   useStudioStore,
 } from '../../store/useStudioStore';
-import type { AspectRatioKey, CloudTemplateRecord } from '../../types/studio';
+import type { AspectRatioKey, CloudTemplateRecord, LayoutPresetId } from '../../types/studio';
+import { LayoutVisualThumbnail } from '../layout/LeftSidebar';
 import {
   type ExportFileFormat,
   exportCustomSlides,
@@ -182,6 +184,7 @@ export const StudioModals: React.FC = () => {
     setAdminAuthenticated,
     cloudMasterTemplates,
     setCloudMasterTemplates,
+    getActiveTheme,
   } = useStudioStore();
 
   const [copiedJson, setCopiedJson] = useState(false);
@@ -191,6 +194,13 @@ export const StudioModals: React.FC = () => {
   const fontFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Script Auto-Generator Modal State
+  const [scriptModalStep, setScriptModalStep] = useState<'editor' | 'layout-picker'>('editor');
+  const [selectedScriptLayout, setSelectedScriptLayout] = useState<LayoutPresetId>('editorial-dropcap');
+  const [scriptLayoutApplyMode, setScriptLayoutApplyMode] = useState<'all' | 'smart'>('all');
+  const [scriptLayoutCategory, setScriptLayoutCategory] = useState<
+    'All' | 'Editorial' | 'Media' | 'Minimalist' | 'Playful' | 'Typography'
+  >('All');
+  const [scriptLayoutSearch, setScriptLayoutSearch] = useState('');
   const [autoSyncScript, setAutoSyncScript] = useState(true);
   const [preservePhotos, setPreservePhotos] = useState(true);
   const rtfFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -253,8 +263,8 @@ export const StudioModals: React.FC = () => {
       if (!isRtf) {
         // Plain-text / markdown script: load directly.
         setScriptText(raw);
-        generateSlidesFromScript(raw, preservePhotos);
         setRtfImportInfo(null);
+        setScriptModalStep('layout-picker');
         return;
       }
 
@@ -269,10 +279,10 @@ export const StudioModals: React.FC = () => {
       const layoutSequence = slides.map((s) => s.layout);
       const studioScript = contentScriptToStudioScript(parsed, layoutSequence);
       setScriptText(studioScript);
-      generateSlidesFromScript(studioScript, preservePhotos);
       setPostCaption(parsed.caption);
       setPostHashtags(parsed.hashtags);
       setRtfImportInfo({ fileName: file.name, parsed });
+      setScriptModalStep('layout-picker');
     } catch (err) {
       setRtfImportError(
         `Gagal membaca file: ${err instanceof Error ? err.message : String(err)}`
@@ -673,16 +683,21 @@ export const StudioModals: React.FC = () => {
         onClick={(e) => e.stopPropagation()}
         className={`w-full ${
           activeModal === 'fonts' ||
-          activeModal === 'script' ||
           activeModal === 'settings'
             ? 'max-w-3xl'
+            : activeModal === 'script'
+            ? scriptModalStep === 'layout-picker'
+              ? 'max-w-4xl'
+              : 'max-w-3xl'
             : 'max-w-lg'
-        } rounded-xl bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden text-zinc-100`}
+        } rounded-xl bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden text-zinc-100 transition-all duration-200`}
       >
-        {/* MODAL 0: OPTIONAL SCRIPT AUTO-GENERATOR MODAL */}
+        {/* MODAL 0: SCRIPT AUTO-GENERATOR MODAL (2-STEP: SCRIPT EDITOR & LAYOUT PICKER) */}
         {activeModal === 'script' && (
           <>
-            <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
+            {scriptModalStep === 'editor' ? (
+              <>
+                <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wand2 className="w-4 h-4 text-blue-900" />
                 <div>
@@ -784,9 +799,19 @@ export const StudioModals: React.FC = () => {
                         {rtfImportInfo.parsed.totalRows} baris tabel terbaca
                       </span>
                     </div>
-                    <span className="text-[10px] text-zinc-400 truncate max-w-[50%]">
-                      {rtfImportInfo.fileName}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-zinc-400 truncate max-w-[180px]">
+                        {rtfImportInfo.fileName}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setScriptModalStep('layout-picker')}
+                        className="px-2.5 py-1 rounded-md bg-blue-900 hover:bg-blue-800 text-white text-[10.5px] font-semibold flex items-center gap-1 cursor-pointer shadow-xs"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Pilih Template Susunan Font</span>
+                      </button>
+                    </div>
                   </div>
                   {rtfImportInfo.parsed.title && (
                     <p className="text-[11px] text-zinc-300">
@@ -881,13 +906,13 @@ export const StudioModals: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      generateSlidesFromScript(scriptText, preservePhotos);
-                      setActiveModal(null);
+                      if (!scriptText.trim()) return;
+                      setScriptModalStep('layout-picker');
                     }}
                     className="py-2 px-4 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Generate ke Semua Slide ({slides.length})</span>
+                    <span>Pilih Template &amp; Generate ({slides.length})</span>
                   </button>
                 </div>
               </div>
@@ -968,6 +993,238 @@ export const StudioModals: React.FC = () => {
                 </div>
               </div>
             </div>
+              </>
+            ) : (
+              <>
+                {/* STEP 2: PILIH TEMPLATE SUSUNAN FONT */}
+                <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setScriptModalStep('editor')}
+                      className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
+                      title="Kembali ke Editor Script"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-blue-900" />
+                        <h3 className="text-sm font-semibold">
+                          Pilih Template Susunan Font
+                        </h3>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-900/15 text-blue-900 border border-blue-900/30 font-medium">
+                          Langkah 2 dari 2
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400">
+                        Pilih gaya susunan tipografi &amp; tata letak visual untuk {slides.length} slide carousel Anda.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveModal(null);
+                      setScriptModalStep('editor');
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto scroller-dark">
+                  {/* Category Tabs & Search Bar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scroller-none text-xs">
+                      {(['All', 'Editorial', 'Media', 'Minimalist', 'Playful', 'Typography'] as const).map(
+                        (cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setScriptLayoutCategory(cat)}
+                            className={`px-2.5 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer text-xs ${
+                              scriptLayoutCategory === cat
+                                ? 'bg-blue-900 text-white font-semibold shadow-xs'
+                                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                            }`}
+                          >
+                            {cat === 'All' ? 'Semua Template' : cat}
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    <div className="relative min-w-[220px]">
+                      <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={scriptLayoutSearch}
+                        onChange={(e) => setScriptLayoutSearch(e.target.value)}
+                        placeholder="Cari susunan font..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 focus:border-blue-900 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Grid of Layout Presets */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {LAYOUT_PRESETS.filter((p) => {
+                      const matchesCat =
+                        scriptLayoutCategory === 'All' || p.category === scriptLayoutCategory;
+                      const matchesSearch =
+                        !scriptLayoutSearch ||
+                        p.name.toLowerCase().includes(scriptLayoutSearch.toLowerCase()) ||
+                        p.description.toLowerCase().includes(scriptLayoutSearch.toLowerCase()) ||
+                        p.badge.toLowerCase().includes(scriptLayoutSearch.toLowerCase());
+                      return matchesCat && matchesSearch;
+                    }).map((preset) => {
+                      const isSelected = selectedScriptLayout === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setSelectedScriptLayout(preset.id)}
+                          className={`group text-left p-2 rounded-xl border transition-all flex flex-col gap-2 cursor-pointer relative ${
+                            isSelected
+                              ? 'bg-blue-900/15 border-blue-900 ring-2 ring-blue-900/50 shadow-lg'
+                              : 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+                          }`}
+                        >
+                          <div className="w-full relative rounded-lg overflow-hidden ring-1 ring-white/10 group-hover:scale-[1.01] transition-transform">
+                            <LayoutVisualThumbnail layoutId={preset.id} theme={getActiveTheme()} />
+                            {isSelected && (
+                              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-900 text-white flex items-center justify-center shadow-md">
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                              <span className={`text-xs font-semibold truncate ${isSelected ? 'text-blue-900 font-bold' : 'text-zinc-100'}`}>
+                                {preset.name}
+                              </span>
+                              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 shrink-0">
+                                {preset.badge}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-zinc-400 line-clamp-2 leading-relaxed">
+                              {preset.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Generation Options & Preserves */}
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 space-y-3">
+                    <span className="text-xs font-semibold text-zinc-200">
+                      Opsi Penerapan Template:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <label
+                        className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                          scriptLayoutApplyMode === 'all'
+                            ? 'border-blue-900 bg-blue-900/10 text-zinc-100'
+                            : 'border-zinc-800 bg-zinc-900/40 text-zinc-300 hover:border-zinc-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="scriptLayoutApplyMode"
+                          checked={scriptLayoutApplyMode === 'all'}
+                          onChange={() => setScriptLayoutApplyMode('all')}
+                          className="mt-0.5 text-blue-900 focus:ring-0"
+                        />
+                        <div>
+                          <div className="font-semibold text-zinc-100">
+                            Terapkan ke Semua Slide (Rekomendasi)
+                          </div>
+                          <div className="text-[11px] text-zinc-400">
+                            Semua slide menggunakan template susunan font ini agar gaya tipografi seragam dan konsisten.
+                          </div>
+                        </div>
+                      </label>
+
+                      <label
+                        className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                          scriptLayoutApplyMode === 'smart'
+                            ? 'border-blue-900 bg-blue-900/10 text-zinc-100'
+                            : 'border-zinc-800 bg-zinc-900/40 text-zinc-300 hover:border-zinc-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="scriptLayoutApplyMode"
+                          checked={scriptLayoutApplyMode === 'smart'}
+                          onChange={() => setScriptLayoutApplyMode('smart')}
+                          className="mt-0.5 text-blue-900 focus:ring-0"
+                        />
+                        <div>
+                          <div className="font-semibold text-zinc-100">
+                            Variasi Cerdas (Cover + Konten + Penutup)
+                          </div>
+                          <div className="text-[11px] text-zinc-400">
+                            Template terpilih menjadi cover pembuka, slide tengah dan penutup disesuaikan otomatis.
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-between border-t border-zinc-800/80">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={preservePhotos}
+                          onChange={(e) => setPreservePhotos(e.target.checked)}
+                          className="rounded border-zinc-700 bg-zinc-900 text-blue-900 focus:ring-0"
+                        />
+                        <span>Pertahankan foto/gambar yang sudah ada di kanvas</span>
+                      </label>
+
+                      <div className="text-[11px] text-zinc-400">
+                        Template terpilih:{' '}
+                        <strong className="text-blue-900 font-semibold">
+                          {LAYOUT_PRESETS.find((p) => p.id === selectedScriptLayout)?.name || selectedScriptLayout}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Layout Picker Footer Actions */}
+                <div className="px-5 py-3 border-t border-zinc-800 flex items-center justify-between bg-zinc-950">
+                  <button
+                    type="button"
+                    onClick={() => setScriptModalStep('editor')}
+                    className="py-2 px-3.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Kembali ke Edit Script</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      generateSlidesFromScript(
+                        scriptText,
+                        preservePhotos,
+                        selectedScriptLayout,
+                        scriptLayoutApplyMode === 'all'
+                      );
+                      setActiveModal(null);
+                      setScriptModalStep('editor');
+                    }}
+                    className="py-2 px-5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Terapkan &amp; Generate ke Semua Slide</span>
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
 

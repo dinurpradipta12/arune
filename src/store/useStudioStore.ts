@@ -290,7 +290,12 @@ interface StudioState {
   }) => Promise<void>;
 
   setScriptText: (script: string) => void;
-  generateSlidesFromScript: (scriptOverride?: string, preservePhotos?: boolean) => void;
+  generateSlidesFromScript: (
+    scriptOverride?: string,
+    preservePhotos?: boolean,
+    layoutOverride?: LayoutPresetId,
+    applyOverrideToAll?: boolean
+  ) => void;
 
   setActiveSlideIndex: (index: number) => void;
   setSelectedElementId: (id: string | null) => void;
@@ -301,6 +306,7 @@ interface StudioState {
   deleteSlide: (index: number) => void;
   reorderSlide: (fromIndex: number, direction: 'left' | 'right') => void;
   applyLayoutToSlide: (slideIndex: number, layout: LayoutPresetId) => void;
+  applyLayoutToAllSlides: (layout: LayoutPresetId) => void;
   setSlideBackgroundColor: (slideIndex: number, color: string) => void;
 
   // Element management
@@ -1243,7 +1249,12 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   setScriptText: (scriptText) => set({ scriptText }),
 
-  generateSlidesFromScript: (scriptOverride, preservePhotos = true) => {
+  generateSlidesFromScript: (
+    scriptOverride,
+    preservePhotos = true,
+    layoutOverride,
+    applyOverrideToAll = false
+  ) => {
     const state = get();
     state.pushHistory();
     const textToParse =
@@ -1254,6 +1265,25 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (parsedList.length === 0) return;
 
     const newSlides = parsedList.map((parsed, idx) => {
+      if (layoutOverride && layoutOverride !== 'blank') {
+        if (applyOverrideToAll) {
+          parsed.layout = layoutOverride;
+        } else {
+          // Smart variation:
+          if (idx === 0) {
+            parsed.layout = layoutOverride;
+          } else if (idx === parsedList.length - 1 && parsedList.length > 2) {
+            parsed.layout = layoutOverride.startsWith('media-')
+              ? 'media-outro-cta'
+              : layoutOverride.startsWith('playful-')
+              ? 'playful-outro-cta'
+              : 'full-bleed-bottom-story';
+          } else {
+            parsed.layout = layoutOverride;
+          }
+        }
+      }
+
       const existingSlide = state.slides[idx];
       const existingImages =
         preservePhotos && existingSlide
@@ -1271,8 +1301,16 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       );
     });
 
+    let updatedScriptText = textToParse;
+    if (layoutOverride && applyOverrideToAll && layoutOverride !== 'blank') {
+      updatedScriptText = textToParse.replace(
+        /^---\s*\[layout:\s*[a-z0-9-]+\s*\]/gim,
+        `--- [layout: ${layoutOverride}]`
+      );
+    }
+
     set({
-      scriptText: textToParse,
+      scriptText: updatedScriptText,
       slides: newSlides,
       activeSlideIndex: Math.min(state.activeSlideIndex, newSlides.length - 1),
       selectedElementId: null,
@@ -1367,31 +1405,64 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     state.pushHistory();
 
     const theme = state.getActiveTheme();
-    const extracted = layout.startsWith('typo-')
-      ? { layout }
-      : {
-          ...extractParsedScriptFromSlide(targetSlide),
-          layout,
-        };
+    const extracted = {
+      ...extractParsedScriptFromSlide(targetSlide),
+      layout,
+    };
 
-    const existingImages = layout.startsWith('typo-')
-      ? undefined
-      : (targetSlide.elements.filter(
-          (e) => e.type === 'image'
-        ) as ImageCanvasElement[]);
+    const existingImages = targetSlide.elements.filter(
+      (e) => e.type === 'image'
+    ) as ImageCanvasElement[];
 
     const rebuilt = buildSlideFromParsedScript(
       extracted,
       slideIndex,
       theme,
       state.aspectRatio,
-      existingImages
+      existingImages.length > 0 ? existingImages : undefined
     );
 
     const nextSlides = [...state.slides];
     nextSlides[slideIndex] = rebuilt;
     set({
       slides: nextSlides,
+      selectedElementId: null,
+    });
+  },
+
+  applyLayoutToAllSlides: (layout) => {
+    const state = get();
+    if (state.slides.length === 0) return;
+    state.pushHistory();
+
+    const theme = state.getActiveTheme();
+    const nextSlides = state.slides.map((targetSlide, slideIndex) => {
+      const extracted = {
+        ...extractParsedScriptFromSlide(targetSlide),
+        layout,
+      };
+
+      const existingImages = targetSlide.elements.filter(
+        (e) => e.type === 'image'
+      ) as ImageCanvasElement[];
+
+      return buildSlideFromParsedScript(
+        extracted,
+        slideIndex,
+        theme,
+        state.aspectRatio,
+        existingImages.length > 0 ? existingImages : undefined
+      );
+    });
+
+    const updatedScriptText = state.scriptText.replace(
+      /^---\s*\[layout:\s*[a-z0-9-]+\s*\]/gim,
+      `--- [layout: ${layout}]`
+    );
+
+    set({
+      slides: nextSlides,
+      scriptText: updatedScriptText,
       selectedElementId: null,
     });
   },
