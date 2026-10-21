@@ -102,13 +102,13 @@ export const TemplateGalleryPage: React.FC = () => {
   const timeGreeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour >= 4 && hour < 11) {
-      return { text: 'Selamat Pagi', icon: '☀️' };
+      return { text: 'Selamat Pagi' };
     } else if (hour >= 11 && hour < 15) {
-      return { text: 'Selamat Siang', icon: '🌤️' };
+      return { text: 'Selamat Siang' };
     } else if (hour >= 15 && hour < 18) {
-      return { text: 'Selamat Sore', icon: '🌇' };
+      return { text: 'Selamat Sore' };
     } else {
-      return { text: 'Selamat Malam', icon: '🌙' };
+      return { text: 'Selamat Malam' };
     }
   }, []);
 
@@ -571,12 +571,9 @@ export const TemplateGalleryPage: React.FC = () => {
               {/* WARM PERSONAL GREETING (Clean & Borderless) */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xl select-none">{timeGreeting.icon}</span>
                   <span
-                    className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                      workspaceDarkMode
-                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                        : 'bg-blue-100/70 text-blue-700 border-blue-200'
+                    className={`text-xs font-bold uppercase tracking-wider ${
+                      workspaceDarkMode ? 'text-blue-400' : 'text-blue-600'
                     }`}
                   >
                     {timeGreeting.text}
