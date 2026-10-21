@@ -19,6 +19,10 @@ import {
   Sun,
   Moon,
   Shield,
+  Palette,
+  Type,
+  Sparkles,
+  Download,
 } from 'lucide-react';
 import {
   getTeams,
@@ -33,11 +37,35 @@ import {
   deleteTeamProject,
   getCurrentUserProfile,
   saveCurrentUserProfile,
+  getTeamBrandKit,
+  updateTeamBrandKit,
   type UserProfile,
 } from '../../services/teamWorkspaceService';
-import type { TeamWorkspace, TeamRole, TeamProjectRecord } from '../../types/team';
+import type { TeamWorkspace, TeamRole, TeamProjectRecord, TeamBrandKit } from '../../types/team';
+import { DEFAULT_TEAM_BRAND_KIT } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
 import { isElectronMac } from '../../utils/platform';
+
+const AVAILABLE_HEADING_FONTS = [
+  'Plus Jakarta Sans',
+  'Cormorant Garamond',
+  'Playfair Display',
+  'Syne',
+  'Cinzel',
+  'Montserrat',
+  'Instrument Serif',
+  'Bebas Neue',
+  'Inter',
+];
+
+const AVAILABLE_BODY_FONTS = [
+  'Plus Jakarta Sans',
+  'Inter',
+  'Cormorant Garamond',
+  'Playfair Display',
+  'Roboto',
+  'Lato',
+];
 
 export const TeamWorkspacePage: React.FC = () => {
   const {
@@ -46,6 +74,8 @@ export const TeamWorkspacePage: React.FC = () => {
     aspectRatio,
     activeThemeId,
     branding,
+    updateBranding,
+    updateThemeColors,
     scriptText,
     slides,
     loadProjectSnapshot,
@@ -53,12 +83,16 @@ export const TeamWorkspacePage: React.FC = () => {
     workspaceDarkMode,
     setWorkspaceDarkMode,
     openBlankDocumentTab,
+    getActiveTheme,
   } = useStudioStore();
 
   const isDark = workspaceDarkMode;
 
   const [teams, setTeams] = useState<TeamWorkspace[]>([]);
   const [activeTeamId, setCurrentActiveTeamId] = useState<string | null>(null);
+
+  // Tab inside folder: 'projects' or 'brand-kit'
+  const [folderTab, setFolderTab] = useState<'projects' | 'brand-kit'>('projects');
 
   // Form states for adding member
   const [newMemberName, setNewMemberName] = useState('');
@@ -76,6 +110,11 @@ export const TeamWorkspacePage: React.FC = () => {
   const [teamProjects, setTeamProjects] = useState<TeamProjectRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Brand Kit State
+  const [brandKit, setBrandKit] = useState<TeamBrandKit>({ ...DEFAULT_TEAM_BRAND_KIT });
+  const [brandKitSaved, setBrandKitSaved] = useState(false);
+  const [brandKitAppliedToast, setBrandKitAppliedToast] = useState<string | null>(null);
+
   // User profile
   const [userProfile, setUserProfile] = useState<UserProfile>(getCurrentUserProfile());
   const [profileSaved, setProfileSaved] = useState(false);
@@ -92,6 +131,7 @@ export const TeamWorkspacePage: React.FC = () => {
     setCurrentActiveTeamId(activeId);
     if (activeId) {
       setTeamProjects(getTeamProjects(activeId));
+      setBrandKit(getTeamBrandKit(activeId));
     }
     setUserProfile(getCurrentUserProfile());
   };
@@ -102,6 +142,7 @@ export const TeamWorkspacePage: React.FC = () => {
     setActiveTeamId(teamId);
     setCurrentActiveTeamId(teamId);
     setTeamProjects(getTeamProjects(teamId));
+    setBrandKit(getTeamBrandKit(teamId));
     setInviteError(null);
     setInviteSuccess(null);
   };
@@ -217,6 +258,59 @@ export const TeamWorkspacePage: React.FC = () => {
     refreshData();
   };
 
+  // Brand Kit Handlers
+  const handleUpdateBrandKitField = (partial: Partial<TeamBrandKit>) => {
+    if (!currentTeam) return;
+    const updated = updateTeamBrandKit(currentTeam.id, partial);
+    if (updated) {
+      setBrandKit(updated);
+      setBrandKitSaved(true);
+      setTimeout(() => setBrandKitSaved(false), 2000);
+    }
+  };
+
+  const handleApplyBrandKitToCurrentProject = () => {
+    if (!currentTeam) return;
+    updateBranding({
+      publicationName: brandKit.publicationName,
+      authorOrHandle: brandKit.authorOrHandle,
+      issueLabel: brandKit.issueLabel,
+      footerNote: brandKit.footerNote,
+      showSlideNumbers: brandKit.showSlideNumbers,
+      showFooterBar: brandKit.showFooterBar,
+    });
+    updateThemeColors({
+      accent: brandKit.accentColor,
+      background: brandKit.backgroundColor,
+      textPrimary: brandKit.textColor,
+      headingFont: brandKit.headingFont,
+      bodyFont: brandKit.bodyFont,
+    });
+    setBrandKitAppliedToast(`Brand Kit tim "${currentTeam.name}" berhasil diterapkan ke proyek aktif di kanvas!`);
+    setTimeout(() => setBrandKitAppliedToast(null), 4000);
+  };
+
+  const handleImportBrandKitFromCanvas = () => {
+    if (!currentTeam) return;
+    const theme = getActiveTheme();
+    const imported: Partial<TeamBrandKit> = {
+      publicationName: branding.publicationName || brandKit.publicationName,
+      authorOrHandle: branding.authorOrHandle || brandKit.authorOrHandle,
+      issueLabel: branding.issueLabel || brandKit.issueLabel,
+      footerNote: branding.footerNote || brandKit.footerNote,
+      showSlideNumbers: branding.showSlideNumbers,
+      showFooterBar: branding.showFooterBar,
+      primaryColor: theme.accent || brandKit.primaryColor,
+      accentColor: theme.accent || brandKit.accentColor,
+      backgroundColor: theme.background || brandKit.backgroundColor,
+      textColor: theme.textPrimary || brandKit.textColor,
+      headingFont: theme.headingFont || brandKit.headingFont,
+      bodyFont: theme.bodyFont || brandKit.bodyFont,
+    };
+    handleUpdateBrandKitField(imported);
+    alert(`Branding dari kanvas aktif berhasil diimpor sebagai Brand Kit resmi tim "${currentTeam.name}"!`);
+  };
+
   const filteredProjects = useMemo(() => {
     if (!searchQuery.trim()) return teamProjects;
     return teamProjects.filter((p) =>
@@ -268,13 +362,13 @@ export const TeamWorkspacePage: React.FC = () => {
               <h1 className={`text-sm font-bold tracking-tight flex items-center gap-2 ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                Team Workspace & Folder
+                Team Workspace & Brand Kit
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                   isDark
                     ? 'bg-blue-900/60 text-blue-300 border-blue-800/80'
                     : 'bg-blue-50 text-blue-700 border-blue-200'
                 }`}>
-                  Folder & Proyek
+                  Fase 2: Shared Brand Kit
                 </span>
               </h1>
             </div>
@@ -316,10 +410,27 @@ export const TeamWorkspacePage: React.FC = () => {
       <div className="flex-1 flex min-h-0 overflow-hidden">
         
         {/* ========================================================
-            LEFT & CENTER COLUMN: TEAM FOLDERS & SHARED PROJECTS
+            LEFT & CENTER COLUMN: TEAM FOLDERS, PROJECTS & BRAND KIT
            ======================================================== */}
         <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
           
+          {/* TOAST NOTIFICATION */}
+          {brandKitAppliedToast && (
+            <div className="p-3.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs flex items-center justify-between shadow-lg animate-fade-in">
+              <span className="flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                <span>{brandKitAppliedToast}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveView('editor')}
+                className="px-2.5 py-1 bg-white text-emerald-800 rounded-md font-bold text-[11px] hover:bg-emerald-50 cursor-pointer shadow-xs"
+              >
+                Buka Editor →
+              </button>
+            </div>
+          )}
+
           {/* 1. TEAM FOLDERS SELECTOR STRIP */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -330,7 +441,7 @@ export const TeamWorkspacePage: React.FC = () => {
                   Folder Tiap Team ({teams.length})
                 </h2>
                 <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Pilih folder tim untuk melihat proyek dan rekan kerja yang tergabung di dalamnya.
+                  Pilih folder tim untuk mengelola proyek bersama dan Brand Kit resmi tim.
                 </p>
               </div>
 
@@ -466,7 +577,7 @@ export const TeamWorkspacePage: React.FC = () => {
             </div>
           </div>
 
-          {/* 2. ACTIVE TEAM HEADER & ACTION BAR */}
+          {/* 2. ACTIVE TEAM HEADER & TAB SWITCHER (PROJECTS vs BRAND KIT) */}
           {currentTeam && (
             <div className={`p-5 rounded-2xl border shadow-sm space-y-4 ${
               isDark
@@ -483,20 +594,76 @@ export const TeamWorkspacePage: React.FC = () => {
                     <h2 className={`text-base font-bold ${
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}>
-                      Proyek di Folder: {currentTeam.name}
+                      Folder: {currentTeam.name}
                     </h2>
                   </div>
                   <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {currentTeam.description || 'Ruang kerja proyek bersama untuk anggota tim ini.'}
+                    {currentTeam.description || 'Ruang kerja proyek bersama dan Brand Kit resmi untuk tim ini.'}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Sub-Tab Switcher: Projects vs Brand Kit */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setFolderTab('projects')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      folderTab === 'projects'
+                        ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span>Proyek ({filteredProjects.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFolderTab('brand-kit')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      folderTab === 'brand-kit'
+                        ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    <span>Brand Kit Tim</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              VIEW 1: PROYEK CAROUSEL GRID
+             ======================================================== */}
+          {folderTab === 'projects' && (
+            <div className="space-y-4">
+              {/* Action & Search Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className={`w-4 h-4 absolute left-3 top-2.5 pointer-events-none ${
+                    isDark ? 'text-zinc-500' : 'text-slate-400'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder="Cari proyek carousel berdasarkan judul atau nama editor..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`w-full pl-9 pr-4 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isDark
+                        ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 shadow-xs'
+                    }`}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={handleShareCurrentProjectToTeam}
                     title="Simpan carousel yang saat ini aktif di canvas ke folder ini"
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Bagikan Project Aktif ke Tim</span>
@@ -505,7 +672,7 @@ export const TeamWorkspacePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleCreateNewBlankProjectInTeam}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ Buat Proyek Baru</span>
@@ -513,173 +680,577 @@ export const TeamWorkspacePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Search Bar for Projects */}
-              <div className="relative">
-                <Search className={`w-4 h-4 absolute left-3 top-2.5 pointer-events-none ${
-                  isDark ? 'text-zinc-500' : 'text-slate-400'
-                }`} />
-                <input
-                  type="text"
-                  placeholder="Cari proyek carousel berdasarkan judul atau nama editor..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full pl-9 pr-4 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              {/* Projects Grid Cards */}
+              {filteredProjects.length === 0 ? (
+                <div className={`p-12 rounded-2xl border-2 border-dashed text-center space-y-4 ${
+                  isDark
+                    ? 'border-zinc-800 bg-[#0A1A2F]/30'
+                    : 'border-slate-200 bg-white/70'
+                }`}>
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
                     isDark
-                      ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500'
-                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
-                  }`}
-                />
-              </div>
+                      ? 'bg-blue-950/40 text-blue-400'
+                      : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <FolderOpen className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className={`text-sm font-bold ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      Belum ada proyek di folder ini
+                    </h3>
+                    <p className={`text-xs max-w-md mx-auto ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}>
+                      Bagikan proyek carousel yang sedang Anda kerjakan di kanvas, atau buat proyek baru untuk mulai berkolaborasi dengan rekan setim.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleShareCurrentProjectToTeam}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>Bagikan Project Aktif Sekarang</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateNewBlankProjectInTeam}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Buat Dokumen Baru</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredProjects.map((proj) => (
+                    <div
+                      key={proj.id}
+                      className={`rounded-2xl border transition-all flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
+                        isDark
+                          ? 'border-zinc-800 bg-[#0A1A2F]/90 hover:border-blue-500'
+                          : 'border-slate-200 bg-white hover:border-blue-400'
+                      }`}
+                    >
+                      <div className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className={`text-xs font-bold line-clamp-1 ${
+                            isDark ? 'text-white' : 'text-slate-900'
+                          }`}>
+                            {proj.title}
+                          </h4>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
+                            isDark
+                              ? 'bg-zinc-800 text-zinc-300'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {proj.aspectRatio}
+                          </span>
+                        </div>
+
+                        <div className={`flex items-center gap-2 text-[11px] ${
+                          isDark ? 'text-slate-400' : 'text-slate-500'
+                        }`}>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {new Date(proj.lastEditedAt).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </span>
+                          <span>•</span>
+                          <span>{proj.slideCount} Slide</span>
+                        </div>
+
+                        <div className={`p-2.5 rounded-lg border text-[11.5px] ${
+                          isDark
+                            ? 'bg-zinc-900/60 border-zinc-800 text-slate-300'
+                            : 'bg-slate-50 border-slate-100 text-slate-600'
+                        }`}>
+                          <span>Terakhir diedit oleh: </span>
+                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+                            {proj.lastEditedBy}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className={`p-3 border-t flex items-center justify-between gap-2 ${
+                        isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-slate-50 border-slate-100'
+                      }`}>
+                        <button
+                          type="button"
+                          onClick={() => handleLoadTeamProject(proj)}
+                          className="flex-1 py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Buka & Edit di Studio</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTeamProject(proj.id, proj.title)}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            isDark
+                              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
+                              : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                          }`}
+                          title="Hapus proyek tim"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* 3. PROJECTS GRID */}
-          <div className="space-y-3">
-            <div className={`flex items-center justify-between text-xs ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
-            }`}>
-              <span className="font-bold uppercase tracking-wider text-[11px]">
-                Daftar Proyek Carousel ({filteredProjects.length})
-              </span>
-            </div>
-
-            {filteredProjects.length === 0 ? (
-              <div className={`p-12 rounded-2xl border-2 border-dashed text-center space-y-4 ${
+          {/* ========================================================
+              VIEW 2: BRAND KIT & STYLE GUIDE TIM (TAHAP 2)
+             ======================================================== */}
+          {folderTab === 'brand-kit' && (
+            <div className="space-y-6">
+              
+              {/* Brand Kit Quick Action Header */}
+              <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                 isDark
-                  ? 'border-zinc-800 bg-[#0A1A2F]/30'
-                  : 'border-slate-200 bg-white/70'
+                  ? 'bg-blue-950/20 border-blue-900/40'
+                  : 'bg-blue-50/60 border-blue-200'
               }`}>
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
-                  isDark
-                    ? 'bg-blue-950/40 text-blue-400'
-                    : 'bg-blue-50 text-blue-600'
-                }`}>
-                  <FolderOpen className="w-6 h-6" />
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <h3 className={`text-xs font-bold flex items-center gap-2 ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      <span>Brand Kit Resmi: {currentTeam.name}</span>
+                      {brandKitSaved && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 animate-fade-in">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Perubahan Tersimpan</span>
+                        </span>
+                      )}
+                    </h3>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Semua anggota tim dapat menggunakan identitas brand, warna, dan font ini dengan 1 klik.
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <h3 className={`text-sm font-bold ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}>
-                    Belum ada proyek di folder ini
-                  </h3>
-                  <p className={`text-xs max-w-md mx-auto ${
-                    isDark ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
-                    Bagikan proyek carousel yang sedang Anda kerjakan di kanvas, atau buat proyek baru untuk mulai berkolaborasi dengan rekan setim.
-                  </p>
-                </div>
-                <div className="flex items-center justify-center gap-2 pt-1">
+
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleShareCurrentProjectToTeam}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>Bagikan Project Aktif Sekarang</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCreateNewBlankProjectInTeam}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Buat Dokumen Baru</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredProjects.map((proj) => (
-                  <div
-                    key={proj.id}
-                    className={`rounded-2xl border transition-all flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
+                    onClick={handleImportBrandKitFromCanvas}
+                    title="Ambil branding dan warna dari kanvas yang sedang aktif"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ${
                       isDark
-                        ? 'border-zinc-800 bg-[#0A1A2F]/90 hover:border-blue-500'
-                        : 'border-slate-200 bg-white hover:border-blue-400'
+                        ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700 text-slate-200'
+                        : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
                     }`}
                   >
-                    <div className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className={`text-xs font-bold line-clamp-1 ${
-                          isDark ? 'text-white' : 'text-slate-900'
-                        }`}>
-                          {proj.title}
-                        </h4>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
+                    <Download className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Ambil dari Kanvas Aktif</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleApplyBrandKitToCurrentProject}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Terapkan ke Editor Saat Ini</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 3 Brand Kit Cards Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                
+                {/* CARD 1: IDENTITAS & WATERMARK PUBLIKASI */}
+                <div className={`p-5 rounded-2xl border space-y-4 ${
+                  isDark
+                    ? 'bg-[#0A1A2F]/80 border-zinc-800'
+                    : 'bg-white border-slate-200 shadow-xs'
+                }`}>
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
+                    <Shield className="w-4 h-4 text-blue-600" />
+                    <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Identitas & Watermark
+                    </h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Nama Publikasi / Masthead
+                      </label>
+                      <input
+                        type="text"
+                        value={brandKit.publicationName}
+                        onChange={(e) => handleUpdateBrandKitField({ publicationName: e.target.value })}
+                        className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                           isDark
-                            ? 'bg-zinc-800 text-zinc-300'
-                            : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {proj.aspectRatio}
-                        </span>
-                      </div>
-
-                      <div className={`flex items-center gap-2 text-[11px] ${
-                        isDark ? 'text-slate-400' : 'text-slate-500'
-                      }`}>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          <span>
-                            {new Date(proj.lastEditedAt).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        </span>
-                        <span>•</span>
-                        <span>{proj.slideCount} Slide</span>
-                      </div>
-
-                      <div className={`p-2.5 rounded-lg border text-[11.5px] ${
-                        isDark
-                          ? 'bg-zinc-900/60 border-zinc-800 text-slate-300'
-                          : 'bg-slate-50 border-slate-100 text-slate-600'
-                      }`}>
-                        <span>Terakhir diedit oleh: </span>
-                        <strong className={isDark ? 'text-white' : 'text-slate-900'}>
-                          {proj.lastEditedBy}
-                        </strong>
-                      </div>
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
                     </div>
 
-                    <div className={`p-3 border-t flex items-center justify-between gap-2 ${
-                      isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-slate-50 border-slate-100'
-                    }`}>
-                      <button
-                        type="button"
-                        onClick={() => handleLoadTeamProject(proj)}
-                        className="flex-1 py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Buka & Edit di Studio</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTeamProject(proj.id, proj.title)}
-                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Handle Penulis / Akun Sosial
+                      </label>
+                      <input
+                        type="text"
+                        value={brandKit.authorOrHandle}
+                        onChange={(e) => handleUpdateBrandKitField({ authorOrHandle: e.target.value })}
+                        className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                           isDark
-                            ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
-                            : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
                         }`}
-                        title="Hapus proyek tim"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Label Edisi / Volume
+                      </label>
+                      <input
+                        type="text"
+                        value={brandKit.issueLabel}
+                        onChange={(e) => handleUpdateBrandKitField({ issueLabel: e.target.value })}
+                        className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                          isDark
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Catatan Kaki (Footer Note)
+                      </label>
+                      <input
+                        type="text"
+                        value={brandKit.footerNote}
+                        onChange={(e) => handleUpdateBrandKitField({ footerNote: e.target.value })}
+                        className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                          isDark
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs">
+                        <input
+                          type="checkbox"
+                          checked={brandKit.showSlideNumbers}
+                          onChange={(e) => handleUpdateBrandKitField({ showSlideNumbers: e.target.checked })}
+                          className="rounded text-blue-600"
+                        />
+                        <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                          Tampilkan Nomor Slide (01/06)
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer text-xs">
+                        <input
+                          type="checkbox"
+                          checked={brandKit.showFooterBar}
+                          onChange={(e) => handleUpdateBrandKitField({ showFooterBar: e.target.checked })}
+                          className="rounded text-blue-600"
+                        />
+                        <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                          Tampilkan Footer Bar Editorial
+                        </span>
+                      </label>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* CARD 2: PALET WARNA KHAS BRAND TIM */}
+                <div className={`p-5 rounded-2xl border space-y-4 ${
+                  isDark
+                    ? 'bg-[#0A1A2F]/80 border-zinc-800'
+                    : 'bg-white border-slate-200 shadow-xs'
+                }`}>
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
+                    <Palette className="w-4 h-4 text-blue-600" />
+                    <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Palet Warna Resmi Brand
+                    </h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Warna Utama Brand (Primary)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={brandKit.primaryColor}
+                          onChange={(e) => handleUpdateBrandKitField({ primaryColor: e.target.value })}
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0"
+                        />
+                        <input
+                          type="text"
+                          value={brandKit.primaryColor}
+                          onChange={(e) => handleUpdateBrandKitField({ primaryColor: e.target.value })}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-mono uppercase border focus:outline-none ${
+                            isDark
+                              ? 'bg-zinc-900 border-zinc-700 text-white'
+                              : 'bg-slate-50 border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Warna Aksen / Sorotan (Accent)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={brandKit.accentColor}
+                          onChange={(e) => handleUpdateBrandKitField({ accentColor: e.target.value })}
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0"
+                        />
+                        <input
+                          type="text"
+                          value={brandKit.accentColor}
+                          onChange={(e) => handleUpdateBrandKitField({ accentColor: e.target.value })}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-mono uppercase border focus:outline-none ${
+                            isDark
+                              ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Latar Belakang Kanvas (Background)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={brandKit.backgroundColor}
+                          onChange={(e) => handleUpdateBrandKitField({ backgroundColor: e.target.value })}
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0"
+                        />
+                        <input
+                          type="text"
+                          value={brandKit.backgroundColor}
+                          onChange={(e) => handleUpdateBrandKitField({ backgroundColor: e.target.value })}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-mono uppercase border focus:outline-none ${
+                            isDark
+                              ? 'bg-zinc-900 border-zinc-700 text-white'
+                              : 'bg-slate-50 border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Warna Teks Utama (Text Color)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={brandKit.textColor}
+                          onChange={(e) => handleUpdateBrandKitField({ textColor: e.target.value })}
+                          className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0"
+                        />
+                        <input
+                          type="text"
+                          value={brandKit.textColor}
+                          onChange={(e) => handleUpdateBrandKitField({ textColor: e.target.value })}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-mono uppercase border focus:outline-none ${
+                            isDark
+                              ? 'bg-zinc-900 border-zinc-700 text-white'
+                              : 'bg-slate-50 border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Brand Swatches */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
+                      <label className={`text-[10.5px] uppercase font-bold tracking-wider block ${
+                        isDark ? 'text-slate-400' : 'text-slate-500'
+                      }`}>
+                        5 Swatch Warna Khas Tim
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {brandKit.brandColors.map((color, idx) => (
+                          <div key={idx} className="relative group">
+                            <input
+                              type="color"
+                              value={color}
+                              onChange={(e) => {
+                                const copy = [...brandKit.brandColors];
+                                copy[idx] = e.target.value;
+                                handleUpdateBrandKitField({ brandColors: copy });
+                              }}
+                              className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 shadow-xs"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CARD 3: TIPOGRAFI & LIVE PREVIEW */}
+                <div className={`p-5 rounded-2xl border space-y-4 ${
+                  isDark
+                    ? 'bg-[#0A1A2F]/80 border-zinc-800'
+                    : 'bg-white border-slate-200 shadow-xs'
+                }`}>
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
+                    <Type className="w-4 h-4 text-blue-600" />
+                    <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Tipografi & Pratinjau
+                    </h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Font Judul Utama (Heading Font)
+                      </label>
+                      <select
+                        value={brandKit.headingFont}
+                        onChange={(e) => handleUpdateBrandKitField({ headingFont: e.target.value })}
+                        className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer ${
+                          isDark
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      >
+                        {AVAILABLE_HEADING_FONTS.map((f) => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={`text-[11px] font-medium block mb-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        Font Isi / Paragraf (Body Font)
+                      </label>
+                      <select
+                        value={brandKit.bodyFont}
+                        onChange={(e) => handleUpdateBrandKitField({ bodyFont: e.target.value })}
+                        className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer ${
+                          isDark
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      >
+                        {AVAILABLE_BODY_FONTS.map((f) => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* LIVE MINI PREVIEW CARD */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
+                      <label className={`text-[10.5px] uppercase font-bold tracking-wider block ${
+                        isDark ? 'text-slate-400' : 'text-slate-500'
+                      }`}>
+                        Pratinjau Live Carousel Slide
+                      </label>
+
+                      <div
+                        className="rounded-xl p-3 border shadow-sm aspect-4/5 flex flex-col justify-between transition-all"
+                        style={{
+                          backgroundColor: brandKit.backgroundColor,
+                          color: brandKit.textColor,
+                          borderColor: brandKit.primaryColor + '40',
+                        }}
+                      >
+                        {/* Header bar */}
+                        <div className="flex items-center justify-between text-[9px] font-bold pb-1 border-b" style={{ borderColor: brandKit.primaryColor + '20' }}>
+                          <span>{brandKit.publicationName || 'PUBLICATION'}</span>
+                          <span>{brandKit.issueLabel || 'VOL. 01'}</span>
+                        </div>
+
+                        {/* Middle Content */}
+                        <div className="py-2 space-y-1">
+                          <h5
+                            className="text-sm font-bold leading-tight"
+                            style={{ fontFamily: brandKit.headingFont, color: brandKit.primaryColor }}
+                          >
+                            Judul Carousel Tim
+                          </h5>
+                          <p
+                            className="text-[10px] leading-relaxed opacity-85"
+                            style={{ fontFamily: brandKit.bodyFont }}
+                          >
+                            Ini adalah pratinjau tipografi dan warna khas brand tim Anda.
+                          </p>
+                        </div>
+
+                        {/* Footer bar */}
+                        {brandKit.showFooterBar && (
+                          <div className="flex items-center justify-between text-[8.5px] pt-1 border-t" style={{ borderColor: brandKit.primaryColor + '20' }}>
+                            <span className="font-semibold" style={{ color: brandKit.accentColor }}>
+                              {brandKit.authorOrHandle}
+                            </span>
+                            {brandKit.showSlideNumbers && <span className="opacity-75">01/06</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
-            )}
-          </div>
+
+            </div>
+          )}
 
         </main>
 
         {/* ========================================================
             RIGHT COLUMN: DEDICATED MEMBER LIST & PERMISSIONS
-            ("untuk membernya buat di sebelah kanan list tersendiri")
            ======================================================== */}
         <aside className={`w-80 lg:w-96 border-l flex flex-col shrink-0 select-none overflow-y-auto ${
           isDark

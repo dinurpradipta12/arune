@@ -34,9 +34,11 @@ import {
   Trash2,
   Type,
   Upload,
+  Users,
   Wand2,
   X,
 } from 'lucide-react';
+import { getActiveTeamId, getTeamBrandKit } from '../../services/teamWorkspaceService';
 import {
   ASPECT_RATIOS,
   DEFAULT_SCRIPT,
@@ -1252,6 +1254,44 @@ export const StudioModals: React.FC = () => {
             </div>
 
             <div className="p-5 space-y-4">
+              {/* Quick Apply Team Brand Kit */}
+              {(() => {
+                const teamId = getActiveTeamId();
+                if (!teamId) return null;
+                const kit = getTeamBrandKit(teamId);
+                return (
+                  <div className="p-3 rounded-xl border border-blue-900/40 bg-blue-950/20 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Users className="w-4 h-4 text-blue-400 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-zinc-200 block truncate">
+                          Gunakan Brand Kit Tim
+                        </span>
+                        <span className="text-[10.5px] text-zinc-400 block truncate">
+                          {kit.publicationName} • {kit.authorOrHandle}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateBranding({
+                          publicationName: kit.publicationName,
+                          authorOrHandle: kit.authorOrHandle,
+                          issueLabel: kit.issueLabel,
+                          footerNote: kit.footerNote,
+                          showSlideNumbers: kit.showSlideNumbers,
+                          showFooterBar: kit.showFooterBar,
+                        });
+                      }}
+                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs shrink-0 transition-colors"
+                    >
+                      Terapkan
+                    </button>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="text-xs text-zinc-400 block mb-1">

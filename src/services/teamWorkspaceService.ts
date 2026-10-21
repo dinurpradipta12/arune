@@ -1,4 +1,5 @@
-import type { TeamWorkspace, TeamMember, TeamProjectRecord, TeamRole } from '../types/team';
+import type { TeamWorkspace, TeamMember, TeamProjectRecord, TeamRole, TeamBrandKit } from '../types/team';
+import { DEFAULT_TEAM_BRAND_KIT } from '../types/team';
 
 const STORAGE_KEY_TEAMS = 'arune_team_workspaces_v1';
 const STORAGE_KEY_ACTIVE_TEAM = 'arune_active_team_id_v1';
@@ -61,6 +62,7 @@ export function getInitialTeams(): TeamWorkspace[] {
       description: 'Ruang kerja bersama untuk tim desain dan konten editorial.',
       ownerId: me.id,
       avatarColor: '#4F46E5',
+      brandKit: { ...DEFAULT_TEAM_BRAND_KIT },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       members: [
@@ -151,6 +153,7 @@ export function createTeam(name: string, description?: string): TeamWorkspace {
     description: description?.trim() || '',
     ownerId: me.id,
     avatarColor: getRandomAvatarColor(),
+    brandKit: { ...DEFAULT_TEAM_BRAND_KIT },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     members: [
@@ -355,4 +358,33 @@ function saveAllStoredTeamProjects(records: TeamProjectRecord[]): void {
   } catch {
     // ignore
   }
+}
+
+// ==========================================
+// TEAM BRAND KIT & STYLE GUIDE MANAGEMENT
+// ==========================================
+
+export function getTeamBrandKit(teamId: string): TeamBrandKit {
+  const teams = getTeams();
+  const team = teams.find((t) => t.id === teamId);
+  if (team?.brandKit) return team.brandKit;
+  return { ...DEFAULT_TEAM_BRAND_KIT };
+}
+
+export function updateTeamBrandKit(
+  teamId: string,
+  partial: Partial<TeamBrandKit>
+): TeamBrandKit | null {
+  const teams = getTeams();
+  const team = teams.find((t) => t.id === teamId);
+  if (!team) return null;
+
+  const currentKit = team.brandKit || { ...DEFAULT_TEAM_BRAND_KIT };
+  team.brandKit = {
+    ...currentKit,
+    ...partial,
+  };
+  team.updatedAt = new Date().toISOString();
+  saveTeams(teams);
+  return team.brandKit;
 }
