@@ -97,6 +97,9 @@ class MultiplayerService {
   private lastCursorSendTime = 0;
   private throttleIntervalMs = 35; // ~28 fps for silky smooth cursor tracking
   private cleanupTimer: any = null;
+  private reconnectTimer: any = null;
+  private lastCanvasBroadcastTime = 0;
+  private lastElementUpdateTimes = new Map<string, number>();
 
   constructor() {
     this.refreshUserIdentity();
@@ -149,8 +152,8 @@ class MultiplayerService {
     };
   }
 
-  public connectToRoom(roomId: string = 'project_default') {
-    if (this.currentRoomId === roomId && this.channel) {
+  public connectToRoom(roomId: string = 'project_default', forceReconnect = false) {
+    if (!forceReconnect && this.currentRoomId === roomId && this.channel && this.isConnected) {
       return;
     }
 
@@ -228,14 +231,20 @@ class MultiplayerService {
         .on('broadcast', { event: 'canvas_state_sync' }, ({ payload }) => {
           this.handleCanvasStateSync(payload);
         })
-        .subscribe((status) => {
+        .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
             this.isConnected = true;
+            if (this.reconnectTimer) {
+              clearTimeout(this.reconnectTimer);
+              this.reconnectTimer = null;
+            }
             this.updatePresence();
             this.notifyState();
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`Supabase Realtime channel ${status}:`, err);
             this.isConnected = false;
             this.notifyState();
+            this.scheduleReconnect();
           }
         });
     } else {
@@ -260,6 +269,10 @@ class MultiplayerService {
   }
 
   public disconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
     }
@@ -286,6 +299,15 @@ class MultiplayerService {
     this.isConnected = false;
     this.peersMap.clear();
     this.notifyState();
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      if (!this.isConnected && this.currentRoomId) {
+        this.connectToRoom(this.currentRoomId, true);
+      }
+    }, 1500);
   }
 
   public updatePresence(slideIndex?: number, selectedElementId?: string | null) {
@@ -397,17 +419,31 @@ class MultiplayerService {
       timestamp: Date.now(),
     };
 
-    if (this.channel && this.isConnected) {
-      this.channel.send({
-        type: 'broadcast',
-        event: 'element_update',
-        payload,
-      });
-    }
+    // Always send instantly to local tabs via BroadcastChannel (zero delay)
     this.broadcastToLocalBus({
       type: 'element_update',
       payload,
     });
+
+    // Throttle per element over Supabase Realtime to 35ms to prevent socket flooding
+    const now = performance.now();
+    const lastTime = this.lastElementUpdateTimes.get(elementId) || 0;
+    if (now - lastTime < 35) {
+      return;
+    }
+    this.lastElementUpdateTimes.set(elementId, now);
+
+    if (this.channel && this.isConnected) {
+      try {
+        this.channel.send({
+          type: 'broadcast',
+          event: 'element_update',
+          payload,
+        });
+      } catch (err) {
+        console.warn('Failed to send element_update via Supabase:', err);
+      }
+    }
   }
 
   private handleCursorMove(payload: any) {
@@ -647,6 +683,19 @@ class MultiplayerService {
       timestamp: Date.now(),
     };
 
+    // Always send instantly to local tabs via BroadcastChannel (zero delay)
+    this.broadcastToLocalBus({
+      type: 'canvas_state_sync',
+      payload,
+    });
+
+    // Throttle heavy full-canvas broadcasts over Supabase WebSocket to avoid rate limits
+    const now = performance.now();
+    if (now - this.lastCanvasBroadcastTime < 500) {
+      return;
+    }
+    this.lastCanvasBroadcastTime = now;
+
     if (this.channel && this.isConnected) {
       try {
         this.channel.send({
@@ -658,10 +707,6 @@ class MultiplayerService {
         console.warn('Failed to broadcast canvas_state_sync via Supabase:', err);
       }
     }
-    this.broadcastToLocalBus({
-      type: 'canvas_state_sync',
-      payload,
-    });
   }
 
   public onRemoteCanvasState(callback: (payload: CanvasStateSyncPayload) => void): () => void {

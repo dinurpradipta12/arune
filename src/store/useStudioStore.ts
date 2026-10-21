@@ -112,6 +112,45 @@ export const DEFAULT_STUDIO_HOTKEYS: StudioHotkeys = {
 const LOCAL_SETTINGS_STORAGE_KEY = 'arune_studio_general_settings_v1';
 const LOCAL_ADMIN_AUTH_KEY = 'arune_admin_session_active_v1';
 const LOCAL_ACTIVE_VIEW_KEY = 'arune_studio_active_view_v1';
+const LOCAL_ACTIVE_WORKING_PROJECT_KEY = 'arune_active_working_project_v2';
+
+export interface SavedWorkingProject {
+  projectId: string;
+  projectTitle: string;
+  aspectRatio: AspectRatioKey;
+  activeThemeId: string;
+  themeOverride?: any;
+  branding: GlobalBranding;
+  scriptText: string;
+  slides: Slide[];
+  activeSlideIndex: number;
+  openDocuments: OpenDocumentTab[];
+  activeDocumentId: string;
+}
+
+export function saveActiveWorkingProjectToStorage(doc: SavedWorkingProject): void {
+  try {
+    if (!doc.slides || doc.slides.length === 0) return;
+    localStorage.setItem(LOCAL_ACTIVE_WORKING_PROJECT_KEY, JSON.stringify(doc));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadSavedWorkingProjectFromStorage(): SavedWorkingProject | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_ACTIVE_WORKING_PROJECT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 export function getInitialActiveView(): StudioViewMode {
   try {
@@ -469,24 +508,68 @@ function broadcastCurrentCanvasStateDebounced(state: StudioState) {
       slides: state.slides,
       activeSlideIndex: state.activeSlideIndex,
     });
-  }, 40);
+  }, 120);
 }
 
+let autoSaveProjectTimer: any = null;
+function autoSaveWorkingProjectDebounced(state: StudioState) {
+  if (autoSaveProjectTimer) clearTimeout(autoSaveProjectTimer);
+  autoSaveProjectTimer = setTimeout(() => {
+    if (!state.slides || state.slides.length === 0) return;
+    saveActiveWorkingProjectToStorage({
+      projectId: state.projectId,
+      projectTitle: state.projectTitle || 'Untitled Carousel Project',
+      aspectRatio: state.aspectRatio,
+      activeThemeId: state.activeThemeId,
+      themeOverride: state.themeOverride,
+      branding: state.branding,
+      scriptText: state.scriptText,
+      slides: state.slides,
+      activeSlideIndex: state.activeSlideIndex,
+      openDocuments: state.openDocuments,
+      activeDocumentId: state.activeDocumentId,
+    });
+  }, 150);
+}
+
+const savedWorkingDoc = loadSavedWorkingProjectFromStorage();
+
 export const useStudioStore = create<StudioState>((set, get) => ({
-  projectId: '',
-  projectTitle: '',
-  aspectRatio: '4:5',
-  activeThemeId: THEME_PALETTES[0].id,
-  themeOverride: {},
-  branding: DEFAULT_BRANDING,
-  scriptText: '',
-  slides: [],
-  activeSlideIndex: 0,
+  projectId: savedWorkingDoc?.projectId || '',
+  projectTitle: savedWorkingDoc?.projectTitle || 'Untitled Carousel Project',
+  aspectRatio: savedWorkingDoc?.aspectRatio || '4:5',
+  activeThemeId: savedWorkingDoc?.activeThemeId || THEME_PALETTES[0].id,
+  themeOverride: savedWorkingDoc?.themeOverride || {},
+  branding: savedWorkingDoc?.branding || DEFAULT_BRANDING,
+  scriptText: savedWorkingDoc?.scriptText || '',
+  slides: savedWorkingDoc?.slides || [],
+  activeSlideIndex: savedWorkingDoc?.activeSlideIndex || 0,
   selectedElementId: null,
   lastSavedAt: null,
 
-  openDocuments: [],
-  activeDocumentId: '',
+  openDocuments:
+    savedWorkingDoc?.openDocuments && savedWorkingDoc.openDocuments.length > 0
+      ? savedWorkingDoc.openDocuments
+      : savedWorkingDoc?.slides && savedWorkingDoc.slides.length > 0
+      ? [
+          {
+            id: savedWorkingDoc.projectId || 'doc-default',
+            projectTitle: savedWorkingDoc.projectTitle || 'Untitled Carousel Project',
+            aspectRatio: savedWorkingDoc.aspectRatio,
+            activeThemeId: savedWorkingDoc.activeThemeId,
+            themeOverride: savedWorkingDoc.themeOverride || {},
+            branding: savedWorkingDoc.branding,
+            scriptText: savedWorkingDoc.scriptText,
+            slides: cloneSlides(savedWorkingDoc.slides),
+            activeSlideIndex: savedWorkingDoc.activeSlideIndex || 0,
+            canvasZoom: 0.9,
+            lastSavedAt: null,
+            past: [],
+            future: [],
+          },
+        ]
+      : [],
+  activeDocumentId: savedWorkingDoc?.activeDocumentId || savedWorkingDoc?.projectId || '',
 
   settings: loadSavedStudioSettings(),
   isAdminAuthenticated: loadSavedAdminAuth(),
@@ -1851,11 +1934,13 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (updatedPartial) {
       multiplayerService.sendElementUpdate(state.activeSlideIndex, elementId, updatedPartial);
     }
-    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   commitElementHistory: () => {
     get().pushHistory();
+    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   updateSlideElementRemote: (slideIndex, elementId, updates) => {
@@ -2106,6 +2191,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         ? Math.min(payload.activeSlideIndex, Math.max(0, nextSlides.length - 1))
         : Math.min(state.activeSlideIndex, Math.max(0, nextSlides.length - 1)),
     });
+    autoSaveWorkingProjectDebounced(get());
   },
 
   setActiveView: (activeView) => {
