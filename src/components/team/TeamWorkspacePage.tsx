@@ -603,17 +603,25 @@ export const TeamWorkspacePage: React.FC = () => {
                 </div>
 
                 {/* Sub-Tab Switcher: Projects vs Brand Kit */}
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
+                <div className={`flex items-center gap-1 p-1 rounded-xl border ${
+                  isDark
+                    ? 'bg-zinc-900 border-zinc-800'
+                    : 'bg-slate-100 border-slate-200'
+                }`}>
                   <button
                     type="button"
                     onClick={() => setFolderTab('projects')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       folderTab === 'projects'
-                        ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        ? isDark
+                          ? 'bg-zinc-800 text-blue-400 shadow-xs'
+                          : 'bg-white text-blue-600 shadow-xs border border-slate-200/60'
+                        : isDark
+                          ? 'text-slate-400 hover:text-white'
+                          : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <FolderOpen className="w-3.5 h-3.5" />
+                    <FolderOpen className="w-3.5 h-3.5 text-blue-600" />
                     <span>Proyek ({filteredProjects.length})</span>
                   </button>
 
@@ -622,11 +630,15 @@ export const TeamWorkspacePage: React.FC = () => {
                     onClick={() => setFolderTab('brand-kit')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       folderTab === 'brand-kit'
-                        ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        ? isDark
+                          ? 'bg-zinc-800 text-blue-400 shadow-xs'
+                          : 'bg-white text-blue-600 shadow-xs border border-slate-200/60'
+                        : isDark
+                          ? 'text-slate-400 hover:text-white'
+                          : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <Palette className="w-3.5 h-3.5" />
+                    <Palette className="w-3.5 h-3.5 text-blue-600" />
                     <span>Brand Kit Tim</span>
                   </button>
                 </div>
@@ -881,7 +893,9 @@ export const TeamWorkspacePage: React.FC = () => {
                     ? 'bg-[#0A1A2F]/80 border-zinc-800'
                     : 'bg-white border-slate-200 shadow-xs'
                 }`}>
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
+                  <div className={`flex items-center gap-2 pb-2 border-b ${
+                    isDark ? 'border-zinc-800' : 'border-slate-100'
+                  }`}>
                     <Shield className="w-4 h-4 text-blue-600" />
                     <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       Identitas & Watermark
@@ -961,7 +975,9 @@ export const TeamWorkspacePage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-2">
+                    <div className={`pt-2 border-t space-y-2 ${
+                      isDark ? 'border-zinc-800' : 'border-slate-100'
+                    }`}>
                       <label className="flex items-center gap-2 cursor-pointer text-xs">
                         <input
                           type="checkbox"
@@ -995,7 +1011,9 @@ export const TeamWorkspacePage: React.FC = () => {
                     ? 'bg-[#0A1A2F]/80 border-zinc-800'
                     : 'bg-white border-slate-200 shadow-xs'
                 }`}>
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
+                  <div className={`flex items-center gap-2 pb-2 border-b ${
+                    isDark ? 'border-zinc-800' : 'border-slate-100'
+                  }`}>
                     <Palette className="w-4 h-4 text-blue-600" />
                     <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       Palet Warna Resmi Brand
@@ -1108,7 +1126,9 @@ export const TeamWorkspacePage: React.FC = () => {
                     </div>
 
                     {/* Brand Swatches */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
+                    <div className={`pt-2 border-t space-y-1.5 ${
+                      isDark ? 'border-zinc-800' : 'border-slate-100'
+                    }`}>
                       <label className={`text-[10.5px] uppercase font-bold tracking-wider block ${
                         isDark ? 'text-slate-400' : 'text-slate-500'
                       }`}>
@@ -1140,7 +1160,9 @@ export const TeamWorkspacePage: React.FC = () => {
                     ? 'bg-[#0A1A2F]/80 border-zinc-800'
                     : 'bg-white border-slate-200 shadow-xs'
                 }`}>
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
+                  <div className={`flex items-center gap-2 pb-2 border-b ${
+                    isDark ? 'border-zinc-800' : 'border-slate-100'
+                  }`}>
                     <Type className="w-4 h-4 text-blue-600" />
                     <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       Tipografi & Pratinjau
@@ -1191,7 +1213,9 @@ export const TeamWorkspacePage: React.FC = () => {
                     </div>
 
                     {/* LIVE MINI PREVIEW CARD */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
+                    <div className={`pt-2 border-t space-y-1.5 ${
+                      isDark ? 'border-zinc-800' : 'border-slate-100'
+                    }`}>
                       <label className={`text-[10.5px] uppercase font-bold tracking-wider block ${
                         isDark ? 'text-slate-400' : 'text-slate-500'
                       }`}>
