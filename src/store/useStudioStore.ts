@@ -245,6 +245,7 @@ function loadSavedAdminAuth(): boolean {
 }
 
 export type LeftSidebarTab = 'templates' | 'elements' | 'font-combinations';
+export type RightSidebarTab = 'inspector' | 'preview-ig' | 'history';
 export type StudioModalType =
   | 'branding'
   | 'settings'
@@ -451,6 +452,8 @@ interface StudioState {
   setWorkspaceDarkMode: (dark: boolean) => void;
   setLeftSidebarOpen: (open: boolean) => void;
   setActiveLeftTab: (tab: LeftSidebarTab) => void;
+  rightSidebarTab: RightSidebarTab;
+  setRightSidebarTab: (tab: RightSidebarTab) => void;
   setActiveModal: (modal: StudioModalType) => void;
   setExportState: (isExporting: boolean, progress?: string | null) => void;
 
@@ -677,6 +680,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   workspaceDarkMode: false,
   leftSidebarOpen: true,
   activeLeftTab: 'elements',
+  rightSidebarTab: 'inspector',
   activeModal: null,
   isExporting: false,
   exportProgress: null,
@@ -2361,6 +2365,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   setLeftSidebarOpen: (leftSidebarOpen) => set({ leftSidebarOpen }),
   setActiveLeftTab: (activeLeftTab) =>
     set({ activeLeftTab, leftSidebarOpen: true }),
+  setRightSidebarTab: (rightSidebarTab) => set({ rightSidebarTab }),
   setActiveModal: (activeModal) => set({ activeModal }),
   setExportState: (isExporting, exportProgress = null) =>
     set({ isExporting, exportProgress }),
