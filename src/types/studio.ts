@@ -214,7 +214,17 @@ export interface DividerCanvasElement extends BaseCanvasElement {
   style: 'solid' | 'dashed' | 'double' | 'dotted';
 }
 
-export type ShapeKind = 'rectangle' | 'rounded-rect' | 'circle' | 'pill';
+export type ShapeKind =
+  | 'rectangle'
+  | 'rounded-rect'
+  | 'circle'
+  | 'pill'
+  | 'triangle'
+  | 'star'
+  | 'diamond'
+  | 'polygon'
+  | 'heart'
+  | 'arrow';
 
 export interface ShapeCanvasElement extends BaseCanvasElement {
   type: 'shape';

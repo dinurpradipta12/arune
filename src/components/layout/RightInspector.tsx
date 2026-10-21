@@ -2146,13 +2146,19 @@ export const RightInspector: React.FC = () => {
           <label className="text-[10px] text-zinc-400 block mb-1 font-medium">
             Bentuk (Shape Kind)
           </label>
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-5 gap-1">
             {(
               [
+                { id: 'rectangle', label: 'Kotak' },
                 { id: 'rounded-rect', label: 'Rounded' },
-                { id: 'rectangle', label: 'Box' },
                 { id: 'circle', label: 'Circle' },
                 { id: 'pill', label: 'Pill' },
+                { id: 'triangle', label: 'Segitiga' },
+                { id: 'star', label: 'Bintang' },
+                { id: 'diamond', label: 'Diamond' },
+                { id: 'polygon', label: 'Hexagon' },
+                { id: 'arrow', label: 'Panah' },
+                { id: 'heart', label: 'Heart' },
               ] as const
             ).map((sh) => (
               <button
@@ -2166,14 +2172,14 @@ export const RightInspector: React.FC = () => {
                       borderRadius:
                         sh.id === 'circle' || sh.id === 'pill'
                           ? 9999
-                          : sh.id === 'rectangle'
-                          ? 0
-                          : shapeEl.borderRadius || 16,
+                          : sh.id === 'rounded-rect'
+                          ? shapeEl.borderRadius || 16
+                          : shapeEl.borderRadius ?? 0,
                     },
                     true
                   )
                 }
-                className={`py-1 rounded-lg border text-[10px] capitalize cursor-pointer transition-all ${
+                className={`py-1 px-1 rounded-lg border text-[9.5px] truncate text-center cursor-pointer transition-all ${
                   shapeEl.shapeKind === sh.id
                     ? 'bg-blue-600/20 border-blue-500 text-blue-400 font-semibold shadow-xs'
                     : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
@@ -2233,16 +2239,21 @@ export const RightInspector: React.FC = () => {
               className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-xs font-mono text-zinc-200"
             />
           </div>
-          {shapeEl.shapeKind === 'rounded-rect' && (
+          {(shapeEl.shapeKind === 'rounded-rect' || shapeEl.shapeKind === 'rectangle') && (
             <div>
-              <label className="text-[10px] text-zinc-400 block mb-1 font-medium">
-                Corner Radius (px)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] text-zinc-400 font-medium">
+                  Corner Radius
+                </label>
+                <span className="text-[10px] font-mono text-zinc-400">
+                  {shapeEl.borderRadius ?? (shapeEl.shapeKind === 'rounded-rect' ? 16 : 0)}px
+                </span>
+              </div>
               <input
-                type="number"
+                type="range"
                 min={0}
                 max={120}
-                value={shapeEl.borderRadius ?? 16}
+                value={shapeEl.borderRadius ?? (shapeEl.shapeKind === 'rounded-rect' ? 16 : 0)}
                 onChange={(e) =>
                   updateElement(
                     shapeEl.id,
@@ -2250,7 +2261,7 @@ export const RightInspector: React.FC = () => {
                     true
                   )
                 }
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-xs font-mono text-zinc-200"
+                className="w-full accent-blue-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
               />
             </div>
           )}

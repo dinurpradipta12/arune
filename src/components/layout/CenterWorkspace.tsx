@@ -34,6 +34,10 @@ import { SlideStage } from '../canvas/SlideStage';
 import { MultiplayerCursorsLayer } from '../canvas/MultiplayerCursorsLayer';
 import { CanvasCommentsLayer } from '../canvas/CanvasCommentsLayer';
 import {
+  FloatingCanvasTools,
+  type CanvasToolMode,
+} from '../canvas/FloatingCanvasTools';
+import {
   multiplayerService,
   type RemotePeer,
 } from '../../services/multiplayerService';
@@ -297,6 +301,85 @@ export const CenterWorkspace: React.FC = () => {
   const [erasingProgress, setErasingProgress] = useState<string>('');
   const [erasingError, setErasingError] = useState<string | null>(null);
   const [isDraggingFileOver, setIsDraggingFileOver] = useState(false);
+
+  // Professional Canvas Tools & Pan state
+  const [activeTool, setActiveTool] = useState<CanvasToolMode>('select');
+  const [isSpaceDown, setIsSpaceDown] = useState(false);
+  const isPanDraggingRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+
+  const isPanningActive = activeTool === 'hand' || isSpaceDown;
+
+  // Spacebar toggle and hotkeys for tools
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl?.tagName === 'INPUT' ||
+        activeEl?.tagName === 'TEXTAREA' ||
+        (activeEl as HTMLElement)?.isContentEditable;
+      if (isInput) return;
+
+      if (e.code === 'Space' && !e.repeat) {
+        setIsSpaceDown(true);
+      } else if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey) {
+        setActiveTool('select');
+      } else if ((e.key === 'h' || e.key === 'H') && !e.metaKey && !e.ctrlKey) {
+        setActiveTool('hand');
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpaceDown(false);
+        isPanDraggingRef.current = false;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPanningActive) {
+      isPanDraggingRef.current = true;
+      const el = canvasContainerRef.current;
+      if (el) {
+        panStartRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          scrollLeft: el.scrollLeft,
+          scrollTop: el.scrollTop,
+        };
+      }
+      return;
+    }
+
+    if (e.target === e.currentTarget) {
+      setSelectedElementId(null);
+      setActivePopover(null);
+    }
+  };
+
+  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPanDraggingRef.current) {
+      const el = canvasContainerRef.current;
+      if (el) {
+        const dx = e.clientX - panStartRef.current.x;
+        const dy = e.clientY - panStartRef.current.y;
+        el.scrollLeft = panStartRef.current.scrollLeft - dx;
+        el.scrollTop = panStartRef.current.scrollTop - dy;
+      }
+    }
+  };
+
+  const handleCanvasPointerUp = () => {
+    isPanDraggingRef.current = false;
+  };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -853,6 +936,15 @@ export const CenterWorkspace: React.FC = () => {
       {/* WORKSPACE BODY: LEFT VERTICAL RULER + MAIN DOT-GRID CANVAS AREA    */}
       {/* ================================================================== */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* Floating Quick Tools (Move, Hand/Pan, Text, Shapes with Radius, Eraser, Comments) */}
+        <FloatingCanvasTools
+          activeTool={activeTool}
+          setActiveTool={setActiveTool}
+          onTriggerImageUpload={() => fileInputRef.current?.click()}
+          onTriggerEraser={handleRemoveBackground}
+          isErasingBg={isErasingBg}
+        />
+
         {/* Left Vertical Ruler */}
         {settings.showCanvasRulers && (
           <div className="w-6 border-r border-zinc-800/80 bg-zinc-950/95 relative overflow-hidden flex flex-col items-center justify-center shrink-0 select-none z-20">
@@ -905,16 +997,16 @@ export const CenterWorkspace: React.FC = () => {
         {/* Main Dot-Grid Canvas Stage Area */}
         <div
           ref={canvasContainerRef}
-          onPointerDown={(e) => {
-            if (e.target === e.currentTarget) {
-              setSelectedElementId(null);
-              setActivePopover(null);
-            }
-          }}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onPointerLeave={handleCanvasPointerUp}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`flex-1 relative overflow-auto flex flex-col items-center justify-between p-6 scroller transition-colors ${
+            isPanningActive ? 'cursor-grab active:cursor-grabbing' : ''
+          } ${
             isDraggingFileOver
               ? 'ring-2 ring-blue-500/80 bg-blue-950/20'
               : settings.showCanvasDotGrid

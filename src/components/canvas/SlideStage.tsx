@@ -675,23 +675,120 @@ export const SlideStage: React.FC<SlideStageProps> = ({
       ? `${el.shadow.offsetX}px ${el.shadow.offsetY}px ${el.shadow.blur}px ${el.shadow.color}`
       : 'none';
 
+    const bg = el.fillColor || theme.accent;
+    const stroke =
+      el.strokeWidth && el.strokeWidth > 0
+        ? `${el.strokeWidth}px solid ${el.strokeColor || '#000000'}`
+        : undefined;
+
+    if (el.shapeKind === 'triangle') {
+      return (
+        <div
+          className="w-full h-full relative select-none"
+          style={{
+            backgroundColor: bg,
+            clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+            boxShadow: shadowCss,
+          }}
+        />
+      );
+    }
+
+    if (el.shapeKind === 'star') {
+      return (
+        <div
+          className="w-full h-full relative select-none"
+          style={{
+            backgroundColor: bg,
+            clipPath:
+              'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+            boxShadow: shadowCss,
+          }}
+        />
+      );
+    }
+
+    if (el.shapeKind === 'diamond') {
+      return (
+        <div
+          className="w-full h-full relative select-none"
+          style={{
+            backgroundColor: bg,
+            clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+            boxShadow: shadowCss,
+          }}
+        />
+      );
+    }
+
+    if (el.shapeKind === 'polygon') {
+      return (
+        <div
+          className="w-full h-full relative select-none"
+          style={{
+            backgroundColor: bg,
+            clipPath:
+              'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+            boxShadow: shadowCss,
+          }}
+        />
+      );
+    }
+
+    if (el.shapeKind === 'arrow') {
+      return (
+        <div
+          className="w-full h-full relative select-none"
+          style={{
+            backgroundColor: bg,
+            clipPath:
+              'polygon(0% 25%, 60% 25%, 60% 0%, 100% 50%, 60% 100%, 60% 75%, 0% 75%)',
+            boxShadow: shadowCss,
+          }}
+        />
+      );
+    }
+
+    if (el.shapeKind === 'heart') {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          preserveAspectRatio="none"
+          className="w-full h-full select-none"
+          style={{
+            filter:
+              shadowCss !== 'none' ? `drop-shadow(${shadowCss})` : undefined,
+          }}
+        >
+          <path
+            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+            fill={bg}
+            stroke={
+              el.strokeWidth && el.strokeWidth > 0
+                ? el.strokeColor || '#000000'
+                : 'none'
+            }
+            strokeWidth={el.strokeWidth || 0}
+          />
+        </svg>
+      );
+    }
+
+    // Default rounded / rect / circle / pill
     let borderRadius = el.borderRadius ?? 0;
     if (el.shapeKind === 'circle' || el.shapeKind === 'pill') {
       borderRadius = 9999;
-    } else if (el.shapeKind === 'rectangle') {
-      borderRadius = 0;
+    } else if (el.shapeKind === 'rounded-rect' && el.borderRadius === undefined) {
+      borderRadius = 16;
     }
 
     return (
       <div
         className="w-full h-full relative select-none"
         style={{
-          backgroundColor: el.fillColor || theme.accent,
+          backgroundColor: bg,
           borderRadius: `${borderRadius}px`,
-          border:
-            el.strokeWidth && el.strokeWidth > 0
-              ? `${el.strokeWidth}px solid ${el.strokeColor || '#000000'}`
-              : undefined,
+          border: stroke,
           boxShadow: shadowCss,
         }}
       />

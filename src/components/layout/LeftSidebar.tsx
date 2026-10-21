@@ -15,6 +15,17 @@ import {
   Minus,
   PlusCircle,
   Shapes,
+  Square,
+  Circle,
+  Pill,
+  Triangle,
+  Star,
+  Diamond,
+  Hexagon,
+  Heart,
+  ArrowRight,
+  Plus,
+  ChevronUp,
   Trash2,
   Type,
   Unlock,
@@ -28,7 +39,7 @@ import {
   type LeftSidebarTab,
   useStudioStore,
 } from '../../store/useStudioStore';
-import type { LayoutPresetId, ThemePalette } from '../../types/studio';
+import type { LayoutPresetId, ThemePalette, ShapeKind } from '../../types/studio';
 import { studioLogo } from '../../assets/branding';
 import { FontCombinationsPanel } from './FontCombinationsPanel';
 
@@ -1347,6 +1358,11 @@ export const LeftSidebar: React.FC = () => {
   >('All');
   const [layoutScope, setLayoutScope] = useState<'current' | 'all'>('current');
 
+  // Elements Tab: Shape Picker state
+  const [isShapePickerOpen, setIsShapePickerOpen] = useState(false);
+  const [sidebarShapeKind, setSidebarShapeKind] = useState<ShapeKind>('rounded-rect');
+  const [sidebarShapeRadius, setSidebarShapeRadius] = useState<number>(16);
+
   if (!leftSidebarOpen) return null;
 
   const activeSlide = slides[activeSlideIndex] || slides[0];
@@ -1432,12 +1448,22 @@ export const LeftSidebar: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => addElement('shape')}
-                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 hover:border-blue-500/50 text-zinc-200 transition-all cursor-pointer group"
+                onClick={() => setIsShapePickerOpen(!isShapePickerOpen)}
+                className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border transition-all cursor-pointer group ${
+                  isShapePickerOpen
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-300 shadow-sm'
+                    : 'bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 hover:border-blue-500/50 text-zinc-200'
+                }`}
               >
-                <Shapes className="w-4 h-4 text-blue-900 group-hover:text-blue-400 transition-colors" />
+                <Shapes
+                  className={`w-4 h-4 ${
+                    isShapePickerOpen
+                      ? 'text-blue-400'
+                      : 'text-blue-900 group-hover:text-blue-400'
+                  } transition-colors`}
+                />
                 <span className="text-xs font-medium">Shape</span>
-                <span className="text-[10px] text-zinc-500">Box / Circle</span>
+                <span className="text-[10px] text-zinc-500">10 Varian & Radius</span>
               </button>
 
               <button
@@ -1460,6 +1486,117 @@ export const LeftSidebar: React.FC = () => {
                 <span className="text-[10px] text-zinc-500">· Pill Stamp</span>
               </button>
             </div>
+
+            {/* Expandable Shape Picker Box */}
+            {isShapePickerOpen && (
+              <div className="p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-2.5 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-zinc-200">
+                    Koleksi Bentuk (Shapes)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsShapePickerOpen(false)}
+                    className="p-1 rounded text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* 10 Shape Preset Grid */}
+                <div className="grid grid-cols-5 gap-1.5">
+                  {(
+                    [
+                      { id: 'rectangle', label: 'Kotak', icon: <Square className="w-3.5 h-3.5" /> },
+                      { id: 'rounded-rect', label: 'Round', icon: <Square className="w-3.5 h-3.5 rounded-sm" /> },
+                      { id: 'circle', label: 'Circle', icon: <Circle className="w-3.5 h-3.5" /> },
+                      { id: 'pill', label: 'Pill', icon: <Pill className="w-3.5 h-3.5" /> },
+                      { id: 'triangle', label: 'Tri', icon: <Triangle className="w-3.5 h-3.5" /> },
+                      { id: 'star', label: 'Star', icon: <Star className="w-3.5 h-3.5" /> },
+                      { id: 'diamond', label: 'Diam', icon: <Diamond className="w-3.5 h-3.5" /> },
+                      { id: 'polygon', label: 'Hex', icon: <Hexagon className="w-3.5 h-3.5" /> },
+                      { id: 'arrow', label: 'Arrow', icon: <ArrowRight className="w-3.5 h-3.5" /> },
+                      { id: 'heart', label: 'Heart', icon: <Heart className="w-3.5 h-3.5" /> },
+                    ] as const
+                  ).map((sh) => (
+                    <button
+                      key={sh.id}
+                      type="button"
+                      onClick={() => {
+                        setSidebarShapeKind(sh.id);
+                        if (sh.id === 'rectangle') setSidebarShapeRadius(0);
+                        else if (sh.id === 'rounded-rect' && sidebarShapeRadius === 0) setSidebarShapeRadius(16);
+                      }}
+                      className={`flex flex-col items-center justify-center gap-1 p-1.5 rounded-lg border text-[9px] cursor-pointer transition-all ${
+                        sidebarShapeKind === sh.id
+                          ? 'bg-blue-600/25 border-blue-500 text-blue-300 font-semibold'
+                          : 'bg-zinc-800/80 hover:bg-zinc-750 border-zinc-700/60 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      {sh.icon}
+                      <span className="truncate max-w-[42px]">{sh.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Radius Slider for Rectangle / Rounded */}
+                {(sidebarShapeKind === 'rectangle' || sidebarShapeKind === 'rounded-rect') && (
+                  <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/80 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10.5px]">
+                      <span className="text-zinc-400">Corner Radius</span>
+                      <span className="font-mono text-blue-400 font-semibold">{sidebarShapeRadius}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={sidebarShapeRadius}
+                      onChange={(e) => setSidebarShapeRadius(Number(e.target.value))}
+                      className="w-full accent-blue-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                    />
+                    <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                      {[0, 8, 16, 24, 32].map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setSidebarShapeRadius(r)}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-all cursor-pointer ${
+                            sidebarShapeRadius === r
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {r}px
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Insert Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const computedRadius =
+                      sidebarShapeKind === 'circle' || sidebarShapeKind === 'pill'
+                        ? 9999
+                        : sidebarShapeKind === 'rectangle' || sidebarShapeKind === 'rounded-rect'
+                        ? sidebarShapeRadius
+                        : 0;
+                    addElement('shape', {
+                      shapeKind: sidebarShapeKind,
+                      borderRadius: computedRadius,
+                      fillColor: activeTheme.accent,
+                    });
+                  }}
+                  className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Sisipkan {sidebarShapeKind}</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Active Slide Layers List (Z-Index Ordered) */}
