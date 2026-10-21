@@ -27,6 +27,7 @@ import {
   Plus,
   Loader2,
   Scan,
+  BookmarkCheck,
 } from 'lucide-react';
 import { useStudioStore } from '../../store/useStudioStore';
 import { ASPECT_RATIOS, THEME_PALETTES } from '../../constants/themesAndPresets';
@@ -35,7 +36,7 @@ import { trimTransparentImage } from '../../services/backgroundRemoval';
 
 export type CanvasToolMode = 'select' | 'hand';
 
-export type ToolFlyoutType = 'shapes' | 'crop' | 'transparent' | 'color' | 'resize' | null;
+export type ToolFlyoutType = 'shapes' | 'crop' | 'transparent' | 'color' | 'resize' | 'engagement' | null;
 
 export interface DockedCanvasToolstripProps {
   activeTool: CanvasToolMode;
@@ -154,6 +155,7 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
     slides,
     settings,
     updateSettings,
+    splitImagePanoramic,
   } = useStudioStore();
 
   const theme = getActiveTheme();
@@ -226,6 +228,150 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
           ? 'Rounded Rectangle'
           : `${activeShapeKind.charAt(0).toUpperCase() + activeShapeKind.slice(1)} Shape`,
     });
+
+    setActiveFlyout(null);
+    setActiveTool('select');
+  };
+
+  const handleInsertEngagementElement = (type: string) => {
+    const dim = ASPECT_RATIOS[aspectRatio];
+    const th = getActiveTheme();
+
+    if (type === 'swipe-pill-right') {
+      addElement('badge', {
+        name: 'Swipe Prompt (👉)',
+        content: 'SWIPE 👉',
+        width: 140,
+        height: 38,
+        x: dim.stageWidth - 176,
+        y: dim.stageHeight - 80,
+        fontSize: 14,
+        fontWeight: 700,
+        color: th.accent || '#3b82f6',
+        borderColor: th.accent || '#3b82f6',
+        borderWidth: 2,
+        borderRadius: 9999,
+      });
+    } else if (type === 'next-arrow') {
+      addElement('badge', {
+        name: 'Next Slide (→)',
+        content: 'NEXT →',
+        width: 120,
+        height: 36,
+        x: dim.stageWidth - 156,
+        y: dim.stageHeight - 80,
+        fontSize: 13,
+        fontWeight: 700,
+        color: th.textPrimary,
+        borderColor: th.divider,
+        borderWidth: 1.5,
+        borderRadius: 9999,
+      });
+    } else if (type === 'swipe-minimal') {
+      addElement('badge', {
+        name: 'Swipe Minimal (Swipe to Read)',
+        content: 'SWIPE TO READ ⚡',
+        width: 180,
+        height: 36,
+        x: Math.round((dim.stageWidth - 180) / 2),
+        y: dim.stageHeight - 80,
+        fontSize: 12,
+        fontWeight: 700,
+        color: th.textPrimary,
+        borderColor: th.divider,
+        borderWidth: 1,
+        borderRadius: 9999,
+      });
+    } else if (type === 'cta-save') {
+      const boxW = Math.min(dim.stageWidth - 80, 480);
+      addElement('shape', {
+        name: 'Save Post Card Box',
+        shapeKind: 'rounded-rect',
+        borderRadius: 20,
+        width: boxW,
+        height: 180,
+        x: Math.round((dim.stageWidth - boxW) / 2),
+        y: Math.round(dim.stageHeight / 2 + 60),
+        fillColor: th.surface,
+        borderColor: th.divider,
+        borderWidth: 1.5,
+      });
+      addElement('text', {
+        name: 'Save Post CTA Text',
+        content: '📌 **Simpan post ini untuk nanti!**\nBagikan juga ke temanmu yang butuh tips ini.',
+        fontSize: 18,
+        textAlign: 'center',
+        width: boxW - 40,
+        height: 90,
+        x: Math.round((dim.stageWidth - (boxW - 40)) / 2),
+        y: Math.round(dim.stageHeight / 2 + 105),
+        color: th.textPrimary,
+      });
+    } else if (type === 'cta-follow') {
+      const { branding } = useStudioStore.getState();
+      addElement('badge', {
+        name: 'Follow Badge',
+        content: `FOLLOW ${branding.authorOrHandle || '@BRAND'} ✨`,
+        width: 240,
+        height: 44,
+        x: Math.round((dim.stageWidth - 240) / 2),
+        y: dim.stageHeight - 90,
+        fontSize: 14,
+        fontWeight: 700,
+        color: '#ffffff',
+        fillColor: th.accent || '#2563eb',
+        borderRadius: 9999,
+      });
+    } else if (type === 'cta-comment') {
+      const boxW = Math.min(dim.stageWidth - 80, 480);
+      addElement('shape', {
+        name: 'Discussion Card Box',
+        shapeKind: 'rounded-rect',
+        borderRadius: 20,
+        width: boxW,
+        height: 150,
+        x: Math.round((dim.stageWidth - boxW) / 2),
+        y: Math.round(dim.stageHeight / 2 + 60),
+        fillColor: th.surface,
+        borderColor: th.divider,
+        borderWidth: 1.5,
+      });
+      addElement('text', {
+        name: 'Comment CTA Text',
+        content: '💬 **Gimana menurutmu?**\nTulis pendapat atau pertanyaanmu di kolom komentar ya! 👇',
+        fontSize: 17,
+        textAlign: 'center',
+        width: boxW - 40,
+        height: 80,
+        x: Math.round((dim.stageWidth - (boxW - 40)) / 2),
+        y: Math.round(dim.stageHeight / 2 + 95),
+        color: th.textPrimary,
+      });
+    } else if (type.startsWith('sticker-')) {
+      const label = type.replace('sticker-', '').toUpperCase();
+      const stickerMap: Record<string, { text: string; bg: string; color: string }> = {
+        'PRO-TIP': { text: '💡 PRO TIP', bg: '#fef3c7', color: '#92400e' },
+        'MUST-READ': { text: '🔥 MUST READ', bg: '#fee2e2', color: '#b91c1c' },
+        'SAVE-INI': { text: '📌 SAVE INI', bg: '#e0e7ff', color: '#3730a3' },
+        'CHECKLIST': { text: '✅ CHECKLIST', bg: '#dcfce7', color: '#166534' },
+        'NEW-POST': { text: '🚀 NEW POST', bg: '#f3e8ff', color: '#6b21a8' },
+        'PENTING': { text: '⚠️ PENTING', bg: '#ffedd5', color: '#9a3412' },
+      };
+      const conf = stickerMap[label] || { text: label, bg: '#e0e7ff', color: '#3730a3' };
+      addElement('badge', {
+        name: `Sticker Badge (${conf.text})`,
+        content: conf.text,
+        width: 140,
+        height: 34,
+        x: 48,
+        y: 48,
+        fontSize: 12,
+        fontWeight: 800,
+        fillColor: conf.bg,
+        color: conf.color,
+        borderRadius: 8,
+      });
+    }
 
     setActiveFlyout(null);
     setActiveTool('select');
@@ -488,7 +634,165 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
         )}
       </div>
 
-      {/* 5. Add Photo Tool */}
+      {/* 5. Engagement & Swipe CTA Kit */}
+      <div className="relative">
+        <div className="relative group">
+          <button
+            type="button"
+            onClick={() => toggleFlyout('engagement')}
+            className={`w-7 h-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+              activeFlyout === 'engagement'
+                ? 'bg-amber-500 text-zinc-950 font-bold shadow-xs'
+                : 'text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/15'
+            }`}
+            title="Engagement & Swipe CTA Kit (Stickers, Swipe Prompts, Closing Cards)"
+            aria-label="Engagement Kit"
+          >
+            <BookmarkCheck className="w-3.5 h-3.5" />
+          </button>
+          <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700/80 text-zinc-100 text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-50">
+            Engagement Kit (Swipe & CTA)
+          </span>
+        </div>
+
+        {/* Engagement Kit Flyout Modal */}
+        {activeFlyout === 'engagement' && (
+          <div className="absolute left-full ml-2 -top-16 w-80 rounded-2xl bg-zinc-950/98 backdrop-blur-xl border border-zinc-800 shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-left-2 duration-150 max-h-[85vh] overflow-y-auto scroller-dark select-none">
+            <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-zinc-800">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded-md bg-amber-500/10 text-amber-400">
+                  <BookmarkCheck className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold text-zinc-100">Engagement &amp; CTA Kit</h4>
+                  <p className="text-[10px] text-zinc-400">Pendorong swipe &amp; kartu penutup carousel</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveFlyout(null)}
+                className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Section 1: Swipe Prompts */}
+            <div className="mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block mb-1.5">
+                👉 Pendorong Swipe (Slide Awal / Tengah)
+              </span>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleInsertEngagementElement('swipe-pill-right')}
+                  className="flex items-center justify-center py-2 px-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold cursor-pointer transition-all shadow-xs"
+                >
+                  SWIPE 👉
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInsertEngagementElement('next-arrow')}
+                  className="flex items-center justify-center py-2 px-1 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-[10px] font-bold cursor-pointer transition-all"
+                >
+                  NEXT →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInsertEngagementElement('swipe-minimal')}
+                  className="flex items-center justify-center py-2 px-1 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-[9.5px] font-semibold cursor-pointer transition-all"
+                >
+                  READ MORE ⚡
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: Closing Outro Cards (CTA) */}
+            <div className="mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 block mb-1.5">
+                🏁 Kartu Penutup / Outro CTA (Slide Terakhir)
+              </span>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleInsertEngagementElement('cta-save')}
+                  className="w-full flex items-center justify-between p-2 rounded-lg border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-850 text-left cursor-pointer transition-all group"
+                >
+                  <div>
+                    <span className="text-[11px] font-semibold text-zinc-200 block group-hover:text-blue-300">
+                      📌 Kartu Simpan Postingan (Save)
+                    </span>
+                    <span className="text-[9.5px] text-zinc-400">
+                      Box rounded + pesan pengingat simpan &amp; share
+                    </span>
+                  </div>
+                  <span className="text-xs text-blue-400">＋</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleInsertEngagementElement('cta-comment')}
+                  className="w-full flex items-center justify-between p-2 rounded-lg border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-850 text-left cursor-pointer transition-all group"
+                >
+                  <div>
+                    <span className="text-[11px] font-semibold text-zinc-200 block group-hover:text-blue-300">
+                      💬 Kartu Ajakan Diskusi (Komentar)
+                    </span>
+                    <span className="text-[9.5px] text-zinc-400">
+                      Box rounded + prompt tanya pendapat audiens
+                    </span>
+                  </div>
+                  <span className="text-xs text-blue-400">＋</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleInsertEngagementElement('cta-follow')}
+                  className="w-full flex items-center justify-between p-2 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-left cursor-pointer transition-all group"
+                >
+                  <div>
+                    <span className="text-[11px] font-semibold text-blue-300 block">
+                      ✨ Badge Follow Profil (@handle)
+                    </span>
+                    <span className="text-[9.5px] text-blue-400/80">
+                      Pill badge beraksen dengan username aktif
+                    </span>
+                  </div>
+                  <span className="text-xs text-blue-300">＋</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section 3: Eyecatcher Stickers */}
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block mb-1.5">
+                🏷️ Eyecatcher Badges
+              </span>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: 'sticker-pro-tip', label: '💡 PRO TIP' },
+                  { id: 'sticker-must-read', label: '🔥 MUST READ' },
+                  { id: 'sticker-save-ini', label: '📌 SAVE INI' },
+                  { id: 'sticker-checklist', label: '✅ CHECKLIST' },
+                  { id: 'sticker-new-post', label: '🚀 NEW POST' },
+                  { id: 'sticker-penting', label: '⚠️ PENTING' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleInsertEngagementElement(s.id)}
+                    className="py-1 px-1.5 rounded-md border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-[10px] font-bold text-zinc-300 hover:text-white cursor-pointer transition-all text-center"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 6. Add Photo Tool */}
       <div className="relative group">
         <button
           type="button"
@@ -752,6 +1056,26 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
                   Contain
                 </button>
               </div>
+            </div>
+
+            {/* Seamless Panoramic Splitter */}
+            <div className="pt-2 border-t border-zinc-800">
+              <span className="text-[10px] font-bold text-amber-400 block mb-1">
+                ✂️ Carousel Seamless Panorama
+              </span>
+              <p className="text-[9.5px] text-zinc-400 mb-1.5 leading-relaxed">
+                Bagi foto ini melintasi 2 slide bersebelahan agar menyambung mulus saat di-swipe di Instagram.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  splitImagePanoramic(selectedElement.id);
+                  setActiveFlyout(null);
+                }}
+                className="w-full py-1.5 px-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-[10.5px] flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              >
+                <span>✂️ Bagi Jadi 2 Slide Sambung</span>
+              </button>
             </div>
           </div>
         )}

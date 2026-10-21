@@ -279,6 +279,7 @@ export type StudioModalType =
   | 'json'
   | 'fonts'
   | 'script'
+  | 'caption'
   | 'export'
   | 'preview'
   | 'version-history'
@@ -412,6 +413,7 @@ interface StudioState {
   commitElementHistory: () => void;
   deleteElement: (elementId?: string) => void;
   duplicateElement: (elementId?: string) => void;
+  splitImagePanoramic: (elementId: string) => void;
   adjustElementZIndex: (
     elementId: string,
     direction: 'forward' | 'backward' | 'front' | 'back'
@@ -2244,6 +2246,82 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       selectedElementId: copyId,
     });
     broadcastCurrentCanvasStateDebounced(get());
+  },
+
+  splitImagePanoramic: (elementId: string) => {
+    const state = get();
+    const slide = state.getActiveSlide();
+    if (!slide) return;
+    const target = slide.elements.find((e) => e.id === elementId);
+    if (!target || target.type !== 'image') return;
+
+    state.pushHistory();
+
+    const dim = ASPECT_RATIOS[state.aspectRatio];
+    const W = dim.stageWidth;
+    const H = dim.stageHeight;
+
+    // 1. Current slide: Stretch photo across 2 slides, positioned at left half (x: 0)
+    const updatedTarget: CanvasElement = {
+      ...target,
+      x: 0,
+      y: 0,
+      width: W * 2,
+      height: H,
+      name: `${target.name.replace(/\(Part \d+.*\)/, '').trim()} (Part 1 - Kiri)`,
+    };
+
+    // 2. Clone to Slide N + 1: Positioned at right half (x: -W)
+    const part2Id = `el-pano-${Date.now().toString(36).slice(-4)}`;
+    const clonedEl: CanvasElement = {
+      ...JSON.parse(JSON.stringify(target)),
+      id: part2Id,
+      name: `${target.name.replace(/\(Part \d+.*\)/, '').trim()} (Part 2 - Kanan)`,
+      x: -W,
+      y: 0,
+      width: W * 2,
+      height: H,
+      zIndex: 1,
+    };
+
+    const currentSlideIdx = state.activeSlideIndex;
+    const nextIdx = currentSlideIdx + 1;
+    const nextSlides = [...state.slides];
+
+    // Update current slide
+    nextSlides[currentSlideIdx] = {
+      ...nextSlides[currentSlideIdx],
+      elements: nextSlides[currentSlideIdx].elements.map((el) =>
+        el.id === elementId ? updatedTarget : el
+      ),
+    };
+
+    // If next slide exists, append or update; else create next slide
+    if (nextIdx < nextSlides.length) {
+      nextSlides[nextIdx] = {
+        ...nextSlides[nextIdx],
+        elements: [
+          ...nextSlides[nextIdx].elements.filter((e) => e.id !== part2Id),
+          clonedEl,
+        ],
+      };
+    } else {
+      const newSlide: Slide = {
+        id: `slide-${Date.now().toString(36)}`,
+        layout: 'blank' as any,
+        backgroundColor: slide.backgroundColor || '#ffffff',
+        elements: [clonedEl],
+      };
+      nextSlides.push(newSlide);
+    }
+
+    set({
+      slides: nextSlides,
+      lastModifiedTimestamp: Date.now(),
+    });
+
+    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   adjustElementZIndex: (elementId, direction) => {

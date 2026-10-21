@@ -257,6 +257,16 @@ export const TopHeaderBar: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
+            onClick={() => setActiveModal('caption')}
+            title="AI Caption, Hook & Hashtag Assistant (Generate caption Instagram/LinkedIn)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-amber-400 transition-colors cursor-pointer text-xs font-semibold"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden lg:inline text-[11.5px]">AI Caption</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveView('team')}
             title="Team Workspace & Folder Proyek"
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-400 transition-colors cursor-pointer text-xs font-semibold"

@@ -255,6 +255,85 @@ export const StudioModals: React.FC = () => {
     }
   };
 
+  const [captionTone, setCaptionTone] = useState<
+    'storytelling' | 'edukasi' | 'punchy' | 'linkedin'
+  >('storytelling');
+
+  const handleGenerateCaptionFromSlides = (tone = captionTone) => {
+    let mainTitle = '';
+    const points: string[] = [];
+
+    slides.forEach((s, idx) => {
+      const textEls = s.elements
+        .filter((e) => e.type === 'text')
+        .map((e) => ((e as any).content || '').replace(/<[^>]*>/g, '').trim())
+        .filter(Boolean);
+
+      if (idx === 0 && textEls.length > 0) {
+        mainTitle = textEls[0];
+      } else if (textEls.length > 0) {
+        points.push(`Slide ${idx + 1}: ${textEls[0].slice(0, 70)}`);
+      }
+    });
+
+    const titleClean =
+      mainTitle.replace(/[*_#]/g, '').slice(0, 80) ||
+      projectTitle ||
+      'Tips & Insight Hari Ini';
+    const handle = branding.authorOrHandle || '@brand';
+
+    let newCaption = '';
+    let newHashtags = '';
+
+    if (tone === 'storytelling') {
+      newCaption =
+        `Banyak yang belum tahu rahasia ini: ${titleClean} 👇\n\n` +
+        `Swipe sampai akhir untuk lihat breakdown lengkapnya 👉\n\n` +
+        `Seringkali kita merasa sudah berusaha maksimal, tapi hasilnya belum sesuai ekspektasi. Lewat carousel ini, aku rangkum poin-poin krusial yang perlu kamu perhatikan:\n\n` +
+        (points.length > 0
+          ? points.map((p) => `📍 ${p}`).join('\n')
+          : `📍 Simak detail penjelasannya di setiap slide ya!`) +
+        `\n\n---\n📌 Simpan post ini biar bisa kamu baca ulang nanti!\n💬 Menurutmu mana poin yang paling relate? Tulis di kolom komentar ya!\n\nFollow ${handle} untuk insight & tips visual lainnya ✨`;
+      newHashtags =
+        '#carouseldesign #contentcreator #socialmediatips #visualstorytelling #carouseltips #instagramtips #creativeagency #digitalcreators #designinspiration';
+    } else if (tone === 'edukasi') {
+      newCaption =
+        `[PENTING] ${titleClean} (Simpan sebelum hilang 📌)\n\n` +
+        `Berikut ringkasan insight yang bisa langsung kamu terapkan hari ini:\n\n` +
+        (points.length > 0
+          ? points.map((p) => `✅ ${p}`).join('\n')
+          : `✅ Poin pembelajaran penting di slide`) +
+        `\n\n💡 Kuncinya adalah konsistensi dan eksekusi bertahap.\n\n` +
+        `Jangan lupa SAVE post ini untuk referensi belajarmu 📌\nShare juga ke teman atau tim yang butuh insight ini ↗️\n\nInsight harian by ${handle}`;
+      newHashtags =
+        '#edukasibisnis #tipsbelajar #infografis #carouseltutorial #contentstrategy #belajardesain #tipsinstagram #socialmediamanager';
+    } else if (tone === 'punchy') {
+      newCaption =
+        `${titleClean}. Geser ke kiri 👉\n\n` +
+        `Singkat, padat, langsung intisari:\n` +
+        (points.length > 0
+          ? points.map((p) => `• ${p}`).join('\n')
+          : `• Detail lengkap pada slide carousel`) +
+        `\n\n📌 Save kalau bermanfaat!\n💬 Drop pertanyaanmu di bawah.`;
+      newHashtags = '#quicktips #insights #carousel #creators #dailygrowth';
+    } else {
+      // linkedin
+      newCaption =
+        `Bagaimana ${titleClean} mengubah cara pandang kita terhadap efisiensi konten?\n\n` +
+        `Di era serba cepat saat ini, menyampaikan ide kompleks dengan visual yang lugas dan berbobot adalah keunggulan kompetitif.\n\n` +
+        `Dalam carousel document ini, saya merangkum beberapa observasi utama:\n\n` +
+        (points.length > 0
+          ? points.map((p) => `🔹 ${p}`).join('\n')
+          : `🔹 Poin kunci pada slide dokumen`) +
+        `\n\nBagaimana pengalaman Anda terkait hal ini di industri Anda? Mari berdiskusi di kolom komentar.\n\n#ThoughtLeadership #Strategy #ContentStrategy #ProfessionalGrowth`;
+      newHashtags =
+        '#professionaldevelopment #leadership #creativeindustry #strategy #linkedininsights #businessgrowth';
+    }
+
+    setPostCaption(newCaption);
+    setPostHashtags(newHashtags);
+  };
+
   const handleRtfScriptUpload = async (file: File) => {
     setIsImportingRtf(true);
     setRtfImportError(null);
@@ -695,6 +774,8 @@ export const StudioModals: React.FC = () => {
             ? scriptModalStep === 'layout-picker'
               ? 'max-w-4xl'
               : 'max-w-3xl'
+            : activeModal === 'caption'
+            ? 'max-w-2xl'
             : 'max-w-lg'
         } rounded-xl bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden text-zinc-100 transition-all duration-200`}
       >
@@ -1231,6 +1312,180 @@ export const StudioModals: React.FC = () => {
                 </div>
               </>
             )}
+          </>
+        )}
+
+        {/* MODAL: AI CAPTION, HOOK & HASHTAG ASSISTANT */}
+        {activeModal === 'caption' && (
+          <>
+            <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-100">
+                    AI Caption, Hook &amp; Hashtag Assistant
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Otomatis menyusun caption Instagram/LinkedIn berdaya pikat tinggi dari slide carousel Anda.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto scroller-dark">
+              {/* Tone Selection & Quick Generate */}
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                    Pilih Gaya &amp; Nada Bicara (Tone)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateCaptionFromSlides(captionTone)}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all self-start sm:self-auto"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>⚡ Generate Otomatis dari Slide</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'storytelling', label: '🎣 Storytelling & Viral', desc: 'Hook penasaran & emosional' },
+                    { id: 'edukasi', label: '🧠 Edukasi & Otoritas', desc: 'Rapi berbobot & bullet point' },
+                    { id: 'punchy', label: '⚡ Singkat & Padat', desc: 'Langsung intisari, no fluff' },
+                    { id: 'linkedin', label: '💼 Profesional / LinkedIn', desc: 'Thought leadership & business' },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setCaptionTone(t.id as any);
+                        handleGenerateCaptionFromSlides(t.id as any);
+                      }}
+                      className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                        captionTone === t.id
+                          ? 'border-amber-500/80 bg-amber-500/15 text-amber-300 font-semibold shadow-xs'
+                          : 'border-zinc-800 bg-zinc-950/60 hover:bg-zinc-850 text-zinc-300'
+                      }`}
+                    >
+                      <span className="text-[11px] block">{t.label}</span>
+                      <span className="text-[9.5px] text-zinc-400 mt-0.5 block">{t.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Caption Content Box */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="modal-post-caption" className="text-xs font-semibold text-zinc-200">
+                    Isi Caption Postingan
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void copyPostField('caption')}
+                    disabled={!postCaption}
+                    className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                  >
+                    {copiedPostField === 'caption' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-300 font-medium">Caption Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin Caption</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <textarea
+                  id="modal-post-caption"
+                  rows={8}
+                  value={postCaption}
+                  onChange={(e) => setPostCaption(e.target.value)}
+                  placeholder="Klik 'Generate Otomatis dari Slide' di atas untuk menyusun caption..."
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-amber-500/70 rounded-lg p-3 text-xs leading-relaxed text-zinc-100 placeholder-zinc-500 focus:outline-none resize-y scroller-dark select-text font-sans"
+                />
+              </div>
+
+              {/* Hashtags Box */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="modal-post-hashtags" className="text-xs font-semibold text-zinc-200">
+                    Hashtags Terkait
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void copyPostField('hashtags')}
+                    disabled={!postHashtags}
+                    className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                  >
+                    {copiedPostField === 'hashtags' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-300 font-medium">Hashtags Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin Hashtags</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <textarea
+                  id="modal-post-hashtags"
+                  rows={2}
+                  value={postHashtags}
+                  onChange={(e) => setPostHashtags(e.target.value)}
+                  placeholder="#carousel #contentcreator #tips..."
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-amber-500/70 rounded-lg p-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none resize-y select-text font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 py-3 bg-zinc-900/50 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-[11px] text-zinc-400">
+                Tersimpan otomatis di browser
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="px-3 py-1.5 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 text-xs font-medium cursor-pointer"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void copyPostField('all')}
+                  disabled={!postCaption && !postHashtags}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 shadow-md transition-all"
+                >
+                  {copiedPostField === 'all' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Semua Berhasil Disalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin Semua (Caption + Hashtag)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </>
         )}
 

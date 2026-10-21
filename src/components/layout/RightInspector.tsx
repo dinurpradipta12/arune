@@ -191,6 +191,7 @@ export const RightInspector: React.FC = () => {
     updateElement,
     deleteElement,
     duplicateElement,
+    splitImagePanoramic,
     alignElementOnCanvas,
     customFonts,
     addBatchLocalFonts,
@@ -1793,6 +1794,25 @@ export const RightInspector: React.FC = () => {
               />
             </div>
           </div>
+        </div>
+
+        {/* Seamless Panoramic Carousel Splitter */}
+        <div className="space-y-2 pt-2.5 border-t border-zinc-800/80">
+          <div className="flex items-center justify-between">
+            <span className="text-[10.5px] font-bold text-amber-400">
+              ✂️ Seamless Panorama Splitter
+            </span>
+          </div>
+          <p className="text-[10px] text-zinc-400 leading-relaxed">
+            Bagi foto ini melintasi slide ini dan slide berikutnya (2x lebar) agar gambar menyambung utuh saat di-swipe di Instagram.
+          </p>
+          <button
+            type="button"
+            onClick={() => splitImagePanoramic(imgEl.id)}
+            className="w-full py-2 px-3 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          >
+            <span>✂️ Bagi Jadi 2 Slide Sambung (Seamless)</span>
+          </button>
         </div>
       </div>
     );
