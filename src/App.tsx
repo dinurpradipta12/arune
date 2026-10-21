@@ -3,6 +3,7 @@ import { SlideStage } from './components/canvas/SlideStage';
 import { TemplateGalleryPage } from './components/gallery/TemplateGalleryPage';
 import { ThemeBuilderPage } from './components/builder/ThemeBuilderPage';
 import { TeamWorkspacePage } from './components/team/TeamWorkspacePage';
+import { ProjectFoldersPage } from './components/folders/ProjectFoldersPage';
 import { CenterWorkspace } from './components/layout/CenterWorkspace';
 import { LeftSidebar } from './components/layout/LeftSidebar';
 import { RightInspector } from './components/layout/RightInspector';
@@ -260,6 +261,8 @@ export function App() {
             <ThemeBuilderPage />
           ) : activeView === 'team' ? (
             <TeamWorkspacePage />
+          ) : activeView === 'folders' ? (
+            <ProjectFoldersPage />
           ) : (
             <>
               <TopHeaderBar />

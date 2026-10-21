@@ -191,7 +191,8 @@ export function getInitialActiveView(): StudioViewMode {
         viewParam === 'editor' ||
         viewParam === 'gallery' ||
         viewParam === 'theme-builder' ||
-        viewParam === 'team'
+        viewParam === 'team' ||
+        viewParam === 'folders'
       ) {
         return viewParam;
       }
@@ -286,7 +287,7 @@ export type StudioModalType =
   | 'preview'
   | 'version-history'
   | null;
-export type StudioViewMode = 'editor' | 'gallery' | 'theme-builder' | 'team';
+export type StudioViewMode = 'editor' | 'gallery' | 'theme-builder' | 'team' | 'folders';
 
 interface StudioState {
   // Core project state

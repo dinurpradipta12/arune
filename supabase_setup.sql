@@ -341,4 +341,51 @@ create policy "Authenticated users can delete team icons"
   to authenticated
   using (bucket_id = 'team-icons');
 
--- Selesai! Semua tabel, trigger, RLS, Storage Bucket, dan Realtime WebSocket siap digunakan tanpa loop.
+-- ============================================================================
+-- 12. TABEL FOLDER PROYEK (PROJECT FOLDERS)
+-- ============================================================================
+create table if not exists public.project_folders (
+  id text primary key,
+  name text not null,
+  description text default '',
+  color text default 'blue',
+  icon text default 'folder',
+  project_ids jsonb default '[]'::jsonb,
+  created_at timestamptz default timezone('utc'::text, now()) not null,
+  updated_at timestamptz default timezone('utc'::text, now()) not null
+);
+
+alter table public.project_folders enable row level security;
+
+drop policy if exists "Project folders are viewable by everyone" on public.project_folders;
+create policy "Project folders are viewable by everyone"
+  on public.project_folders for select
+  using (true);
+
+drop policy if exists "Project folders are insertable by everyone" on public.project_folders;
+create policy "Project folders are insertable by everyone"
+  on public.project_folders for insert
+  with check (true);
+
+drop policy if exists "Project folders are updatable by everyone" on public.project_folders;
+create policy "Project folders are updatable by everyone"
+  on public.project_folders for update
+  using (true);
+
+drop policy if exists "Project folders are deletable by everyone" on public.project_folders;
+create policy "Project folders are deletable by everyone"
+  on public.project_folders for delete
+  using (true);
+
+-- Realtime publication for project_folders
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'project_folders'
+  ) then
+    alter publication supabase_realtime add table public.project_folders;
+  end if;
+end $$;
+
+-- Selesai! Semua tabel, trigger, RLS, Storage Bucket, Realtime WebSocket, dan Project Folders siap digunakan.

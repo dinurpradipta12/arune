@@ -879,6 +879,22 @@ export const TemplateGalleryPage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Project Folders Navigation Button (to the left of Grid/List switcher) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveView('folders')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all group shadow-2xs ${
+                    workspaceDarkMode
+                      ? 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900'
+                  }`}
+                  title="Buka Kumpulan Folder Proyek"
+                >
+                  <Folder className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline">Folder Proyek</span>
+                  <span className="sm:hidden">Folder</span>
+                </button>
+
                 <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5">
                   <button
                     type="button"
