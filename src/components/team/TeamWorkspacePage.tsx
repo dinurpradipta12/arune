@@ -8,8 +8,6 @@ import {
   Trash2,
   Check,
   Share2,
-  Clock,
-  Briefcase,
   Crown,
   Edit3,
   Eye,
@@ -28,6 +26,9 @@ import {
   AlertTriangle,
   CloudUpload,
   X,
+  ChevronDown,
+  LayoutGrid,
+  LayoutList,
 } from 'lucide-react';
 import {
   getTeams,
@@ -55,6 +56,12 @@ import { DEFAULT_TEAM_BRAND_KIT } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
 import { isElectronMac } from '../../utils/platform';
 import { UserAuthButton } from '../common/UserAuthButton';
+import {
+  ASPECT_RATIOS,
+  THEME_PALETTES,
+} from '../../constants/themesAndPresets';
+import type { AspectRatioKey } from '../../types/studio';
+import { SlideStage } from '../canvas/SlideStage';
 
 const AVAILABLE_HEADING_FONTS = [
   'Plus Jakarta Sans',
@@ -101,8 +108,17 @@ export const TeamWorkspacePage: React.FC = () => {
   const [teams, setTeams] = useState<TeamWorkspace[]>([]);
   const [activeTeamId, setCurrentActiveTeamId] = useState<string | null>(null);
 
-  // Tab inside folder: 'projects' or 'brand-kit'
-  const [folderTab, setFolderTab] = useState<'projects' | 'brand-kit'>('projects');
+  // Main Workspace Tab: 'projects' | 'brand-kit' | 'members'
+  const [activeTab, setActiveTab] = useState<'projects' | 'brand-kit' | 'members'>('projects');
+
+  // Team Switcher & Modals State
+  const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
+
+  // Projects Filtering & Layout View
+  const [selectedRatioFilter, setSelectedRatioFilter] = useState<'All' | '4:5' | '9:16' | '1:1'>('All');
+  const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid');
 
   // Form states for adding member
   const [newMemberName, setNewMemberName] = useState('');
@@ -112,7 +128,6 @@ export const TeamWorkspacePage: React.FC = () => {
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   // Form states for creating new team folder
-  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDesc, setNewTeamDesc] = useState('');
 
@@ -220,7 +235,7 @@ export const TeamWorkspacePage: React.FC = () => {
     const created = await createTeamCloud(newTeamName, newTeamDesc);
     setNewTeamName('');
     setNewTeamDesc('');
-    setIsCreatingTeam(false);
+    setIsCreateTeamModalOpen(false);
     await refreshData();
     handleSelectTeam(created.id);
   };
@@ -255,6 +270,10 @@ export const TeamWorkspacePage: React.FC = () => {
     setNewMemberEmail('');
     setNewMemberRole('editor');
     await refreshData();
+    setTimeout(() => {
+      setIsInviteModalOpen(false);
+      setInviteSuccess(null);
+    }, 1500);
   };
 
   const handleRoleChange = (memberId: string, role: TeamRole) => {
@@ -447,33 +466,60 @@ export const TeamWorkspacePage: React.FC = () => {
     });
   };
 
+  const formatRelativeTime = (dateStr: string): string => {
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffMins < 1) return 'Baru saja';
+      if (diffMins < 60) return `${diffMins}m lalu`;
+      if (diffHours < 24) return `${diffHours}j lalu`;
+      if (diffDays < 7) return `${diffDays}h lalu`;
+      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    } catch {
+      return dateStr;
+    }
+  };
+
   const filteredProjects = useMemo(() => {
-    if (!searchQuery.trim()) return teamProjects;
-    return teamProjects.filter((p) =>
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.lastEditedBy.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [teamProjects, searchQuery]);
+    let list = teamProjects;
+    if (selectedRatioFilter !== 'All') {
+      list = list.filter((p) => p.aspectRatio === selectedRatioFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.lastEditedBy.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [teamProjects, selectedRatioFilter, searchQuery]);
 
   return (
     <div
       className={`h-screen w-screen flex flex-col overflow-hidden select-none transition-colors duration-200 ${
         isDark
           ? 'studio-theme-dark bg-[#071322] text-slate-100'
-          : 'studio-theme-light bg-[#F1F5F4] text-[#2F3E46]'
+          : 'studio-theme-light bg-[#F8FAFC] text-[#0F172A]'
       }`}
     >
-      
       {/* ========================================================
-          TOP NAVBAR
+          1. TOP NAVBAR (Modern SaaS Team Header)
          ======================================================== */}
       <header
         className={`h-14 border-b flex items-center justify-between px-4 sm:px-6 z-30 shrink-0 mac-drag-region ${
           isDark
-            ? 'bg-[#0A1A2F]/90 border-zinc-800'
-            : 'bg-white border-[#DFE6E4] shadow-xs'
+            ? 'bg-[#0A1A2F]/95 border-zinc-800/80 backdrop-blur-md'
+            : 'bg-white/95 border-slate-200/90 backdrop-blur-md shadow-2xs'
         } ${isElectronMac() ? 'pl-20' : ''}`}
       >
+        {/* Left: Home & Team Selector Dropdown */}
         <div className="flex items-center gap-3 mac-no-drag">
           <button
             type="button"
@@ -481,46 +527,188 @@ export const TeamWorkspacePage: React.FC = () => {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-xs ${
               isDark
                 ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-slate-200 hover:text-blue-400'
-                : 'bg-[#F7FAF9] hover:bg-[#EAEFEF] border-[#DFE6E4] text-[#2F3E46] hover:text-[#5E887E]'
+                : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
             }`}
           >
-            <Home className="w-3.5 h-3.5 text-[#5E887E]" />
+            <Home className="w-3.5 h-3.5 text-blue-500" />
             <span>Home</span>
           </button>
 
-          <span className={isDark ? 'text-zinc-700' : 'text-[#DFE6E4]'}>|</span>
+          <span className={isDark ? 'text-zinc-700' : 'text-slate-300'}>/</span>
 
-          <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-              isDark ? 'bg-blue-600/10 text-blue-400' : 'bg-[#5E887E]/10 text-[#5E887E]'
-            }`}>
-              <Briefcase className="w-4 h-4" />
-            </div>
-            <div>
-              <h1 className={`text-sm font-bold tracking-tight flex items-center gap-2 ${
-                isDark ? 'text-white' : 'text-[#2F3E46]'
-              }`}>
-                Team Workspace & Brand Kit
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                  isDark
-                    ? 'bg-blue-900/60 text-blue-300 border-blue-800/80'
-                    : 'bg-[#FAF2F3] text-[#2F3E46] border-[#EBAEB3]'
-                }`}>
-                  Fase 2: Shared Brand Kit
-                </span>
-                {isSyncingCloud && (
-                  <span className="flex items-center gap-1 text-[10.5px] text-emerald-500 font-semibold animate-pulse">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>Cloud Sync</span>
-                  </span>
-                )}
-              </h1>
-            </div>
+          {/* Team Switcher Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsTeamDropdownOpen(!isTeamDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-white'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-2xs'
+              }`}
+            >
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] font-bold shadow-xs"
+                style={{ backgroundColor: currentTeam?.avatarColor || '#3B82F6' }}
+              >
+                {currentTeam?.name?.charAt(0).toUpperCase() || 'T'}
+              </div>
+              <span className="max-w-[150px] truncate">{currentTeam?.name || 'Pilih Tim'}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+            </button>
+
+            {isTeamDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsTeamDropdownOpen(false)}
+                />
+                <div
+                  className={`absolute left-0 top-full mt-1.5 w-72 rounded-2xl border shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-800 text-white'
+                      : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Ruang Kerja Tim ({teams.length})
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1">
+                    {teams.map((t) => {
+                      const isActive = t.id === activeTeamId;
+                      const pCount = getTeamProjects(t.id).length;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            handleSelectTeam(t.id);
+                            setIsTeamDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-colors cursor-pointer ${
+                            isActive
+                              ? isDark
+                                ? 'bg-blue-600/20 text-blue-400 font-semibold'
+                                : 'bg-blue-50 text-blue-600 font-semibold'
+                              : isDark
+                              ? 'hover:bg-zinc-800 text-zinc-300'
+                              : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                              style={{ backgroundColor: t.avatarColor || '#3B82F6' }}
+                            >
+                              {t.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="text-left min-w-0">
+                              <div className="truncate font-medium">{t.name}</div>
+                              <div className="text-[10px] text-zinc-400">
+                                {t.members.length} anggota • {pCount} proyek
+                              </div>
+                            </div>
+                          </div>
+                          {isActive && <Check className="w-4 h-4 text-blue-500 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-1 border-t border-zinc-200/50 dark:border-zinc-800 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsTeamDropdownOpen(false);
+                        setIsCreateTeamModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-semibold text-blue-500 hover:bg-blue-500/10 cursor-pointer transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>+ Buat Ruang Kerja Baru</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+
+          {isSyncingCloud && (
+            <span className="hidden sm:flex items-center gap-1 text-[11px] text-emerald-500 font-semibold animate-pulse">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Cloud Sync</span>
+            </span>
+          )}
         </div>
 
+        {/* Center: Navigation Tabs (Proyek Tim / Brand Kit / Anggota) */}
+        <div className="hidden md:flex items-center gap-1 p-1 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-100/70 dark:bg-zinc-900/70 mac-no-drag">
+          <button
+            type="button"
+            onClick={() => setActiveTab('projects')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'projects'
+                ? isDark
+                  ? 'bg-zinc-800 text-blue-400 shadow-xs'
+                  : 'bg-white text-blue-600 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            <span>Proyek Tim</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 text-blue-500">
+              {teamProjects.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('brand-kit')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'brand-kit'
+                ? isDark
+                  ? 'bg-zinc-800 text-purple-400 shadow-xs'
+                  : 'bg-white text-purple-600 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5" />
+            <span>Brand Kit Tim</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('members')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'members'
+                ? isDark
+                  ? 'bg-zinc-800 text-emerald-400 shadow-xs'
+                  : 'bg-white text-emerald-600 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Anggota & Akses</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500">
+              {currentTeam?.members?.length || 0}
+            </span>
+          </button>
+        </div>
+
+        {/* Right Tools & Profile */}
         <div className="flex items-center gap-2 mac-no-drag">
-          <UserAuthButton darkMode={isDark} />
+          <button
+            type="button"
+            onClick={() => setIsInviteModalOpen(true)}
+            className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+              isDark
+                ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5 text-blue-500" />
+            <span>Undang Anggota</span>
+          </button>
 
           <button
             type="button"
@@ -528,11 +716,11 @@ export const TeamWorkspacePage: React.FC = () => {
             className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ${
               isDark
                 ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-slate-200 hover:text-blue-400'
-                : 'bg-white hover:bg-[#F7FAF9] border-[#DFE6E4] text-[#2F3E46] hover:text-[#5E887E]'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
             }`}
           >
-            <Sliders className="w-3.5 h-3.5 text-[#5E887E]" />
-            <span className="hidden sm:inline">Buka Studio Editor</span>
+            <Sliders className="w-3.5 h-3.5 text-blue-500" />
+            <span className="hidden sm:inline">Studio Editor</span>
           </button>
 
           <button
@@ -542,27 +730,50 @@ export const TeamWorkspacePage: React.FC = () => {
             className={`p-2 rounded-xl border transition-colors cursor-pointer ${
               isDark
                 ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
-                : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#556B65] hover:text-[#2F3E46]'
+                : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 shadow-2xs'
             }`}
           >
-            {workspaceDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {workspaceDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
+
+          <UserAuthButton darkMode={isDark} />
         </div>
       </header>
 
+      {/* Mobile Sub-Navigation Bar */}
+      <div className="md:hidden flex items-center justify-around p-2 border-b border-zinc-200/50 dark:border-zinc-800/80 bg-zinc-100/50 dark:bg-zinc-900/50 text-xs font-semibold">
+        <button
+          type="button"
+          onClick={() => setActiveTab('projects')}
+          className={`px-3 py-1 rounded-lg ${activeTab === 'projects' ? 'bg-blue-600 text-white' : 'text-zinc-400'}`}
+        >
+          Proyek ({teamProjects.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('brand-kit')}
+          className={`px-3 py-1 rounded-lg ${activeTab === 'brand-kit' ? 'bg-purple-600 text-white' : 'text-zinc-400'}`}
+        >
+          Brand Kit
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('members')}
+          className={`px-3 py-1 rounded-lg ${activeTab === 'members' ? 'bg-emerald-600 text-white' : 'text-zinc-400'}`}
+        >
+          Anggota ({currentTeam?.members?.length || 0})
+        </button>
+      </div>
+
       {/* ========================================================
-          MAIN TWO-COLUMN WORKSPACE BODY
+          2. MAIN CONTENT AREA (Tabs Routed)
          ======================================================== */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        
-        {/* ========================================================
-            LEFT & CENTER COLUMN: TEAM FOLDERS, PROJECTS & BRAND KIT
-           ======================================================== */}
-        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
-          
+      <div className="flex-1 overflow-y-auto scroller-dark p-4 sm:p-6 lg:p-8">
+        <div className="max-w-[1600px] mx-auto space-y-6">
+
           {/* TOAST NOTIFICATION */}
           {brandKitAppliedToast && (
-            <div className="p-3.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs flex items-center justify-between shadow-lg animate-fade-in">
+            <div className="p-3.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs flex items-center justify-between shadow-lg animate-in fade-in">
               <span className="flex items-center gap-2">
                 <Check className="w-4 h-4" />
                 <span>{brandKitAppliedToast}</span>
@@ -577,422 +788,349 @@ export const TeamWorkspacePage: React.FC = () => {
             </div>
           )}
 
-          {/* 1. TEAM FOLDERS SELECTOR STRIP */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className={`text-xs uppercase tracking-wider font-bold ${
-                  isDark ? 'text-slate-400' : 'text-[#556B65]'
-                }`}>
-                  Folder Tiap Team ({teams.length})
-                </h2>
-                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#8E9F9B]'}`}>
-                  Pilih folder tim untuk mengelola proyek bersama dan Brand Kit resmi tim.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsCreatingTeam(!isCreatingTeam)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                  isDark
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-[#2F3E46] hover:bg-[#5E887E] text-white'
-                }`}
-              >
-                <FolderPlus className="w-3.5 h-3.5" />
-                <span>+ Buat Folder Tim</span>
-              </button>
-            </div>
-
-            {/* Create Team Inline Drawer */}
-            {isCreatingTeam && (
-              <form
-                onSubmit={handleCreateTeam}
-                className={`p-4 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-slide-down ${
-                  isDark
-                    ? 'border-blue-900/60 bg-blue-950/30'
-                    : 'border-[#DFE6E4] bg-white shadow-sm'
-                }`}
-              >
-                <input
-                  type="text"
-                  placeholder="Nama Folder Tim (cth: Creative Agency, Klien XYZ)..."
-                  value={newTeamName}
-                  onChange={(e) => setNewTeamName(e.target.value)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#5E887E]/30 ${
-                    isDark
-                      ? 'bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500'
-                      : 'bg-[#F7FAF9] border border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
-                  }`}
-                  autoFocus
-                />
-                <input
-                  type="text"
-                  placeholder="Deskripsi singkat (opsional)..."
-                  value={newTeamDesc}
-                  onChange={(e) => setNewTeamDesc(e.target.value)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#5E887E]/30 ${
-                    isDark
-                      ? 'bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500'
-                      : 'bg-[#F7FAF9] border border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
-                  }`}
-                />
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="submit"
-                    className={`px-4 py-2 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs ${
-                      isDark
-                        ? 'bg-blue-600 hover:bg-blue-700'
-                        : 'bg-[#2F3E46] hover:bg-[#5E887E]'
-                    }`}
-                  >
-                    Simpan Folder
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsCreatingTeam(false)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                      isDark
-                        ? 'bg-zinc-800 hover:bg-zinc-700 text-slate-300'
-                        : 'bg-[#F7FAF9] hover:bg-[#EAEFEF] border border-[#DFE6E4] text-[#2F3E46]'
-                    }`}
-                  >
-                    Batal
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Folder Cards Horizontal Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {teams.map((t) => {
-                const isActive = t.id === activeTeamId;
-                const pCount = getTeamProjects(t.id).length;
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => handleSelectTeam(t.id)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
-                      isActive
-                        ? isDark
-                          ? 'border-blue-500 bg-blue-950/30 ring-2 ring-blue-500/30 shadow-sm'
-                          : 'border-[#5E887E] bg-white ring-2 ring-[#5E887E]/30 shadow-md'
-                        : isDark
-                          ? 'border-zinc-800 bg-[#0A1A2F]/70 hover:border-zinc-700 shadow-xs'
-                          : 'border-[#DFE6E4] bg-white hover:border-[#5E887E]/60 shadow-xs'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 shadow-xs"
-                          style={{ backgroundColor: t.avatarColor || '#5E887E' }}
-                        >
-                          <FolderOpen className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className={`text-xs font-bold truncate ${
-                            isDark ? 'text-white' : 'text-[#2F3E46]'
-                          }`}>
-                            {t.name}
-                          </h3>
-                          <p className={`text-[11px] truncate ${
-                            isDark ? 'text-slate-400' : 'text-[#8E9F9B]'
-                          }`}>
-                            {t.description || 'Tidak ada deskripsi'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {isActive && (
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                          isDark
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-[#5E887E] text-white'
-                        }`}>
-                          Aktif
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={`pt-2 border-t flex items-center justify-between text-[11px] ${
-                      isDark ? 'border-zinc-800 text-slate-400' : 'border-[#DFE6E4] text-[#8E9F9B]'
-                    }`}>
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-[#5E887E]" />
-                        <span>{t.members.length} Anggota</span>
-                      </span>
-                      <span className={`font-semibold ${
-                        isDark ? 'text-slate-300' : 'text-[#556B65]'
-                      }`}>
-                        {pCount} Proyek
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. ACTIVE TEAM HEADER & TAB SWITCHER (PROJECTS vs BRAND KIT) */}
-          {currentTeam && (
-            <div className={`p-5 rounded-2xl border shadow-xs space-y-4 ${
-              isDark
-                ? 'bg-[#0A1A2F]/90 border-zinc-800'
-                : 'bg-white border-[#DFE6E4]'
-            }`}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: currentTeam.avatarColor || '#5E887E' }}
-                    />
-                    <h2 className={`text-base font-bold ${
-                      isDark ? 'text-white' : 'text-[#2F3E46]'
-                    }`}>
-                      Folder: {currentTeam.name}
-                    </h2>
-                  </div>
-                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#8E9F9B]'}`}>
-                    {currentTeam.description || 'Ruang kerja proyek bersama dan Brand Kit resmi untuk tim ini.'}
-                  </p>
-                </div>
-
-                {/* Sub-Tab Switcher: Projects vs Brand Kit */}
-                <div className={`flex items-center gap-1 p-1 rounded-xl border ${
-                  isDark
-                    ? 'bg-zinc-900 border-zinc-800'
-                    : 'bg-[#F1F5F4] border-[#DFE6E4]'
-                }`}>
-                  <button
-                    type="button"
-                    onClick={() => setFolderTab('projects')}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      folderTab === 'projects'
-                        ? isDark
-                          ? 'bg-zinc-800 text-blue-400 shadow-xs'
-                          : 'bg-[#2F3E46] text-white shadow-xs'
-                        : isDark
-                          ? 'text-slate-400 hover:text-white'
-                          : 'text-[#556B65] hover:text-[#2F3E46] hover:bg-[#EAEFEF]'
-                    }`}
-                  >
-                    <FolderOpen className={`w-3.5 h-3.5 ${folderTab === 'projects' && !isDark ? 'text-white' : 'text-[#5E887E]'}`} />
-                    <span>Proyek ({filteredProjects.length})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFolderTab('brand-kit')}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      folderTab === 'brand-kit'
-                        ? isDark
-                          ? 'bg-zinc-800 text-blue-400 shadow-xs'
-                          : 'bg-[#2F3E46] text-white shadow-xs'
-                        : isDark
-                          ? 'text-slate-400 hover:text-white'
-                          : 'text-[#556B65] hover:text-[#2F3E46] hover:bg-[#EAEFEF]'
-                    }`}
-                  >
-                    <Palette className={`w-3.5 h-3.5 ${folderTab === 'brand-kit' && !isDark ? 'text-white' : 'text-[#5E887E]'}`} />
-                    <span>Brand Kit Tim</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* ========================================================
-              VIEW 1: PROYEK CAROUSEL GRID
+              TAB 1: PROYEK TIM (Rich Visual Gallery)
              ======================================================== */}
-          {folderTab === 'projects' && (
-            <div className="space-y-4">
-              {/* Action & Search Bar */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className={`w-4 h-4 absolute left-3 top-2.5 pointer-events-none ${
-                    isDark ? 'text-zinc-500' : 'text-[#8E9F9B]'
-                  }`} />
-                  <input
-                    type="text"
-                    placeholder="Cari proyek carousel berdasarkan judul atau nama editor..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full pl-9 pr-4 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#5E887E]/30 ${
-                      isDark
-                        ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500'
-                        : 'bg-white border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B] shadow-xs'
-                    }`}
-                  />
+          {activeTab === 'projects' && (
+            <div className="space-y-6">
+              {/* Toolbar: Search, Aspect Ratio Filters, View Toggle, Actions */}
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                {/* Search & Ratio Filters */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+                  {/* Search input */}
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Cari proyek carousel di folder tim..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full pl-9 pr-8 py-2 rounded-xl text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                        isDark
+                          ? 'bg-zinc-900/90 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500'
+                          : 'bg-white border border-slate-200 text-slate-800 placeholder:text-slate-400 shadow-2xs'
+                      }`}
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 p-0.5 rounded cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Ratio Filter Pills */}
+                  <div className={`flex items-center gap-1 p-1 rounded-xl border shrink-0 ${
+                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-slate-100 border-slate-200'
+                  }`}>
+                    {(['All', '4:5', '9:16', '1:1'] as const).map((ratio) => (
+                      <button
+                        key={ratio}
+                        type="button"
+                        onClick={() => setSelectedRatioFilter(ratio)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          selectedRatioFilter === ratio
+                            ? isDark
+                              ? 'bg-zinc-800 text-blue-400 shadow-xs'
+                              : 'bg-white text-blue-600 shadow-xs'
+                            : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        {ratio === 'All' ? 'Semua' : ratio}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Grid / List Layout Switcher */}
+                  <div className={`hidden sm:flex items-center gap-1 p-1 rounded-xl border shrink-0 ${
+                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-slate-100 border-slate-200'
+                  }`}>
+                    <button
+                      type="button"
+                      onClick={() => setViewLayout('grid')}
+                      title="Tampilan Grid"
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        viewLayout === 'grid'
+                          ? isDark
+                            ? 'bg-zinc-800 text-blue-400'
+                            : 'bg-white text-blue-600 shadow-2xs'
+                          : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewLayout('list')}
+                      title="Tampilan List"
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        viewLayout === 'list'
+                          ? isDark
+                            ? 'bg-zinc-800 text-blue-400'
+                            : 'bg-white text-blue-600 shadow-2xs'
+                          : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <LayoutList className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Right Action Buttons */}
+                <div className="flex items-center gap-2.5 shrink-0">
                   <button
                     type="button"
                     onClick={handleShareCurrentProjectToTeam}
                     title="Simpan carousel yang saat ini aktif di canvas ke folder ini"
-                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
                       isDark
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        : 'bg-[#5E887E] hover:bg-[#4E736A] text-white'
+                        ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700 text-emerald-400'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-emerald-700 shadow-2xs'
                     }`}
                   >
-                    <Share2 className="w-3.5 h-3.5" />
+                    <Share2 className="w-3.5 h-3.5 text-emerald-500" />
                     <span>Bagikan Project Aktif ke Tim</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleCreateNewBlankProjectInTeam}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                      isDark
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-[#2F3E46] hover:bg-[#5E887E] text-white'
-                    }`}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-102 cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-4 h-4" />
                     <span>+ Buat Proyek Baru</span>
                   </button>
                 </div>
               </div>
 
-              {/* Projects Grid Cards */}
+              {/* Projects Grid / List Area */}
               {filteredProjects.length === 0 ? (
-                <div className={`p-12 rounded-2xl border-2 border-dashed text-center space-y-4 ${
-                  isDark
-                    ? 'border-zinc-800 bg-[#0A1A2F]/30'
-                    : 'border-[#DFE6E4] bg-white'
-                }`}>
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
+                <div
+                  className={`py-16 px-6 rounded-3xl border-2 border-dashed text-center space-y-4 ${
                     isDark
-                      ? 'bg-blue-950/40 text-blue-400'
-                      : 'bg-[#5E887E]/10 text-[#5E887E]'
-                  }`}>
-                    <FolderOpen className="w-6 h-6" />
+                      ? 'border-zinc-800/80 bg-[#0A1A2F]/40'
+                      : 'border-slate-200 bg-white shadow-xs'
+                  }`}
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto shadow-sm">
+                    <FolderOpen className="w-7 h-7" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className={`text-sm font-bold ${
-                      isDark ? 'text-white' : 'text-[#2F3E46]'
-                    }`}>
-                      Belum ada proyek di folder ini
+                    <h3 className="text-base font-bold">
+                      {searchQuery ? 'Tidak ada proyek yang cocok' : 'Belum ada proyek di folder ini'}
                     </h3>
-                    <p className={`text-xs max-w-md mx-auto ${
-                      isDark ? 'text-slate-400' : 'text-[#8E9F9B]'
-                    }`}>
-                      Bagikan proyek carousel yang sedang Anda kerjakan di kanvas, atau buat proyek baru untuk mulai berkolaborasi dengan rekan setim.
+                    <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                      {searchQuery
+                        ? `Tidak ditemukan proyek tim dengan kata kunci "${searchQuery}". Coba kata kunci lain.`
+                        : 'Bagikan proyek carousel yang sedang Anda kerjakan di kanvas atau buat proyek baru untuk mulai berkolaborasi.'}
                     </p>
                   </div>
-                  <div className="flex items-center justify-center gap-2 pt-1">
+                  <div className="flex items-center justify-center gap-3 pt-2">
                     <button
                       type="button"
                       onClick={handleShareCurrentProjectToTeam}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                        isDark
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                          : 'bg-[#5E887E] hover:bg-[#4E736A] text-white'
-                      }`}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
                     >
-                      <Share2 className="w-4 h-4" />
-                      <span>Bagikan Project Aktif Sekarang</span>
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Bagikan Proyek Aktif Sekarang</span>
                     </button>
                     <button
                       type="button"
                       onClick={handleCreateNewBlankProjectInTeam}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                        isDark
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-[#2F3E46] hover:bg-[#5E887E] text-white'
-                      }`}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
                     >
-                      <Plus className="w-4 h-4" />
-                      <span>Buat Dokumen Baru</span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Buat Proyek Baru</span>
                     </button>
                   </div>
                 </div>
+              ) : viewLayout === 'grid' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {filteredProjects.map((proj) => {
+                    let parsed: any = null;
+                    try {
+                      parsed = JSON.parse(proj.projectJson);
+                    } catch {}
+
+                    const ratioKey = (proj.aspectRatio as AspectRatioKey) || '4:5';
+                    const ratioConfig = ASPECT_RATIOS[ratioKey] || ASPECT_RATIOS['4:5'];
+                    const firstSlide = parsed?.slides?.[0];
+                    const theme =
+                      THEME_PALETTES.find((t) => t.id === parsed?.activeThemeId) ||
+                      THEME_PALETTES[0];
+                    const branding = parsed?.branding || DEFAULT_TEAM_BRAND_KIT;
+                    const previewScale = ratioKey === '9:16' ? 0.22 : 0.24;
+
+                    return (
+                      <div
+                        key={proj.id}
+                        onClick={() => handleLoadTeamProject(proj)}
+                        className={`group rounded-2xl border transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-lg hover:-translate-y-0.5 ${
+                          isDark
+                            ? 'border-zinc-800 bg-[#0A1A2F]/80 hover:border-blue-500/70 hover:bg-[#0A1A2F]'
+                            : 'border-slate-200 bg-white hover:border-blue-400'
+                        }`}
+                      >
+                        {/* Visual Cover Preview Header */}
+                        <div className="relative w-full h-48 bg-zinc-950 flex items-center justify-center overflow-hidden border-b border-zinc-200/50 dark:border-zinc-800/80">
+                          {firstSlide ? (
+                            <div
+                              style={{
+                                width: `${Math.round(ratioConfig.stageWidth * previewScale)}px`,
+                                height: `${Math.round(ratioConfig.stageHeight * previewScale)}px`,
+                              }}
+                              className="relative overflow-hidden rounded shadow-lg pointer-events-none transform transition-transform group-hover:scale-105"
+                            >
+                              <SlideStage
+                                slide={firstSlide}
+                                slideIndex={0}
+                                totalSlides={parsed?.slides?.length || proj.slideCount}
+                                aspectRatio={ratioKey}
+                                theme={theme}
+                                branding={branding}
+                                scale={previewScale}
+                                interactive={false}
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-zinc-800/60 to-zinc-950">
+                              <FolderOpen className="w-8 h-8 text-zinc-500 mb-2 opacity-50" />
+                              <span className="text-[11px] text-zinc-400 font-medium">
+                                Pratinjau Slide
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Hover Action Overlay */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-2xs">
+                            <span className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md">
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Buka di Studio</span>
+                            </span>
+                          </div>
+
+                          {/* Top Badges */}
+                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white border border-white/10 uppercase">
+                              {proj.aspectRatio}
+                            </span>
+                          </div>
+                          <div className="absolute top-2.5 right-2.5">
+                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-zinc-200 border border-white/10">
+                              {proj.slideCount} Slide
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card Info Details */}
+                        <div className="p-4 space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4
+                              className={`text-xs font-bold line-clamp-1 group-hover:text-blue-500 transition-colors ${
+                                isDark ? 'text-white' : 'text-slate-800'
+                              }`}
+                            >
+                              {proj.title}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTeamProject(proj.id, proj.title);
+                              }}
+                              className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
+                              title="Hapus proyek tim"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/60">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="w-4 h-4 rounded-full bg-blue-600/30 text-blue-500 flex items-center justify-center font-bold text-[9px] shrink-0">
+                                {proj.lastEditedBy
+                                  ? proj.lastEditedBy.charAt(0).toUpperCase()
+                                  : 'M'}
+                              </div>
+                              <span className="truncate">{proj.lastEditedBy || 'Member'}</span>
+                            </div>
+                            <span className="shrink-0 text-[10px] text-zinc-500">
+                              {formatRelativeTime(proj.lastEditedAt)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                /* List View */
+                <div className="space-y-2.5">
                   {filteredProjects.map((proj) => (
                     <div
                       key={proj.id}
-                      className={`rounded-2xl border transition-all flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
+                      onClick={() => handleLoadTeamProject(proj)}
+                      className={`group p-3.5 rounded-xl border flex items-center justify-between gap-4 transition-all cursor-pointer ${
                         isDark
-                          ? 'border-zinc-800 bg-[#0A1A2F]/90 hover:border-blue-500'
-                          : 'border-[#DFE6E4] bg-white hover:border-[#5E887E]/60'
+                          ? 'border-zinc-800 bg-[#0A1A2F]/80 hover:border-blue-500/70 hover:bg-zinc-900'
+                          : 'border-slate-200 bg-white hover:border-blue-400 shadow-2xs'
                       }`}
                     >
-                      <div className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className={`text-xs font-bold line-clamp-1 ${
-                            isDark ? 'text-white' : 'text-[#2F3E46]'
-                          }`}>
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-500/20">
+                          <FolderOpen className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                              {proj.aspectRatio}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-medium">
+                              {proj.slideCount} Slide
+                            </span>
+                          </div>
+                          <h4
+                            className={`text-xs font-bold truncate group-hover:text-blue-500 transition-colors ${
+                              isDark ? 'text-white' : 'text-slate-800'
+                            }`}
+                          >
                             {proj.title}
                           </h4>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
-                            isDark
-                              ? 'bg-zinc-800 text-zinc-300'
-                              : 'bg-[#F7FAF9] text-[#2F3E46] border border-[#DFE6E4]'
-                          }`}>
-                            {proj.aspectRatio}
-                          </span>
-                        </div>
-
-                        <div className={`flex items-center gap-2 text-[11px] ${
-                          isDark ? 'text-slate-400' : 'text-[#8E9F9B]'
-                        }`}>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-[#5E887E]" />
-                            <span>
-                              {new Date(proj.lastEditedAt).toLocaleDateString('id-ID', {
-                                day: 'numeric',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </span>
-                          <span>•</span>
-                          <span>{proj.slideCount} Slide</span>
-                        </div>
-
-                        <div className={`p-2.5 rounded-lg border text-[11.5px] ${
-                          isDark
-                            ? 'bg-zinc-900/60 border-zinc-800 text-slate-300'
-                            : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#556B65]'
-                        }`}>
-                          <span>Terakhir diedit oleh: </span>
-                          <strong className={isDark ? 'text-white' : 'text-[#2F3E46]'}>
-                            {proj.lastEditedBy}
-                          </strong>
                         </div>
                       </div>
 
-                      <div className={`p-3 border-t flex items-center justify-between gap-2 ${
-                        isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-[#F7FAF9] border-[#DFE6E4]'
-                      }`}>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <div className="text-right text-[11px] text-zinc-400 hidden sm:block">
+                          <div>
+                            Oleh <strong className={isDark ? 'text-zinc-200' : 'text-zinc-700'}>{proj.lastEditedBy}</strong>
+                          </div>
+                          <div className="text-[10px] text-zinc-500">
+                            {formatRelativeTime(proj.lastEditedAt)}
+                          </div>
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => handleLoadTeamProject(proj)}
-                          className={`flex-1 py-1.5 px-3 rounded-lg text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
-                            isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#2F3E46] hover:bg-[#5E887E]'
-                          }`}
+                          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
-                          <span>Buka & Edit di Studio</span>
+                          <span>Buka</span>
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => handleDeleteTeamProject(proj.id, proj.title)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                            isDark
-                              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
-                              : 'text-[#8E9F9B] hover:text-rose-600 hover:bg-rose-50'
-                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTeamProject(proj.id, proj.title);
+                          }}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
                           title="Hapus proyek tim"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1003,9 +1141,9 @@ export const TeamWorkspacePage: React.FC = () => {
           )}
 
           {/* ========================================================
-              VIEW 2: BRAND KIT & STYLE GUIDE TIM (TAHAP 2)
+              VIEW 2: BRAND KIT & STYLE GUIDE TIM
              ======================================================== */}
-          {folderTab === 'brand-kit' && (
+          {activeTab === 'brand-kit' && (
             <div className="space-y-6">
               
               {/* Brand Kit Quick Action Header */}
@@ -1449,205 +1587,96 @@ export const TeamWorkspacePage: React.FC = () => {
             </div>
           )}
 
-        </main>
-
-        {/* ========================================================
-            RIGHT COLUMN: DEDICATED MEMBER LIST & PERMISSIONS
-           ======================================================== */}
-        <aside className={`w-80 lg:w-96 border-l flex flex-col shrink-0 select-none overflow-y-auto ${
-          isDark
-            ? 'bg-[#0A1A2F]/95 border-zinc-800 text-slate-100'
-            : 'bg-white border-[#DFE6E4] text-[#2F3E46] shadow-xs'
-        }`}>
-          
-          {/* Header Member Panel */}
-          <div className={`p-4 border-b flex items-center justify-between ${
-            isDark
-              ? 'bg-zinc-900/50 border-zinc-800'
-              : 'bg-[#F7FAF9] border-[#DFE6E4]'
-          }`}>
-            <div className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isDark ? 'bg-blue-600/10 text-blue-400' : 'bg-[#5E887E]/10 text-[#5E887E]'
-              }`}>
-                <Users className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className={`text-xs font-bold ${
-                  isDark ? 'text-white' : 'text-[#2F3E46]'
-                }`}>
-                  Anggota Tim ({currentTeam?.members.length || 0})
-                </h3>
-                <p className={`text-[10.5px] ${
-                  isDark ? 'text-slate-400' : 'text-[#8E9F9B]'
-                }`}>
-                  Folder: {currentTeam?.name}
-                </p>
-              </div>
-            </div>
-
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-              isDark
-                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
-                : 'bg-[#E3EDE9] text-[#2F3E46] border-[#5E887E]/30'
-            }`}>
-              Akses Tim
-            </span>
-          </div>
-
-          <div className="p-4 space-y-6">
-            
-            {/* 1. FORM INVITE MEMBER */}
-            <div className={`p-3.5 rounded-xl border space-y-3 ${
-              isDark
-                ? 'bg-zinc-900/40 border-zinc-800'
-                : 'bg-[#F7FAF9] border-[#DFE6E4]'
-            }`}>
-              <div className={`flex items-center gap-1.5 text-xs font-bold ${
-                isDark ? 'text-white' : 'text-[#2F3E46]'
-              }`}>
-                <UserPlus className="w-4 h-4 text-[#5E887E]" />
-                <span>Undang / Tambah Rekan Kerja</span>
-              </div>
-
-              <form onSubmit={handleInviteMember} className="space-y-2.5">
+          {/* ========================================================
+              VIEW 3: ANGGOTA TIM & HAK AKSES
+             ======================================================== */}
+          {activeTab === 'members' && (
+            <div className="max-w-5xl mx-auto space-y-6">
+              {/* Header Banner */}
+              <div
+                className={`p-6 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                  isDark
+                    ? 'bg-[#0A1A2F]/90 border-zinc-800'
+                    : 'bg-white border-slate-200 shadow-xs'
+                }`}
+              >
                 <div>
-                  <input
-                    type="text"
-                    placeholder="Nama Rekan / Panggilan..."
-                    value={newMemberName}
-                    onChange={(e) => setNewMemberName(e.target.value)}
-                    className={`w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#5E887E] ${
-                      isDark
-                        ? 'bg-zinc-950 border-zinc-700 text-white placeholder-zinc-500'
-                        : 'bg-white border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
-                    }`}
-                  />
+                  <h3 className="text-base font-bold flex items-center gap-2">
+                    <span>Anggota Ruang Kerja</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/10 text-blue-500">
+                      {currentTeam?.members?.length || 0} Member
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Folder: <strong className={isDark ? 'text-zinc-200' : 'text-zinc-700'}>{currentTeam?.name}</strong> • Kelola izin akses kolaborator proyek bersama tim.
+                  </p>
                 </div>
 
-                <div>
-                  <input
-                    type="email"
-                    placeholder="Email rekan (cth: tim@agensi.com)..."
-                    value={newMemberEmail}
-                    onChange={(e) => setNewMemberEmail(e.target.value)}
-                    className={`w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#5E887E] ${
-                      isDark
-                        ? 'bg-zinc-950 border-zinc-700 text-white placeholder-zinc-500'
-                        : 'bg-white border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
-                    }`}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <select
-                    value={newMemberRole}
-                    onChange={(e) => setNewMemberRole(e.target.value as TeamRole)}
-                    className={`flex-1 px-2.5 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#5E887E] cursor-pointer ${
-                      isDark
-                        ? 'bg-zinc-950 border-zinc-700 text-slate-200'
-                        : 'bg-white border-[#DFE6E4] text-[#2F3E46]'
-                    }`}
-                  >
-                    <option value="editor">Editor (Bisa Edit)</option>
-                    <option value="viewer">Viewer (Reviewer)</option>
-                    <option value="owner">Co-Owner</option>
-                  </select>
-
-                  <button
-                    type="submit"
-                    disabled={isInviting}
-                    className={`px-3.5 py-1.5 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-60 ${
-                      isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#2F3E46] hover:bg-[#5E887E]'
-                    }`}
-                  >
-                    {isInviting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    <span>{isInviting ? 'Menambahkan...' : 'Tambah'}</span>
-                  </button>
-                </div>
-
-                {inviteError && (
-                  <p className="text-[11px] text-rose-600 font-medium">{inviteError}</p>
-                )}
-                {inviteSuccess && (
-                  <p className="text-[11px] text-emerald-600 font-medium">{inviteSuccess}</p>
-                )}
-              </form>
-            </div>
-
-            {/* 2. DAFTAR MEMBER LIST */}
-            <div className="space-y-2.5">
-              <div className={`flex items-center justify-between text-xs px-1 ${
-                isDark ? 'text-slate-400' : 'text-[#8E9F9B]'
-              }`}>
-                <span className="font-bold uppercase tracking-wider text-[10.5px]">Daftar Member</span>
-                <span className="text-[10.5px]">Peran</span>
+                <button
+                  type="button"
+                  onClick={() => setIsInviteModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all hover:scale-102"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>+ Undang Anggota Baru</span>
+                </button>
               </div>
 
-              <div className={`divide-y rounded-xl border overflow-hidden shadow-xs ${
-                isDark
-                  ? 'divide-zinc-800 border-zinc-800 bg-zinc-900/30'
-                  : 'divide-[#DFE6E4] border-[#DFE6E4] bg-white'
-              }`}>
+              {/* Members List Table / Cards */}
+              <div
+                className={`rounded-2xl border overflow-hidden ${
+                  isDark
+                    ? 'border-zinc-800 bg-[#0A1A2F]/90 divide-y divide-zinc-800'
+                    : 'border-slate-200 bg-white divide-y divide-slate-100 shadow-xs'
+                }`}
+              >
                 {currentTeam?.members.map((member) => (
                   <div
                     key={member.id}
-                    className={`p-3 flex items-center justify-between gap-3 transition-colors ${
-                      isDark ? 'hover:bg-zinc-900/50' : 'hover:bg-[#F7FAF9]'
-                    }`}
+                    className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-xs"
-                        style={{ backgroundColor: member.avatarColor || '#5E887E' }}
+                        className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white shrink-0 shadow-xs"
+                        style={{ backgroundColor: member.avatarColor || '#3B82F6' }}
                       >
                         {member.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-xs font-bold truncate ${
-                            isDark ? 'text-white' : 'text-[#2F3E46]'
-                          }`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-800'}`}>
                             {member.name}
                           </span>
                           {member.isCurrentUser && (
-                            <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-semibold font-mono ${
-                              isDark ? 'bg-blue-900/50 text-blue-300' : 'bg-[#FAF2F3] text-[#2F3E46] border border-[#EBAEB3]'
-                            }`}>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20 font-mono">
                               Anda
                             </span>
                           )}
                         </div>
-                        <span className={`text-[10.5px] truncate block ${
-                          isDark ? 'text-slate-400' : 'text-[#8E9F9B]'
-                        }`}>
+                        <span className="text-xs text-zinc-400 truncate block">
                           {member.email}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
                       {member.role === 'owner' ? (
-                        <span className={`px-2 py-0.5 rounded text-[10.5px] font-semibold border flex items-center gap-1 ${
-                          isDark
-                            ? 'bg-amber-950/60 text-amber-300 border-amber-800'
-                            : 'bg-[#F6F7F3] text-[#2F3E46] border-[#849673]'
-                        }`}>
-                          <Crown className="w-3 h-3 text-[#5E887E]" />
+                        <span className="px-3 py-1 rounded-lg text-xs font-bold border border-amber-500/30 bg-amber-500/10 text-amber-500 flex items-center gap-1.5">
+                          <Crown className="w-3.5 h-3.5" />
                           <span>Owner</span>
                         </span>
                       ) : (
                         <select
                           value={member.role}
                           onChange={(e) => handleRoleChange(member.id, e.target.value as TeamRole)}
-                          className={`px-2 py-1 rounded text-xs font-medium border focus:outline-none focus:border-[#5E887E] cursor-pointer ${
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer ${
                             isDark
-                              ? 'bg-zinc-950 border-zinc-800 text-slate-300'
-                              : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#2F3E46]'
+                              ? 'bg-zinc-900 border-zinc-700 text-zinc-200'
+                              : 'bg-slate-50 border-slate-200 text-slate-800'
                           }`}
                         >
-                          <option value="editor">Editor</option>
-                          <option value="viewer">Viewer</option>
+                          <option value="editor">Editor (Bisa Edit)</option>
+                          <option value="viewer">Viewer (Hanya Lihat)</option>
                           <option value="owner">Owner</option>
                         </select>
                       )}
@@ -1656,134 +1685,346 @@ export const TeamWorkspacePage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleRemoveMember(member.id, member.name)}
+                          className="p-2 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
                           title="Hapus dari tim"
-                          className={`p-1 rounded transition-colors cursor-pointer ${
-                            isDark
-                              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
-                              : 'text-[#8E9F9B] hover:text-rose-600 hover:bg-rose-50'
-                          }`}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* 3. ROLES GUIDE */}
-            <div className={`p-3.5 rounded-xl border space-y-2 text-xs ${
-              isDark
-                ? 'bg-zinc-900/20 border-zinc-800'
-                : 'bg-[#F7FAF9] border-[#DFE6E4]'
-            }`}>
-              <span className={`font-bold uppercase tracking-wider text-[10px] block ${
-                isDark ? 'text-slate-400' : 'text-[#556B65]'
-              }`}>
-                Tingkat Hak Akses
-              </span>
-              
-              <div className="space-y-1.5 text-[11px]">
-                <div className="flex items-start gap-1.5 text-amber-700">
-                  <Crown className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Owner</strong>: Kontrol penuh folder, anggota tim, dan seluruh project.
+              {/* Roles Guide & Identity Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Roles Guide */}
+                <div
+                  className={`p-5 rounded-2xl border space-y-3 ${
+                    isDark ? 'bg-[#0A1A2F]/90 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+                  }`}
+                >
+                  <span className="font-bold text-xs uppercase tracking-wider text-zinc-400 block">
+                    Panduan Tingkat Hak Akses
+                  </span>
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <Crown className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <strong className="text-amber-500">Owner:</strong> Kontrol penuh ruang kerja, pengelolaan anggota, brand kit, dan penghapusan proyek tim.
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <strong className="text-blue-500">Editor:</strong> Dapat membuka kanvas, mengedit slide, mendesain, dan membagikan revisi ke folder tim.
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <Eye className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <strong className="text-emerald-500">Viewer:</strong> Hanya dapat meninjau pratinjau carousel dan mengunduh ekspor HD tanpa mengubah kanvas.
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-1.5 text-blue-700">
-                  <Edit3 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Editor</strong>: Bisa membuka kanvas, mengedit slide, dan menyimpan perubahan.
+                {/* Identity Form */}
+                <form
+                  onSubmit={handleSaveProfile}
+                  className={`p-5 rounded-2xl border space-y-3.5 ${
+                    isDark ? 'bg-[#0A1A2F]/90 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-blue-500" />
+                    <span className="font-bold text-xs">Identitas Kolaborator Anda</span>
                   </div>
-                </div>
+                  <p className="text-xs text-zinc-400">
+                    Nama dan email ini akan tercatat di riwayat edit saat Anda menyimpan carousel tim.
+                  </p>
 
-                <div className="flex items-start gap-1.5 text-emerald-700">
-                  <Eye className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Viewer</strong>: Hanya melihat pratinjau carousel dan ekspor HD tanpa mengubah desain.
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">
+                        Nama Tampilan
+                      </label>
+                      <input
+                        type="text"
+                        value={userProfile.name}
+                        onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
+                        className={`w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                          isDark
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-200 text-slate-800'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">
+                        Email Anda
+                      </label>
+                      <input
+                        type="email"
+                        value={userProfile.email}
+                        onChange={(e) => setUserProfile({ ...userProfile, email: e.target.value })}
+                        className={`w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                          isDark
+                            ? 'bg-zinc-900 border-zinc-700 text-white'
+                            : 'bg-slate-50 border-slate-200 text-slate-800'
+                        }`}
+                      />
+                    </div>
                   </div>
-                </div>
+
+                  <div className="pt-1 flex items-center justify-between">
+                    {profileSaved ? (
+                      <span className="text-xs text-emerald-500 flex items-center gap-1 font-semibold">
+                        <Check className="w-3.5 h-3.5" /> Tersimpan!
+                      </span>
+                    ) : <span />}
+
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                    >
+                      Simpan Profil
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
+          )}
 
-            {/* 4. IDENTITAS SAYA */}
-            <form onSubmit={handleSaveProfile} className={`p-3.5 rounded-xl border space-y-2.5 ${
+        </div>
+      </div>
+
+      {/* ========================================================
+          3. INVITE MEMBER MODAL
+         ======================================================== */}
+      {isInviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-2xl p-6 shadow-2xl border transition-all animate-in zoom-in-95 duration-150 ${
               isDark
-                ? 'bg-zinc-900/40 border-zinc-800'
-                : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className={`flex items-center gap-1.5 text-xs font-bold ${
-                isDark ? 'text-white' : 'text-slate-900'
-              }`}>
-                <Shield className="w-4 h-4 text-blue-600" />
-                <span>Identitas Kolaborator Anda</span>
+                ? 'bg-[#0A1A2F] border-zinc-800 text-slate-100'
+                : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200/50 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">Undang Rekan Kerja</h3>
+                  <p className="text-[11px] text-zinc-400">Folder: {currentTeam?.name}</p>
+                </div>
               </div>
-              <p className={`text-[10.5px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Nama ini akan tercatat di riwayat edit saat Anda membagikan carousel ke tim.
-              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsInviteModalOpen(false);
+                  setInviteError(null);
+                  setInviteSuccess(null);
+                }}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
+            <form onSubmit={handleInviteMember} className="mt-4 space-y-3.5">
               <div>
-                <label className={`text-[10.5px] block mb-1 ${
-                  isDark ? 'text-slate-400' : 'text-slate-500'
-                }`}>
-                  Nama Tampilan
+                <label className="text-[11px] font-bold block mb-1 text-zinc-400">
+                  Nama Rekan Kerja
                 </label>
                 <input
                   type="text"
-                  value={userProfile.name}
-                  onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
-                  className={`w-full px-2.5 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                  placeholder="Nama Lengkap / Panggilan..."
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
                     isDark
-                      ? 'bg-zinc-950 border-zinc-700 text-white'
-                      : 'bg-white border-slate-300 text-slate-900'
+                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                  }`}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold block mb-1 text-zinc-400">
+                  Alamat Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="tim@agensi.com..."
+                  value={newMemberEmail}
+                  onChange={(e) => setNewMemberEmail(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
                   }`}
                 />
               </div>
 
               <div>
-                <label className={`text-[10.5px] block mb-1 ${
-                  isDark ? 'text-slate-400' : 'text-slate-500'
-                }`}>
-                  Email Anda
+                <label className="text-[11px] font-bold block mb-1 text-zinc-400">
+                  Peran & Hak Akses
+                </label>
+                <select
+                  value={newMemberRole}
+                  onChange={(e) => setNewMemberRole(e.target.value as TeamRole)}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-white'
+                      : 'bg-slate-50 border-slate-200 text-slate-900'
+                  }`}
+                >
+                  <option value="editor">Editor (Bisa membuat dan mengedit slide)</option>
+                  <option value="viewer">Viewer (Hanya melihat dan ekspor HD)</option>
+                  <option value="owner">Co-Owner (Kontrol penuh tim)</option>
+                </select>
+              </div>
+
+              {inviteError && (
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-xs">
+                  {inviteError}
+                </div>
+              )}
+              {inviteSuccess && (
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs">
+                  {inviteSuccess}
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsInviteModalOpen(false)}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${
+                    isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isInviting}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  {isInviting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isInviting ? 'Mengirim...' : 'Kirim Undangan'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          4. CREATE TEAM WORKSPACE MODAL
+         ======================================================== */}
+      {isCreateTeamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-2xl p-6 shadow-2xl border transition-all animate-in zoom-in-95 duration-150 ${
+              isDark
+                ? 'bg-[#0A1A2F] border-zinc-800 text-slate-100'
+                : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200/50 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <FolderPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">Buat Ruang Kerja Tim Baru</h3>
+                  <p className="text-[11px] text-zinc-400">Kelola proyek bersama dan Brand Kit resmi</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateTeamModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                await handleCreateTeam(e);
+                setIsCreateTeamModalOpen(false);
+              }}
+              className="mt-4 space-y-3.5"
+            >
+              <div>
+                <label className="text-[11px] font-bold block mb-1 text-zinc-400">
+                  Nama Ruang Kerja / Tim
                 </label>
                 <input
-                  type="email"
-                  value={userProfile.email}
-                  onChange={(e) => setUserProfile({ ...userProfile, email: e.target.value })}
-                  className={`w-full px-2.5 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                  type="text"
+                  placeholder="Cth: Creative Agency, Klien XYZ, Marketing..."
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
                     isDark
-                      ? 'bg-zinc-950 border-zinc-700 text-white'
-                      : 'bg-white border-slate-300 text-slate-900'
+                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                  }`}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold block mb-1 text-zinc-400">
+                  Deskripsi Singkat (Opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ruang kerja untuk desain carousel..."
+                  value={newTeamDesc}
+                  onChange={(e) => setNewTeamDesc(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
                   }`}
                 />
               </div>
 
-              <div className="pt-1 flex items-center justify-between">
-                {profileSaved ? (
-                  <span className="text-[11px] text-emerald-600 flex items-center gap-1 font-medium">
-                    <Check className="w-3.5 h-3.5" /> Tersimpan
-                  </span>
-                ) : <span />}
-
+              <div className="pt-2 flex items-center justify-end gap-2">
                 <button
-                  type="submit"
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-xs ${
-                    isDark
-                      ? 'bg-zinc-800 hover:bg-zinc-700 text-white'
-                      : 'bg-slate-800 hover:bg-slate-900 text-white'
+                  type="button"
+                  onClick={() => setIsCreateTeamModalOpen(false)}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${
+                    isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
                   }`}
                 >
-                  Simpan Profil
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                >
+                  Buat Ruang Kerja
                 </button>
               </div>
             </form>
-
           </div>
-        </aside>
-
-      </div>
+        </div>
+      )}
 
       {/* Custom Dialog Modal (Replaces browser alert/confirm) */}
       {dialogModal && dialogModal.isOpen && (
