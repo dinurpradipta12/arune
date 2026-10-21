@@ -55,6 +55,8 @@ export const TeamWorkspacePage: React.FC = () => {
     openBlankDocumentTab,
   } = useStudioStore();
 
+  const isDark = workspaceDarkMode;
+
   const [teams, setTeams] = useState<TeamWorkspace[]>([]);
   const [activeTeamId, setCurrentActiveTeamId] = useState<string | null>(null);
 
@@ -224,34 +226,54 @@ export const TeamWorkspacePage: React.FC = () => {
   }, [teamProjects, searchQuery]);
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-[#071322] text-slate-900 dark:text-slate-100 transition-colors select-none">
+    <div
+      className={`h-screen w-screen flex flex-col overflow-hidden select-none transition-colors duration-200 ${
+        isDark
+          ? 'studio-theme-dark bg-[#071322] text-slate-100'
+          : 'studio-theme-light bg-[#F8FAFC] text-slate-900'
+      }`}
+    >
       
-      {/* TOP NAVBAR */}
+      {/* ========================================================
+          TOP NAVBAR
+         ======================================================== */}
       <header
-        className={`h-14 border-b border-slate-200 dark:border-zinc-800 bg-white/90 dark:bg-[#0A1A2F]/90 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 z-30 shrink-0 mac-drag-region ${
-          isElectronMac() ? 'pl-20' : ''
-        }`}
+        className={`h-14 border-b flex items-center justify-between px-4 sm:px-6 z-30 shrink-0 mac-drag-region ${
+          isDark
+            ? 'bg-[#0A1A2F]/90 border-zinc-800'
+            : 'bg-white border-slate-200 shadow-xs'
+        } ${isElectronMac() ? 'pl-20' : ''}`}
       >
         <div className="flex items-center gap-3 mac-no-drag">
           <button
             type="button"
             onClick={() => setActiveView('gallery')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-all cursor-pointer shadow-xs"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-xs ${
+              isDark
+                ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-slate-200 hover:text-blue-400'
+                : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700 hover:text-blue-600'
+            }`}
           >
-            <Home className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <Home className="w-3.5 h-3.5 text-blue-600" />
             <span>Home</span>
           </button>
 
-          <span className="text-slate-300 dark:text-zinc-700">|</span>
+          <span className={isDark ? 'text-zinc-700' : 'text-slate-300'}>|</span>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center">
               <Briefcase className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+              <h1 className={`text-sm font-bold tracking-tight flex items-center gap-2 ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}>
                 Team Workspace & Folder
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  isDark
+                    ? 'bg-blue-900/60 text-blue-300 border-blue-800/80'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}>
                   Folder & Proyek
                 </span>
               </h1>
@@ -263,9 +285,13 @@ export const TeamWorkspacePage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveView('editor')}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ${
+              isDark
+                ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-slate-200 hover:text-blue-400'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 hover:text-blue-600'
+            }`}
           >
-            <Sliders className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <Sliders className="w-3.5 h-3.5 text-blue-600" />
             <span className="hidden sm:inline">Buka Studio Editor</span>
           </button>
 
@@ -273,14 +299,20 @@ export const TeamWorkspacePage: React.FC = () => {
             type="button"
             onClick={() => setWorkspaceDarkMode(!workspaceDarkMode)}
             title="Toggle Dark / Light Mode"
-            className="p-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+              isDark
+                ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
+                : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900'
+            }`}
           >
             {workspaceDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
       </header>
 
-      {/* MAIN TWO-COLUMN WORKSPACE BODY */}
+      {/* ========================================================
+          MAIN TWO-COLUMN WORKSPACE BODY
+         ======================================================== */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
         
         {/* ========================================================
@@ -292,10 +324,12 @@ export const TeamWorkspacePage: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xs uppercase tracking-wider font-bold text-slate-500 dark:text-slate-400">
+                <h2 className={`text-xs uppercase tracking-wider font-bold ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}>
                   Folder Tiap Team ({teams.length})
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   Pilih folder tim untuk melihat proyek dan rekan kerja yang tergabung di dalamnya.
                 </p>
               </div>
@@ -303,7 +337,7 @@ export const TeamWorkspacePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsCreatingTeam(!isCreatingTeam)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
               >
                 <FolderPlus className="w-3.5 h-3.5" />
                 <span>+ Buat Folder Tim</span>
@@ -314,14 +348,22 @@ export const TeamWorkspacePage: React.FC = () => {
             {isCreatingTeam && (
               <form
                 onSubmit={handleCreateTeam}
-                className="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-slide-down"
+                className={`p-4 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-slide-down ${
+                  isDark
+                    ? 'border-blue-900/60 bg-blue-950/30'
+                    : 'border-blue-200 bg-blue-50/70'
+                }`}
               >
                 <input
                   type="text"
                   placeholder="Nama Folder Tim (cth: Creative Agency, Klien XYZ)..."
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    isDark
+                      ? 'bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400'
+                  }`}
                   autoFocus
                 />
                 <input
@@ -329,7 +371,11 @@ export const TeamWorkspacePage: React.FC = () => {
                   placeholder="Deskripsi singkat (opsional)..."
                   value={newTeamDesc}
                   onChange={(e) => setNewTeamDesc(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    isDark
+                      ? 'bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400'
+                  }`}
                 />
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -341,7 +387,11 @@ export const TeamWorkspacePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsCreatingTeam(false)}
-                    className="px-3 py-2 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                      isDark
+                        ? 'bg-zinc-800 hover:bg-zinc-700 text-slate-300'
+                        : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                    }`}
                   >
                     Batal
                   </button>
@@ -360,8 +410,12 @@ export const TeamWorkspacePage: React.FC = () => {
                     onClick={() => handleSelectTeam(t.id)}
                     className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
                       isActive
-                        ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/25 ring-2 ring-blue-500/20 shadow-sm'
-                        : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A1A2F]/60 hover:border-slate-300 dark:hover:border-zinc-700 shadow-xs'
+                        ? isDark
+                          ? 'border-blue-500 bg-blue-950/30 ring-2 ring-blue-500/30 shadow-sm'
+                          : 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-sm'
+                        : isDark
+                          ? 'border-zinc-800 bg-[#0A1A2F]/70 hover:border-zinc-700 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-slate-300 shadow-xs'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -373,28 +427,36 @@ export const TeamWorkspacePage: React.FC = () => {
                           <FolderOpen className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          <h3 className={`text-xs font-bold truncate ${
+                            isDark ? 'text-white' : 'text-slate-900'
+                          }`}>
                             {t.name}
                           </h3>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                          <p className={`text-[11px] truncate ${
+                            isDark ? 'text-slate-400' : 'text-slate-500'
+                          }`}>
                             {t.description || 'Tidak ada deskripsi'}
                           </p>
                         </div>
                       </div>
 
                       {isActive && (
-                        <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-blue-600 text-white shrink-0">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white shrink-0">
                           Aktif
                         </span>
                       )}
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <div className={`pt-2 border-t flex items-center justify-between text-[11px] ${
+                      isDark ? 'border-zinc-800 text-slate-400' : 'border-slate-100 text-slate-500'
+                    }`}>
                       <span className="flex items-center gap-1">
                         <Users className="w-3 h-3" />
                         <span>{t.members.length} Anggota</span>
                       </span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      <span className={`font-semibold ${
+                        isDark ? 'text-slate-300' : 'text-slate-700'
+                      }`}>
                         {pCount} Proyek
                       </span>
                     </div>
@@ -406,7 +468,11 @@ export const TeamWorkspacePage: React.FC = () => {
 
           {/* 2. ACTIVE TEAM HEADER & ACTION BAR */}
           {currentTeam && (
-            <div className="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A1A2F]/90 shadow-sm space-y-4">
+            <div className={`p-5 rounded-2xl border shadow-sm space-y-4 ${
+              isDark
+                ? 'bg-[#0A1A2F]/90 border-zinc-800'
+                : 'bg-white border-slate-200'
+            }`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -414,11 +480,13 @@ export const TeamWorkspacePage: React.FC = () => {
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: currentTeam.avatarColor || '#3B82F6' }}
                     />
-                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    <h2 className={`text-base font-bold ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
                       Proyek di Folder: {currentTeam.name}
                     </h2>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     {currentTeam.description || 'Ruang kerja proyek bersama untuk anggota tim ini.'}
                   </p>
                 </div>
@@ -428,7 +496,7 @@ export const TeamWorkspacePage: React.FC = () => {
                     type="button"
                     onClick={handleShareCurrentProjectToTeam}
                     title="Simpan carousel yang saat ini aktif di canvas ke folder ini"
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Bagikan Project Aktif ke Tim</span>
@@ -437,7 +505,7 @@ export const TeamWorkspacePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleCreateNewBlankProjectInTeam}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ Buat Proyek Baru</span>
@@ -447,13 +515,19 @@ export const TeamWorkspacePage: React.FC = () => {
 
               {/* Search Bar for Projects */}
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <Search className={`w-4 h-4 absolute left-3 top-2.5 pointer-events-none ${
+                  isDark ? 'text-zinc-500' : 'text-slate-400'
+                }`} />
                 <input
                   type="text"
                   placeholder="Cari proyek carousel berdasarkan judul atau nama editor..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full pl-9 pr-4 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                  }`}
                 />
               </div>
             </div>
@@ -461,22 +535,36 @@ export const TeamWorkspacePage: React.FC = () => {
 
           {/* 3. PROJECTS GRID */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <div className={`flex items-center justify-between text-xs ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            }`}>
               <span className="font-bold uppercase tracking-wider text-[11px]">
                 Daftar Proyek Carousel ({filteredProjects.length})
               </span>
             </div>
 
             {filteredProjects.length === 0 ? (
-              <div className="p-12 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-800 bg-white/50 dark:bg-[#0A1A2F]/30 text-center space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+              <div className={`p-12 rounded-2xl border-2 border-dashed text-center space-y-4 ${
+                isDark
+                  ? 'border-zinc-800 bg-[#0A1A2F]/30'
+                  : 'border-slate-200 bg-white/70'
+              }`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
+                  isDark
+                    ? 'bg-blue-950/40 text-blue-400'
+                    : 'bg-blue-50 text-blue-600'
+                }`}>
                   <FolderOpen className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  <h3 className={`text-sm font-bold ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}>
                     Belum ada proyek di folder ini
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  <p className={`text-xs max-w-md mx-auto ${
+                    isDark ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
                     Bagikan proyek carousel yang sedang Anda kerjakan di kanvas, atau buat proyek baru untuk mulai berkolaborasi dengan rekan setim.
                   </p>
                 </div>
@@ -504,19 +592,31 @@ export const TeamWorkspacePage: React.FC = () => {
                 {filteredProjects.map((proj) => (
                   <div
                     key={proj.id}
-                    className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A1A2F]/90 hover:border-blue-400 dark:hover:border-blue-500 transition-all flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md"
+                    className={`rounded-2xl border transition-all flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
+                      isDark
+                        ? 'border-zinc-800 bg-[#0A1A2F]/90 hover:border-blue-500'
+                        : 'border-slate-200 bg-white hover:border-blue-400'
+                    }`}
                   >
                     <div className="p-4 space-y-3">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                        <h4 className={`text-xs font-bold line-clamp-1 ${
+                          isDark ? 'text-white' : 'text-slate-900'
+                        }`}>
                           {proj.title}
                         </h4>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 shrink-0">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
+                          isDark
+                            ? 'bg-zinc-800 text-zinc-300'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
                           {proj.aspectRatio}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      <div className={`flex items-center gap-2 text-[11px] ${
+                        isDark ? 'text-slate-400' : 'text-slate-500'
+                      }`}>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           <span>
@@ -532,13 +632,21 @@ export const TeamWorkspacePage: React.FC = () => {
                         <span>{proj.slideCount} Slide</span>
                       </div>
 
-                      <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800 text-[11.5px] text-slate-600 dark:text-slate-300">
+                      <div className={`p-2.5 rounded-lg border text-[11.5px] ${
+                        isDark
+                          ? 'bg-zinc-900/60 border-zinc-800 text-slate-300'
+                          : 'bg-slate-50 border-slate-100 text-slate-600'
+                      }`}>
                         <span>Terakhir diedit oleh: </span>
-                        <strong className="text-slate-900 dark:text-white">{proj.lastEditedBy}</strong>
+                        <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+                          {proj.lastEditedBy}
+                        </strong>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2">
+                    <div className={`p-3 border-t flex items-center justify-between gap-2 ${
+                      isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-slate-50 border-slate-100'
+                    }`}>
                       <button
                         type="button"
                         onClick={() => handleLoadTeamProject(proj)}
@@ -551,7 +659,11 @@ export const TeamWorkspacePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDeleteTeamProject(proj.id, proj.title)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          isDark
+                            ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
+                            : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                        }`}
                         title="Hapus proyek tim"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -569,25 +681,41 @@ export const TeamWorkspacePage: React.FC = () => {
             RIGHT COLUMN: DEDICATED MEMBER LIST & PERMISSIONS
             ("untuk membernya buat di sebelah kanan list tersendiri")
            ======================================================== */}
-        <aside className="w-80 lg:w-96 border-l border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A1A2F]/95 flex flex-col shrink-0 select-none overflow-y-auto">
+        <aside className={`w-80 lg:w-96 border-l flex flex-col shrink-0 select-none overflow-y-auto ${
+          isDark
+            ? 'bg-[#0A1A2F]/95 border-zinc-800 text-slate-100'
+            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+        }`}>
           
           {/* Header Member Panel */}
-          <div className="p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 flex items-center justify-between">
+          <div className={`p-4 border-b flex items-center justify-between ${
+            isDark
+              ? 'bg-zinc-900/50 border-zinc-800'
+              : 'bg-slate-50 border-slate-200'
+          }`}>
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
                 <Users className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white">
+                <h3 className={`text-xs font-bold ${
+                  isDark ? 'text-white' : 'text-slate-900'
+                }`}>
                   Anggota Tim ({currentTeam?.members.length || 0})
                 </h3>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                <p className={`text-[10.5px] ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}>
                   Folder: {currentTeam?.name}
                 </p>
               </div>
             </div>
 
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+              isDark
+                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}>
               Akses Tim
             </span>
           </div>
@@ -595,9 +723,15 @@ export const TeamWorkspacePage: React.FC = () => {
           <div className="p-4 space-y-6">
             
             {/* 1. FORM INVITE MEMBER */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
-                <UserPlus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <div className={`p-3.5 rounded-xl border space-y-3 ${
+              isDark
+                ? 'bg-zinc-900/40 border-zinc-800'
+                : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}>
+                <UserPlus className="w-4 h-4 text-blue-600" />
                 <span>Undang / Tambah Rekan Kerja</span>
               </div>
 
@@ -608,7 +742,11 @@ export const TeamWorkspacePage: React.FC = () => {
                     placeholder="Nama Rekan / Panggilan..."
                     value={newMemberName}
                     onChange={(e) => setNewMemberName(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={`w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      isDark
+                        ? 'bg-zinc-950 border-zinc-700 text-white placeholder-zinc-500'
+                        : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                    }`}
                   />
                 </div>
 
@@ -618,7 +756,11 @@ export const TeamWorkspacePage: React.FC = () => {
                     placeholder="Email rekan (cth: tim@agensi.com)..."
                     value={newMemberEmail}
                     onChange={(e) => setNewMemberEmail(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={`w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      isDark
+                        ? 'bg-zinc-950 border-zinc-700 text-white placeholder-zinc-500'
+                        : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                    }`}
                   />
                 </div>
 
@@ -626,7 +768,11 @@ export const TeamWorkspacePage: React.FC = () => {
                   <select
                     value={newMemberRole}
                     onChange={(e) => setNewMemberRole(e.target.value as TeamRole)}
-                    className="flex-1 px-2.5 py-1.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    className={`flex-1 px-2.5 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer ${
+                      isDark
+                        ? 'bg-zinc-950 border-zinc-700 text-slate-200'
+                        : 'bg-white border-slate-300 text-slate-800'
+                    }`}
                   >
                     <option value="editor">Editor (Bisa Edit)</option>
                     <option value="viewer">Viewer (Reviewer)</option>
@@ -635,33 +781,41 @@ export const TeamWorkspacePage: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-xs"
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-xs"
                   >
                     Tambah
                   </button>
                 </div>
 
                 {inviteError && (
-                  <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{inviteError}</p>
+                  <p className="text-[11px] text-rose-600 font-medium">{inviteError}</p>
                 )}
                 {inviteSuccess && (
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{inviteSuccess}</p>
+                  <p className="text-[11px] text-emerald-600 font-medium">{inviteSuccess}</p>
                 )}
               </form>
             </div>
 
             {/* 2. DAFTAR MEMBER LIST */}
             <div className="space-y-2.5">
-              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
+              <div className={`flex items-center justify-between text-xs px-1 ${
+                isDark ? 'text-slate-400' : 'text-slate-500'
+              }`}>
                 <span className="font-bold uppercase tracking-wider text-[10.5px]">Daftar Member</span>
                 <span className="text-[10.5px]">Peran</span>
               </div>
 
-              <div className="divide-y divide-slate-100 dark:divide-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/30 overflow-hidden shadow-xs">
+              <div className={`divide-y rounded-xl border overflow-hidden shadow-xs ${
+                isDark
+                  ? 'divide-zinc-800 border-zinc-800 bg-zinc-900/30'
+                  : 'divide-slate-100 border-slate-200 bg-white'
+              }`}>
                 {currentTeam?.members.map((member) => (
                   <div
                     key={member.id}
-                    className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition-colors"
+                    className={`p-3 flex items-center justify-between gap-3 transition-colors ${
+                      isDark ? 'hover:bg-zinc-900/50' : 'hover:bg-slate-50'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
@@ -672,16 +826,20 @@ export const TeamWorkspacePage: React.FC = () => {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          <span className={`text-xs font-bold truncate ${
+                            isDark ? 'text-white' : 'text-slate-900'
+                          }`}>
                             {member.name}
                           </span>
                           {member.isCurrentUser && (
-                            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold font-mono">
+                            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-700 font-semibold font-mono">
                               Anda
                             </span>
                           )}
                         </div>
-                        <span className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate block">
+                        <span className={`text-[10.5px] truncate block ${
+                          isDark ? 'text-slate-400' : 'text-slate-500'
+                        }`}>
                           {member.email}
                         </span>
                       </div>
@@ -689,15 +847,19 @@ export const TeamWorkspacePage: React.FC = () => {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {member.role === 'owner' ? (
-                        <span className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
-                          <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                        <span className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                          <Crown className="w-3 h-3 text-amber-600" />
                           <span>Owner</span>
                         </span>
                       ) : (
                         <select
                           value={member.role}
                           onChange={(e) => handleRoleChange(member.id, e.target.value as TeamRole)}
-                          className="px-2 py-1 rounded text-xs font-medium bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer"
+                          className={`px-2 py-1 rounded text-xs font-medium border focus:outline-none focus:border-blue-500 cursor-pointer ${
+                            isDark
+                              ? 'bg-zinc-950 border-zinc-800 text-slate-300'
+                              : 'bg-slate-50 border-slate-200 text-slate-700'
+                          }`}
                         >
                           <option value="editor">Editor</option>
                           <option value="viewer">Viewer</option>
@@ -710,7 +872,11 @@ export const TeamWorkspacePage: React.FC = () => {
                           type="button"
                           onClick={() => handleRemoveMember(member.id, member.name)}
                           title="Hapus dari tim"
-                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                          className={`p-1 rounded transition-colors cursor-pointer ${
+                            isDark
+                              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
+                              : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                          }`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -722,27 +888,33 @@ export const TeamWorkspacePage: React.FC = () => {
             </div>
 
             {/* 3. ROLES GUIDE */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/20 space-y-2 text-xs">
-              <span className="font-bold uppercase tracking-wider text-[10px] text-slate-500 dark:text-slate-400 block">
+            <div className={`p-3.5 rounded-xl border space-y-2 text-xs ${
+              isDark
+                ? 'bg-zinc-900/20 border-zinc-800'
+                : 'bg-slate-50 border-slate-200'
+            }`}>
+              <span className={`font-bold uppercase tracking-wider text-[10px] block ${
+                isDark ? 'text-slate-400' : 'text-slate-500'
+              }`}>
                 Tingkat Hak Akses
               </span>
               
               <div className="space-y-1.5 text-[11px]">
-                <div className="flex items-start gap-1.5 text-amber-700 dark:text-amber-400">
+                <div className="flex items-start gap-1.5 text-amber-700">
                   <Crown className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <div>
                     <strong>Owner</strong>: Kontrol penuh folder, anggota tim, dan seluruh project.
                   </div>
                 </div>
 
-                <div className="flex items-start gap-1.5 text-blue-700 dark:text-blue-400">
+                <div className="flex items-start gap-1.5 text-blue-700">
                   <Edit3 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <div>
                     <strong>Editor</strong>: Bisa membuka kanvas, mengedit slide, dan menyimpan perubahan.
                   </div>
                 </div>
 
-                <div className="flex items-start gap-1.5 text-emerald-700 dark:text-emerald-400">
+                <div className="flex items-start gap-1.5 text-emerald-700">
                   <Eye className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <div>
                     <strong>Viewer</strong>: Hanya melihat pratinjau carousel dan ekspor HD tanpa mengubah desain.
@@ -752,45 +924,71 @@ export const TeamWorkspacePage: React.FC = () => {
             </div>
 
             {/* 4. IDENTITAS SAYA */}
-            <form onSubmit={handleSaveProfile} className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40 space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
-                <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <form onSubmit={handleSaveProfile} className={`p-3.5 rounded-xl border space-y-2.5 ${
+              isDark
+                ? 'bg-zinc-900/40 border-zinc-800'
+                : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}>
+                <Shield className="w-4 h-4 text-blue-600" />
                 <span>Identitas Kolaborator Anda</span>
               </div>
-              <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+              <p className={`text-[10.5px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Nama ini akan tercatat di riwayat edit saat Anda membagikan carousel ke tim.
               </p>
 
               <div>
-                <label className="text-[10.5px] text-slate-500 dark:text-slate-400 block mb-1">Nama Tampilan</label>
+                <label className={`text-[10.5px] block mb-1 ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  Nama Tampilan
+                </label>
                 <input
                   type="text"
                   value={userProfile.name}
                   onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
-                  className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                    isDark
+                      ? 'bg-zinc-950 border-zinc-700 text-white'
+                      : 'bg-white border-slate-300 text-slate-900'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="text-[10.5px] text-slate-500 dark:text-slate-400 block mb-1">Email Anda</label>
+                <label className={`text-[10.5px] block mb-1 ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  Email Anda
+                </label>
                 <input
                   type="email"
                   value={userProfile.email}
                   onChange={(e) => setUserProfile({ ...userProfile, email: e.target.value })}
-                  className="w-full px-2.5 py-1.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                    isDark
+                      ? 'bg-zinc-950 border-zinc-700 text-white'
+                      : 'bg-white border-slate-300 text-slate-900'
+                  }`}
                 />
               </div>
 
               <div className="pt-1 flex items-center justify-between">
                 {profileSaved ? (
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                  <span className="text-[11px] text-emerald-600 flex items-center gap-1 font-medium">
                     <Check className="w-3.5 h-3.5" /> Tersimpan
                   </span>
                 ) : <span />}
 
                 <button
                   type="submit"
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-xs ${
+                    isDark
+                      ? 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                      : 'bg-slate-800 hover:bg-slate-900 text-white'
+                  }`}
                 >
                   Simpan Profil
                 </button>

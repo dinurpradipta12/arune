@@ -514,19 +514,19 @@ export const TemplateGalleryPage: React.FC = () => {
             })}
           </nav>
 
-          {/* Team Workspace Quick Access */}
+          {/* Team Workspace Navigation Item */}
           <div className="pt-2">
             <button
               type="button"
               onClick={() => setActiveView('team')}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 hover:bg-blue-50/80 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-zinc-700 transition-all cursor-pointer shadow-xs"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/80 border border-transparent"
             >
               <span className="flex items-center gap-2.5">
-                <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span className="font-semibold text-slate-800 dark:text-slate-100">Team Workspace</span>
+                <Users className="w-4 h-4 text-blue-900" />
+                <span>Team Workspace</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80">
-                Folder Tim
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-zinc-800 text-zinc-300">
+                Folder
               </span>
             </button>
           </div>
