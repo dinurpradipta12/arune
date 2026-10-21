@@ -156,6 +156,7 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
     settings,
     updateSettings,
     splitImagePanoramic,
+    workspaceDarkMode,
   } = useStudioStore();
 
   const theme = getActiveTheme();
@@ -427,7 +428,11 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
   return (
     <div
       ref={containerRef}
-      className="w-9 border-r border-zinc-800/80 bg-zinc-950 flex flex-col items-center py-2 px-1 gap-1 shrink-0 z-30 select-none relative"
+      className={`w-9 border-r flex flex-col items-center py-2 px-1 gap-1 shrink-0 z-30 select-none relative transition-colors ${
+        workspaceDarkMode
+          ? 'border-zinc-800/80 bg-zinc-950 text-zinc-100'
+          : 'border-slate-200 bg-white text-slate-800'
+      }`}
       aria-label="Adobe Photoshop Style Canvas Toolstrip"
     >
       {/* 1. Move / Select Tool (V) */}
@@ -642,36 +647,76 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
             onClick={() => toggleFlyout('engagement')}
             className={`w-7 h-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
               activeFlyout === 'engagement'
-                ? 'bg-amber-500 text-zinc-950 font-bold shadow-xs'
-                : 'text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/15'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : workspaceDarkMode
+                ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-850'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
             title="Engagement & Swipe CTA Kit (Stickers, Swipe Prompts, Closing Cards)"
             aria-label="Engagement Kit"
           >
             <BookmarkCheck className="w-3.5 h-3.5" />
           </button>
-          <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700/80 text-zinc-100 text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-50">
-            Engagement Kit (Swipe & CTA)
+          <span
+            className={`absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-50 ${
+              workspaceDarkMode
+                ? 'bg-zinc-900 border border-zinc-700/80 text-zinc-100'
+                : 'bg-white border border-slate-200 text-slate-800 shadow-md'
+            }`}
+          >
+            Engagement Kit (Swipe &amp; CTA)
           </span>
         </div>
 
         {/* Engagement Kit Flyout Modal */}
         {activeFlyout === 'engagement' && (
-          <div className="absolute left-full ml-2 -top-16 w-80 rounded-2xl bg-zinc-950/98 backdrop-blur-xl border border-zinc-800 shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-left-2 duration-150 max-h-[85vh] overflow-y-auto scroller-dark select-none">
-            <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-zinc-800">
+          <div
+            className={`absolute left-full ml-2 -top-16 w-80 rounded-2xl backdrop-blur-xl border shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-left-2 duration-150 max-h-[85vh] overflow-y-auto select-none ${
+              workspaceDarkMode
+                ? 'bg-zinc-950/98 border-zinc-800 text-zinc-100 scroller-dark'
+                : 'bg-white/98 border-slate-200 text-slate-900'
+            }`}
+          >
+            <div
+              className={`flex items-center justify-between pb-2 mb-2.5 border-b ${
+                workspaceDarkMode ? 'border-zinc-800' : 'border-slate-200'
+              }`}
+            >
               <div className="flex items-center gap-1.5">
-                <div className="p-1 rounded-md bg-amber-500/10 text-amber-400">
+                <div
+                  className={`p-1 rounded-md ${
+                    workspaceDarkMode
+                      ? 'bg-blue-500/10 text-blue-400'
+                      : 'bg-blue-50 text-blue-600'
+                  }`}
+                >
                   <BookmarkCheck className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-semibold text-zinc-100">Engagement &amp; CTA Kit</h4>
-                  <p className="text-[10px] text-zinc-400">Pendorong swipe &amp; kartu penutup carousel</p>
+                  <h4
+                    className={`text-xs font-semibold ${
+                      workspaceDarkMode ? 'text-zinc-100' : 'text-slate-900'
+                    }`}
+                  >
+                    Engagement &amp; CTA Kit
+                  </h4>
+                  <p
+                    className={`text-[10px] ${
+                      workspaceDarkMode ? 'text-zinc-400' : 'text-slate-500'
+                    }`}
+                  >
+                    Pendorong swipe &amp; kartu penutup carousel
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveFlyout(null)}
-                className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                className={`p-1 rounded transition-colors cursor-pointer ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-100 text-slate-400 hover:text-slate-800'
+                }`}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -679,28 +724,44 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
 
             {/* Section 1: Swipe Prompts */}
             <div className="mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block mb-1.5">
+              <span
+                className={`text-[10px] font-bold uppercase tracking-wider block mb-1.5 ${
+                  workspaceDarkMode ? 'text-blue-400' : 'text-blue-600'
+                }`}
+              >
                 👉 Pendorong Swipe (Slide Awal / Tengah)
               </span>
               <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
                   onClick={() => handleInsertEngagementElement('swipe-pill-right')}
-                  className="flex items-center justify-center py-2 px-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[10px] font-bold cursor-pointer transition-all shadow-xs"
+                  className={`flex items-center justify-center py-2 px-1 rounded-lg border text-[10px] font-bold cursor-pointer transition-all shadow-xs ${
+                    workspaceDarkMode
+                      ? 'border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300'
+                      : 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700'
+                  }`}
                 >
                   SWIPE 👉
                 </button>
                 <button
                   type="button"
                   onClick={() => handleInsertEngagementElement('next-arrow')}
-                  className="flex items-center justify-center py-2 px-1 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-[10px] font-bold cursor-pointer transition-all"
+                  className={`flex items-center justify-center py-2 px-1 rounded-lg border text-[10px] font-bold cursor-pointer transition-all ${
+                    workspaceDarkMode
+                      ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200'
+                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800'
+                  }`}
                 >
                   NEXT →
                 </button>
                 <button
                   type="button"
                   onClick={() => handleInsertEngagementElement('swipe-minimal')}
-                  className="flex items-center justify-center py-2 px-1 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-[9.5px] font-semibold cursor-pointer transition-all"
+                  className={`flex items-center justify-center py-2 px-1 rounded-lg border text-[9.5px] font-semibold cursor-pointer transition-all ${
+                    workspaceDarkMode
+                      ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300'
+                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                  }`}
                 >
                   READ MORE ⚡
                 </button>
@@ -709,63 +770,117 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
 
             {/* Section 2: Closing Outro Cards (CTA) */}
             <div className="mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 block mb-1.5">
+              <span
+                className={`text-[10px] font-bold uppercase tracking-wider block mb-1.5 ${
+                  workspaceDarkMode ? 'text-blue-400' : 'text-blue-600'
+                }`}
+              >
                 🏁 Kartu Penutup / Outro CTA (Slide Terakhir)
               </span>
               <div className="space-y-1.5">
                 <button
                   type="button"
                   onClick={() => handleInsertEngagementElement('cta-save')}
-                  className="w-full flex items-center justify-between p-2 rounded-lg border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-850 text-left cursor-pointer transition-all group"
+                  className={`w-full flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition-all group ${
+                    workspaceDarkMode
+                      ? 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-850'
+                      : 'border-slate-200 bg-slate-50/80 hover:bg-slate-100'
+                  }`}
                 >
                   <div>
-                    <span className="text-[11px] font-semibold text-zinc-200 block group-hover:text-blue-300">
+                    <span
+                      className={`text-[11px] font-semibold block ${
+                        workspaceDarkMode
+                          ? 'text-zinc-200 group-hover:text-blue-300'
+                          : 'text-slate-800 group-hover:text-blue-600'
+                      }`}
+                    >
                       📌 Kartu Simpan Postingan (Save)
                     </span>
-                    <span className="text-[9.5px] text-zinc-400">
+                    <span
+                      className={`text-[9.5px] ${
+                        workspaceDarkMode ? 'text-zinc-400' : 'text-slate-500'
+                      }`}
+                    >
                       Box rounded + pesan pengingat simpan &amp; share
                     </span>
                   </div>
-                  <span className="text-xs text-blue-400">＋</span>
+                  <span className="text-xs text-blue-500 font-bold">＋</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleInsertEngagementElement('cta-comment')}
-                  className="w-full flex items-center justify-between p-2 rounded-lg border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-850 text-left cursor-pointer transition-all group"
+                  className={`w-full flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition-all group ${
+                    workspaceDarkMode
+                      ? 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-850'
+                      : 'border-slate-200 bg-slate-50/80 hover:bg-slate-100'
+                  }`}
                 >
                   <div>
-                    <span className="text-[11px] font-semibold text-zinc-200 block group-hover:text-blue-300">
+                    <span
+                      className={`text-[11px] font-semibold block ${
+                        workspaceDarkMode
+                          ? 'text-zinc-200 group-hover:text-blue-300'
+                          : 'text-slate-800 group-hover:text-blue-600'
+                      }`}
+                    >
                       💬 Kartu Ajakan Diskusi (Komentar)
                     </span>
-                    <span className="text-[9.5px] text-zinc-400">
+                    <span
+                      className={`text-[9.5px] ${
+                        workspaceDarkMode ? 'text-zinc-400' : 'text-slate-500'
+                      }`}
+                    >
                       Box rounded + prompt tanya pendapat audiens
                     </span>
                   </div>
-                  <span className="text-xs text-blue-400">＋</span>
+                  <span className="text-xs text-blue-500 font-bold">＋</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleInsertEngagementElement('cta-follow')}
-                  className="w-full flex items-center justify-between p-2 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-left cursor-pointer transition-all group"
+                  className={`w-full flex items-center justify-between p-2 rounded-lg border text-left cursor-pointer transition-all group ${
+                    workspaceDarkMode
+                      ? 'border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20'
+                      : 'border-blue-200 bg-blue-50 hover:bg-blue-100'
+                  }`}
                 >
                   <div>
-                    <span className="text-[11px] font-semibold text-blue-300 block">
+                    <span
+                      className={`text-[11px] font-semibold block ${
+                        workspaceDarkMode ? 'text-blue-300' : 'text-blue-700'
+                      }`}
+                    >
                       ✨ Badge Follow Profil (@handle)
                     </span>
-                    <span className="text-[9.5px] text-blue-400/80">
+                    <span
+                      className={`text-[9.5px] ${
+                        workspaceDarkMode ? 'text-blue-400/80' : 'text-blue-600'
+                      }`}
+                    >
                       Pill badge beraksen dengan username aktif
                     </span>
                   </div>
-                  <span className="text-xs text-blue-300">＋</span>
+                  <span
+                    className={`text-xs font-bold ${
+                      workspaceDarkMode ? 'text-blue-300' : 'text-blue-600'
+                    }`}
+                  >
+                    ＋
+                  </span>
                 </button>
               </div>
             </div>
 
             {/* Section 3: Eyecatcher Stickers */}
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block mb-1.5">
+              <span
+                className={`text-[10px] font-bold uppercase tracking-wider block mb-1.5 ${
+                  workspaceDarkMode ? 'text-purple-400' : 'text-purple-600'
+                }`}
+              >
                 🏷️ Eyecatcher Badges
               </span>
               <div className="grid grid-cols-3 gap-1">
@@ -781,7 +896,11 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
                     key={s.id}
                     type="button"
                     onClick={() => handleInsertEngagementElement(s.id)}
-                    className="py-1 px-1.5 rounded-md border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-[10px] font-bold text-zinc-300 hover:text-white cursor-pointer transition-all text-center"
+                    className={`py-1 px-1.5 rounded-md border text-[10px] font-bold cursor-pointer transition-all text-center ${
+                      workspaceDarkMode
+                        ? 'border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900'
+                    }`}
                   >
                     {s.label}
                   </button>

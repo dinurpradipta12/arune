@@ -1323,88 +1323,83 @@ export const SlideStage: React.FC<SlideStageProps> = ({
         >
           {aspectRatio === '4:5' && (
             <>
-              {/* Top 1:1 Profile Grid Crop Out-of-bounds Shading */}
+              {/* Top 1:1 Profile Grid Crop Guide Line */}
               <div
-                className="absolute top-0 left-0 right-0 bg-black/20 border-b-2 border-dashed border-sky-400 flex items-end justify-between px-6 pb-2"
+                className="absolute top-0 left-0 right-0 border-b border-dashed border-sky-400/80 flex items-end justify-between px-4 pb-1"
                 style={{ height: '135px' }}
               >
-                <span className="text-[17px] font-sans font-bold text-white bg-sky-600/95 px-4 py-1.5 rounded-full shadow-lg border border-white/20 backdrop-blur-md flex items-center gap-1.5">
-                  📐 Terpotong di Profile Grid 1:1
+                <span className="text-[11px] font-mono text-sky-300 bg-black/70 px-2 py-0.5 rounded border border-sky-400/30 backdrop-blur-xs">
+                  📐 1:1 Grid Crop (Y: 135px)
                 </span>
-                <span className="text-[16px] font-mono font-bold text-sky-200 bg-black/75 px-3 py-1 rounded-md border border-white/15 shadow-sm">
-                  Y: 135px
+                <span className="text-[10px] font-mono text-zinc-400 bg-black/60 px-1.5 py-0.5 rounded">
+                  Top Cut
                 </span>
               </div>
 
-              {/* Bottom 1:1 Profile Grid Crop Out-of-bounds Shading */}
+              {/* Bottom 1:1 Profile Grid Crop Guide Line */}
               <div
-                className="absolute bottom-0 left-0 right-0 bg-black/20 border-t-2 border-dashed border-sky-400 flex items-start justify-between px-6 pt-2"
+                className="absolute bottom-0 left-0 right-0 border-t border-dashed border-sky-400/80 flex items-start justify-between px-4 pt-1"
                 style={{ height: '135px' }}
               >
-                <span className="text-[17px] font-sans font-bold text-white bg-sky-600/95 px-4 py-1.5 rounded-full shadow-lg border border-white/20 backdrop-blur-md flex items-center gap-1.5">
-                  📐 Terpotong di Profile Grid 1:1
+                <span className="text-[11px] font-mono text-sky-300 bg-black/70 px-2 py-0.5 rounded border border-sky-400/30 backdrop-blur-xs">
+                  📐 1:1 Grid Crop (Y: 1215px)
                 </span>
-                <span className="text-[16px] font-mono font-bold text-sky-200 bg-black/75 px-3 py-1 rounded-md border border-white/15 shadow-sm">
-                  Y: 1215px
+                <span className="text-[10px] font-mono text-zinc-400 bg-black/60 px-1.5 py-0.5 rounded">
+                  Bottom Cut
                 </span>
               </div>
 
               {/* Feed UI Header Zone (Top 85px) */}
               <div
-                className="absolute top-0 left-0 right-0 border-b-2 border-dashed border-rose-400/90 bg-rose-950/20 flex items-center justify-center pointer-events-none"
+                className="absolute top-0 left-0 right-0 border-b border-dashed border-rose-400/50 flex items-end justify-end px-4 pb-1"
                 style={{ height: '85px' }}
               >
-                <span className="text-[16px] font-sans font-bold text-white bg-rose-600/95 px-4 py-1.5 rounded-full shadow-lg border border-white/20 backdrop-blur-md">
-                  Instagram Header (Avatar &amp; Username)
+                <span className="text-[10.5px] font-mono text-rose-300 bg-black/60 px-2 py-0.5 rounded border border-rose-500/20">
+                  Header Safe Area (85px)
                 </span>
               </div>
 
               {/* Feed UI Dots & Actions Zone (Bottom 90px) */}
               <div
-                className="absolute bottom-0 left-0 right-0 border-t-2 border-dashed border-amber-400/90 bg-amber-950/20 flex items-center justify-center pointer-events-none"
+                className="absolute bottom-0 left-0 right-0 border-t border-dashed border-amber-400/50 flex items-start justify-end px-4 pt-1"
                 style={{ height: '90px' }}
               >
-                <span className="text-[16px] font-sans font-bold text-white bg-amber-600/95 px-4 py-1.5 rounded-full shadow-lg border border-white/20 backdrop-blur-md">
-                  Carousel Pagination Dots (...) &amp; Like Bar
+                <span className="text-[10.5px] font-mono text-amber-300 bg-black/60 px-2 py-0.5 rounded border border-amber-500/20">
+                  Carousel Dots Safe Area (90px)
                 </span>
-              </div>
-
-              {/* Center 1:1 Square Indicator Tag */}
-              <div className="absolute top-[148px] left-6 text-[16px] font-sans font-bold text-emerald-100 bg-emerald-700/90 px-4 py-1.5 rounded-full border border-white/25 shadow-lg backdrop-blur-md flex items-center gap-1.5">
-                <span className="text-white">✓</span> 1080×1080 Feed Grid Safe Zone
               </div>
             </>
           )}
 
           {aspectRatio === '9:16' && (
             <>
-              {/* Stories / Reels Header Area */}
+              {/* Stories / Reels Header Area (Top 220px) */}
               <div
-                className="absolute top-0 left-0 right-0 border-b-2 border-dashed border-rose-400 bg-black/25 flex items-center justify-center px-4"
+                className="absolute top-0 left-0 right-0 border-b border-dashed border-rose-400/70 flex items-end justify-end px-4 pb-1.5"
                 style={{ height: '220px' }}
               >
-                <span className="text-[19px] font-sans font-bold uppercase tracking-wide text-white bg-rose-600/95 px-5 py-2 rounded-full shadow-lg border border-white/20 backdrop-blur-md">
-                  Stories / Reels Header &amp; Search Zone
+                <span className="text-[11px] font-mono text-rose-300 bg-black/70 px-2.5 py-0.5 rounded border border-rose-400/30 backdrop-blur-xs">
+                  Header &amp; Search (Top 220px)
                 </span>
               </div>
 
-              {/* Stories / Reels Footer Area (Caption, Sound Title, Account) */}
+              {/* Stories / Reels Footer Area (Caption, Sound Title, Account - Bottom 320px) */}
               <div
-                className="absolute bottom-0 left-0 right-0 border-t-2 border-dashed border-amber-400 bg-black/25 flex items-center justify-center px-4"
+                className="absolute bottom-0 left-0 right-0 border-t border-dashed border-amber-400/70 flex items-start justify-end px-4 pt-1.5"
                 style={{ height: '320px' }}
               >
-                <span className="text-[19px] font-sans font-bold uppercase tracking-wide text-white bg-amber-600/95 px-5 py-2 rounded-full shadow-lg border border-white/20 backdrop-blur-md">
-                  Caption, Audio &amp; Follow Bar Zone
+                <span className="text-[11px] font-mono text-amber-300 bg-black/70 px-2.5 py-0.5 rounded border border-amber-400/30 backdrop-blur-xs">
+                  Caption &amp; Audio (Bottom 320px)
                 </span>
               </div>
 
-              {/* Right Action Icons Zone (Like, Comment, Share) */}
+              {/* Right Action Icons Zone (Like, Comment, Share - Width 120px) */}
               <div
-                className="absolute top-[240px] bottom-[340px] right-0 border-l-2 border-dashed border-indigo-400 bg-indigo-950/20 flex items-center justify-center"
-                style={{ width: '130px' }}
+                className="absolute top-[230px] bottom-[330px] right-0 border-l border-dashed border-indigo-400/60 flex items-center justify-center"
+                style={{ width: '120px' }}
               >
-                <span className="text-[16px] font-sans font-bold text-white bg-indigo-600/95 px-4 py-1.5 rounded-full shadow-lg border border-white/20 -rotate-90 whitespace-nowrap">
-                  Action Icons (Like/Share)
+                <span className="text-[10px] font-mono text-indigo-300 bg-black/70 px-2 py-0.5 rounded border border-indigo-400/30 -rotate-90 whitespace-nowrap">
+                  Action Icons (120px)
                 </span>
               </div>
             </>
@@ -1412,11 +1407,11 @@ export const SlideStage: React.FC<SlideStageProps> = ({
 
           {aspectRatio === '1:1' && (
             <div
-              className="absolute bottom-0 left-0 right-0 border-t-2 border-dashed border-amber-400 bg-black/20 flex items-center justify-center px-4"
+              className="absolute bottom-0 left-0 right-0 border-t border-dashed border-amber-400/60 flex items-start justify-end px-4 pt-1"
               style={{ height: '80px' }}
             >
-              <span className="text-[17px] font-sans font-bold uppercase tracking-wide text-white bg-amber-600/95 px-4 py-1.5 rounded-full shadow-lg border border-white/20 backdrop-blur-md">
-                Carousel Dots (...) &amp; Action Bar
+              <span className="text-[10.5px] font-mono text-amber-300 bg-black/60 px-2 py-0.5 rounded border border-amber-500/20">
+                Carousel Dots Safe Area (80px)
               </span>
             </div>
           )}
