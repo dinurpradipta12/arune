@@ -224,7 +224,7 @@ export function App() {
         className={`h-screen w-screen flex flex-col overflow-hidden transition-colors duration-200 ${
           workspaceDarkMode
             ? 'studio-theme-dark bg-[#0A1A2F] text-slate-100'
-            : 'studio-theme-light bg-white text-slate-900'
+            : 'studio-theme-light bg-[#F1F5F4] text-[#2F3E46]'
         }`}
       >
         {/* Main View Switcher: Full-Screen Studio Home Hub vs 3-Column Studio Editor vs Theme Builder vs Team Workspace */}
