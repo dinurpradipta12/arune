@@ -89,11 +89,27 @@ export function getRandomAvatarColor(): string {
   return DEFAULT_AVATAR_COLORS[Math.floor(Math.random() * DEFAULT_AVATAR_COLORS.length)];
 }
 
+function stringToUuid(str: string): string {
+  let hash1 = 0;
+  let hash2 = 0;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    hash1 = (hash1 << 5) - hash1 + code;
+    hash1 |= 0;
+    hash2 = (hash2 << 7) - hash2 + code;
+    hash2 |= 0;
+  }
+  const hex1 = Math.abs(hash1).toString(16).padStart(8, '0');
+  const hex2 = Math.abs(hash2).toString(16).padStart(8, '0');
+  const full = (hex1 + hex2 + hex1 + hex2).substring(0, 32);
+  return `${full.slice(0, 8)}-${full.slice(8, 12)}-4${full.slice(13, 16)}-a${full.slice(17, 20)}-${full.slice(20, 32)}`;
+}
+
 export function ensureUuid(val?: string | null): string {
   if (!val) return generateUuid();
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (uuidRegex.test(val)) return val;
-  return generateUuid();
+  return stringToUuid(val);
 }
 
 function generateUuid(): string {
@@ -176,8 +192,26 @@ export function getTeams(): TeamWorkspace[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TEAMS);
     if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      const parsed: TeamWorkspace[] = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        let changed = false;
+        const sanitized = parsed.map((t) => {
+          const validId = ensureUuid(t.id);
+          if (validId !== t.id) {
+            changed = true;
+            const currentActive = localStorage.getItem(STORAGE_KEY_ACTIVE_TEAM);
+            if (currentActive === t.id) {
+              localStorage.setItem(STORAGE_KEY_ACTIVE_TEAM, validId);
+            }
+            return { ...t, id: validId };
+          }
+          return t;
+        });
+        if (changed) {
+          saveTeams(sanitized);
+        }
+        return sanitized;
+      }
     }
   } catch {
     // fallback
@@ -652,10 +686,15 @@ export async function addTeamMemberCloud(
   memberData: { name: string; email: string; role: TeamRole }
 ): Promise<{ success: boolean; member?: TeamMember; error?: string }> {
   const client = getSupabaseClient();
+  const validTeamId = ensureUuid(teamId);
   const trimmedEmail = memberData.email.trim().toLowerCase();
   const teams = getTeams();
-  const team = teams.find((t) => t.id === teamId);
+  const team = teams.find((t) => t.id === validTeamId || t.id === teamId);
   if (!team) return { success: false, error: 'Folder tim tidak ditemukan.' };
+
+  // Sanitize team id locally
+  team.id = validTeamId;
+  saveTeams(teams);
 
   // Check local existence
   const exists = team.members.find((m) => m.email.toLowerCase() === trimmedEmail);
@@ -663,9 +702,41 @@ export async function addTeamMemberCloud(
     return { success: false, error: `Email ${trimmedEmail} sudah ada di dalam tim ini.` };
   }
 
-  // 1. If Supabase is connected, query profile to get their auth user_id
+  // 1. If Supabase is connected, ensure parent team exists & query profile
   if (client && isSupabaseConfigured()) {
     try {
+      const authUser = getCurrentAuthUser();
+
+      // Ensure parent team exists in Supabase
+      const { data: existingTeam } = await client
+        .from('teams')
+        .select('id')
+        .eq('id', validTeamId)
+        .maybeSingle();
+
+      if (!existingTeam) {
+        const { error: insErr } = await client.from('teams').insert({
+          id: validTeamId,
+          name: team.name || 'Folder Tim',
+          description: team.description || '',
+          avatar_color: team.avatarColor || '#5E887E',
+          created_by: authUser?.id || null,
+        });
+
+        if (insErr) {
+          console.warn('Could not insert parent team in Supabase:', insErr);
+        }
+
+        if (authUser?.id) {
+          await client.from('team_members').upsert({
+            team_id: validTeamId,
+            user_id: authUser.id,
+            role: 'owner',
+          }, { onConflict: 'team_id,user_id' });
+        }
+      }
+
+      // Query target profile by email
       const { data: profile, error: pErr } = await client
         .from('profiles')
         .select('id, name, email, avatar_id, avatar_color')
@@ -683,12 +754,12 @@ export async function addTeamMemberCloud(
         };
       }
 
-      // Profile exists! Insert into team_members
+      // Profile exists! Insert into team_members using sanitized validTeamId
       const { data: tmData, error: tmErr } = await client
         .from('team_members')
         .upsert(
           {
-            team_id: teamId,
+            team_id: validTeamId,
             user_id: profile.id,
             role: memberData.role,
           },
@@ -716,12 +787,11 @@ export async function addTeamMemberCloud(
       saveTeams(teams);
 
       // Broadcast real-time invitation notification to the target user
-      const authUser = getCurrentAuthUser();
       broadcastTeamInviteNotification({
         id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         targetUserId: profile.id,
         targetEmail: trimmedEmail,
-        teamId: team.id,
+        teamId: validTeamId,
         teamName: team.name,
         inviterName: authUser?.name || 'Rekan Tim',
         role: memberData.role,

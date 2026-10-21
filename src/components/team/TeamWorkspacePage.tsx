@@ -42,6 +42,7 @@ import {
   updateTeamBrandKit,
   syncTeamsFromCloud,
   syncProjectsFromCloud,
+  ensureUuid,
   type UserProfile,
 } from '../../services/teamWorkspaceService';
 import { getSupabaseClient, isSupabaseConfigured } from '../../services/supabaseClient';
@@ -220,7 +221,8 @@ export const TeamWorkspacePage: React.FC = () => {
     }
 
     setIsInviting(true);
-    const res = await addTeamMemberCloud(currentTeam.id, {
+    const validTeamId = ensureUuid(currentTeam.id);
+    const res = await addTeamMemberCloud(validTeamId, {
       name: newMemberName,
       email: newMemberEmail,
       role: newMemberRole,
