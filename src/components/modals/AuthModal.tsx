@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { X, LogIn, UserPlus, Check, Sparkles, AlertCircle, Shield } from 'lucide-react';
 import { AVATAR_PRESETS } from '../../constants/avatarPresets';
 import { loginWithEmail, registerWithEmail, updateAuthUserProfile, type AuthUser } from '../../services/authService';
-import { isSupabaseConfigured } from '../../services/supabaseTemplates';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -36,8 +35,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
-
-  const hasSupabase = isSupabaseConfigured();
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -434,32 +431,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </form>
           )}
-
-          {/* Connection status footer note */}
-          <div
-            className={`p-3 rounded-xl border text-[11px] flex items-center justify-between gap-2 ${
-              hasSupabase
-                ? darkMode
-                  ? 'bg-emerald-950/20 border-emerald-900/40 text-emerald-300'
-                  : 'bg-emerald-50/70 border-emerald-200 text-emerald-800'
-                : darkMode
-                ? 'bg-zinc-900/60 border-zinc-800 text-slate-400'
-                : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#556B65]'
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  hasSupabase ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
-                }`}
-              />
-              <span>
-                {hasSupabase
-                  ? 'Supabase Cloud Terhubung (Multiplayer Ready)'
-                  : 'Mode Lokal / Demo Aktif (Belum Sync Cloud)'}
-              </span>
-            </span>
-          </div>
         </div>
       </div>
     </div>
