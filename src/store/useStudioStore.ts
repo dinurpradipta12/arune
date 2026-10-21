@@ -21,6 +21,8 @@ import {
 } from '../constants/fontCombinations';
 import type {
   AspectRatioKey,
+  CanvasComment,
+  CanvasCommentReply,
   CanvasElement,
   CloudTemplateRecord,
   CuratedGalleryTemplate,
@@ -126,6 +128,7 @@ export interface SavedWorkingProject {
   activeSlideIndex: number;
   openDocuments: OpenDocumentTab[];
   activeDocumentId: string;
+  comments?: CanvasComment[];
 }
 
 export function saveActiveWorkingProjectToStorage(doc: SavedWorkingProject): void {
@@ -423,6 +426,20 @@ interface StudioState {
     activeSlideIndex?: number;
   }) => void;
 
+  // Collaborative In-Canvas Comments (Figma-Style)
+  comments: CanvasComment[];
+  activeCommentId: string | null;
+  isCommentMode: boolean;
+  showResolvedComments: boolean;
+  setCommentMode: (active: boolean) => void;
+  setActiveCommentId: (id: string | null) => void;
+  toggleShowResolvedComments: () => void;
+  addComment: (comment: Omit<CanvasComment, 'id' | 'createdAt' | 'isResolved' | 'replies'>) => CanvasComment;
+  addCommentReply: (commentId: string, reply: Omit<CanvasCommentReply, 'id' | 'createdAt'>) => void;
+  toggleResolveComment: (commentId: string) => void;
+  deleteComment: (commentId: string) => void;
+  syncRemoteComments: (comments: CanvasComment[]) => void;
+
   // UI controls
   setActiveView: (view: StudioViewMode) => void;
   setCanvasZoom: (zoom: number) => void;
@@ -528,6 +545,7 @@ function autoSaveWorkingProjectDebounced(state: StudioState) {
       activeSlideIndex: state.activeSlideIndex,
       openDocuments: state.openDocuments,
       activeDocumentId: state.activeDocumentId,
+      comments: state.comments,
     });
   }, 150);
 }
@@ -546,6 +564,78 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   activeSlideIndex: savedWorkingDoc?.activeSlideIndex || 0,
   selectedElementId: null,
   lastSavedAt: null,
+
+  // Collaborative Comments
+  comments: savedWorkingDoc?.comments || [],
+  activeCommentId: null,
+  isCommentMode: false,
+  showResolvedComments: false,
+
+  setCommentMode: (isCommentMode) => set({ isCommentMode }),
+  setActiveCommentId: (activeCommentId) => set({ activeCommentId }),
+  toggleShowResolvedComments: () =>
+    set((state) => ({ showResolvedComments: !state.showResolvedComments })),
+
+  addComment: (input) => {
+    const id = `comment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const newComment: CanvasComment = {
+      ...input,
+      id,
+      createdAt: new Date().toISOString(),
+      isResolved: false,
+      replies: [],
+    };
+    const nextComments = [...get().comments, newComment];
+    set({
+      comments: nextComments,
+      activeCommentId: id,
+    });
+    multiplayerService.broadcastComments(nextComments);
+    autoSaveWorkingProjectDebounced(get());
+    return newComment;
+  },
+
+  addCommentReply: (commentId, replyInput) => {
+    const replyId = `reply-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const newReply: CanvasCommentReply = {
+      ...replyInput,
+      id: replyId,
+      createdAt: new Date().toISOString(),
+    };
+    const nextComments = get().comments.map((c) =>
+      c.id === commentId
+        ? { ...c, replies: [...(c.replies || []), newReply] }
+        : c
+    );
+    set({ comments: nextComments });
+    multiplayerService.broadcastComments(nextComments);
+    autoSaveWorkingProjectDebounced(get());
+  },
+
+  toggleResolveComment: (commentId) => {
+    const nextComments = get().comments.map((c) =>
+      c.id === commentId ? { ...c, isResolved: !c.isResolved } : c
+    );
+    set({ comments: nextComments });
+    multiplayerService.broadcastComments(nextComments);
+    autoSaveWorkingProjectDebounced(get());
+  },
+
+  deleteComment: (commentId) => {
+    const nextComments = get().comments.filter((c) => c.id !== commentId);
+    set({
+      comments: nextComments,
+      activeCommentId: get().activeCommentId === commentId ? null : get().activeCommentId,
+    });
+    multiplayerService.broadcastComments(nextComments);
+    autoSaveWorkingProjectDebounced(get());
+  },
+
+  syncRemoteComments: (comments) => {
+    if (!Array.isArray(comments)) return;
+    set({ comments });
+    autoSaveWorkingProjectDebounced(get());
+  },
 
   openDocuments:
     savedWorkingDoc?.openDocuments && savedWorkingDoc.openDocuments.length > 0

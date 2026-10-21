@@ -11,6 +11,7 @@ import {
   FolderOpen,
   ImagePlus,
   Loader2,
+  MessageSquare,
   Plus,
   Save,
   Scaling,
@@ -31,6 +32,7 @@ import {
 } from '../../services/backgroundRemoval';
 import { SlideStage } from '../canvas/SlideStage';
 import { MultiplayerCursorsLayer } from '../canvas/MultiplayerCursorsLayer';
+import { CanvasCommentsLayer } from '../canvas/CanvasCommentsLayer';
 import {
   multiplayerService,
   type RemotePeer,
@@ -78,6 +80,10 @@ export const CenterWorkspace: React.FC = () => {
     updateSlideElementRemote,
     syncRemoteCanvasSnapshot,
     loadProjectSnapshot,
+    comments,
+    isCommentMode,
+    setCommentMode,
+    syncRemoteComments,
   } = useStudioStore();
 
   const [multiplayerPeers, setMultiplayerPeers] = useState<RemotePeer[]>([]);
@@ -143,13 +149,19 @@ export const CenterWorkspace: React.FC = () => {
       });
     });
 
+    // 3. When receiving live comment sync from peers
+    const unsubComments = multiplayerService.onRemoteComments((remoteComments) => {
+      syncRemoteComments(remoteComments);
+    });
+
     return () => {
       unsubState();
       unsubRemoteUpdate();
       unsubCanvasReq();
       unsubCanvasSync();
+      unsubComments();
     };
-  }, [collabRoomId, updateSlideElementRemote, syncRemoteCanvasSnapshot]);
+  }, [collabRoomId, updateSlideElementRemote, syncRemoteCanvasSnapshot, syncRemoteComments]);
 
   // If user opens editor with empty canvas (e.g. newcomer Allisha joining the active room)
   useEffect(() => {
@@ -185,6 +197,28 @@ export const CenterWorkspace: React.FC = () => {
   useEffect(() => {
     multiplayerService.updatePresence(activeSlideIndex, selectedElementId);
   }, [activeSlideIndex, selectedElementId]);
+
+  // Global Hotkey 'C' to toggle comment mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl?.tagName === 'INPUT' ||
+        activeEl?.tagName === 'TEXTAREA' ||
+        (activeEl as HTMLElement)?.isContentEditable;
+      if (isInput) return;
+
+      if (e.key === 'c' || e.key === 'C') {
+        if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+          e.preventDefault();
+          setCommentMode(!useStudioStore.getState().isCommentMode);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setCommentMode]);
 
   // Wrap updateElement to broadcast live edits to peers
   const handleUpdateElement = (
@@ -1052,6 +1086,32 @@ export const CenterWorkspace: React.FC = () => {
                 />
               </button>
 
+              {/* 9. In-Canvas Commenting (Figma-Style Pin & Feedback) */}
+              <button
+                type="button"
+                onClick={() => setCommentMode(!isCommentMode)}
+                title={
+                  isCommentMode
+                    ? 'Keluar dari Mode Komentar (Esc)'
+                    : 'Beri Komentar & Pin Catatan (Hotkey: C)'
+                }
+                aria-label="Toggle Comment Mode"
+                className={`p-1.5 rounded-full cursor-pointer transition-all relative ${
+                  isCommentMode
+                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/40'
+                    : workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                {comments.filter((c) => !c.isResolved).length > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1 min-w-[14px] h-[14px] rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center leading-none shadow-xs">
+                    {comments.filter((c) => !c.isResolved).length}
+                  </span>
+                )}
+              </button>
+
               <div
                 className={`w-px h-4 mx-0.5 ${
                   workspaceDarkMode ? 'bg-zinc-800' : 'bg-zinc-200'
@@ -1631,6 +1691,12 @@ export const CenterWorkspace: React.FC = () => {
               slide={activeSlide}
               aspectRatio={aspectRatio}
               scale={canvasZoom}
+            />
+
+            {/* In-Canvas Pin Comments & Feedback Layer */}
+            <CanvasCommentsLayer
+              activeSlideIndex={activeSlideIndex}
+              aspectRatio={aspectRatio}
             />
           </div>
         )}

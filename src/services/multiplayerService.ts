@@ -2,7 +2,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import { getCurrentAuthUser, subscribeToAuthChanges } from './authService';
 import { getRandomAvatarPreset } from '../constants/avatarPresets';
-import type { CanvasElement } from '../types/studio';
+import type { CanvasComment, CanvasElement } from '../types/studio';
 
 export interface RemotePeer {
   userId: string;
@@ -85,6 +85,7 @@ class MultiplayerService {
   private elementUpdateListeners: Array<(event: RemoteElementUpdatePayload) => void> = [];
   private canvasStateListeners: Array<(event: CanvasStateSyncPayload) => void> = [];
   private canvasStateRequestListeners: Array<(requestorUserId: string) => void> = [];
+  private commentsListeners: Array<(comments: CanvasComment[]) => void> = [];
 
   private isConnected = false;
   private myUserId = '';
@@ -230,6 +231,9 @@ class MultiplayerService {
         })
         .on('broadcast', { event: 'canvas_state_sync' }, ({ payload }) => {
           this.handleCanvasStateSync(payload);
+        })
+        .on('broadcast', { event: 'comments_sync' }, ({ payload }) => {
+          this.handleCommentsSync(payload);
         })
         .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
@@ -514,6 +518,17 @@ class MultiplayerService {
     });
   }
 
+  private handleCommentsSync(payload: any) {
+    if (!payload || payload.userId === this.myUserId || !Array.isArray(payload.comments)) return;
+    this.commentsListeners.forEach((fn) => {
+      try {
+        fn(payload.comments);
+      } catch (err) {
+        console.error('Error in comments sync listener:', err);
+      }
+    });
+  }
+
   private broadcastToLocalBus(msg: { type: string; payload: any }) {
     if (!this.localBroadcastBus) return;
     try {
@@ -546,6 +561,9 @@ class MultiplayerService {
         break;
       case 'canvas_state_sync':
         this.handleCanvasStateSync(payload);
+        break;
+      case 'comments_sync':
+        this.handleCommentsSync(payload);
         break;
       case 'presence_join':
       case 'presence_sync':
@@ -722,6 +740,39 @@ class MultiplayerService {
     return () => {
       const idx = this.canvasStateRequestListeners.indexOf(callback);
       if (idx !== -1) this.canvasStateRequestListeners.splice(idx, 1);
+    };
+  }
+
+  public broadcastComments(comments: CanvasComment[]) {
+    const payload = {
+      userId: this.myUserId,
+      comments,
+      timestamp: Date.now(),
+    };
+
+    this.broadcastToLocalBus({
+      type: 'comments_sync',
+      payload,
+    });
+
+    if (this.channel && this.isConnected) {
+      try {
+        this.channel.send({
+          type: 'broadcast',
+          event: 'comments_sync',
+          payload,
+        });
+      } catch (err) {
+        console.warn('Failed to broadcast comments_sync via Supabase:', err);
+      }
+    }
+  }
+
+  public onRemoteComments(callback: (comments: CanvasComment[]) => void): () => void {
+    this.commentsListeners.push(callback);
+    return () => {
+      const idx = this.commentsListeners.indexOf(callback);
+      if (idx !== -1) this.commentsListeners.splice(idx, 1);
     };
   }
 }

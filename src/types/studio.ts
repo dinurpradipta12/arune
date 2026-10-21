@@ -290,3 +290,28 @@ export interface CuratedGalleryTemplate {
   scriptText: string;
   slidePhotos?: string[];
 }
+
+export interface CanvasCommentReply {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarId: string;
+  authorAvatarColor: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface CanvasComment {
+  id: string;
+  slideIndex: number;
+  xPercent: number; // 0 - 100 on slide stage
+  yPercent: number; // 0 - 100 on slide stage
+  authorId: string;
+  authorName: string;
+  authorAvatarId: string;
+  authorAvatarColor: string;
+  text: string;
+  createdAt: string;
+  isResolved: boolean;
+  replies: CanvasCommentReply[];
+}
