@@ -82,7 +82,7 @@ class MultiplayerService {
   private localBroadcastBus: BroadcastChannel | null = null;
   private peersMap = new Map<string, RemotePeer>();
   private listeners: Array<(state: MultiplayerState) => void> = [];
-  private cursorNotifyTimer: any = null;
+  private cursorRafId: number | null = null;
   private elementUpdateListeners: Array<(event: RemoteElementUpdatePayload) => void> = [];
   private canvasStateListeners: Array<(event: CanvasStateSyncPayload) => void> = [];
   private canvasStateRequestListeners: Array<(requestorUserId: string) => void> = [];
@@ -97,8 +97,9 @@ class MultiplayerService {
   private mySelectedElementId: string | null = null;
 
   private lastCursorSendTime = 0;
-  private throttleIntervalMs = 35; // ~28 fps for silky smooth cursor tracking
+  private throttleIntervalMs = 16; // ~60 fps realtime cursor tracking
   private cleanupTimer: any = null;
+  private heartbeatTimer: any = null;
   private reconnectTimer: any = null;
   private lastCanvasBroadcastTime = 0;
   private lastElementUpdateTimes = new Map<string, number>();
@@ -112,21 +113,28 @@ class MultiplayerService {
       this.updatePresence();
     });
 
-    // Start stale cursor cleanup timer (fade out after 3.5s of no movement)
+    // Cleanup peers that have been offline/disconnected for > 2 minutes
     this.cleanupTimer = setInterval(() => {
       const now = Date.now();
       let changed = false;
-      this.peersMap.forEach((peer) => {
-        if (peer.cursorXPercent >= 0 && now - peer.lastActive > 3500) {
-          peer.cursorXPercent = -1;
-          peer.cursorYPercent = -1;
+      this.peersMap.forEach((peer, peerId) => {
+        // Only remove peer completely if completely silent for > 2 minutes
+        if (now - peer.lastActive > 120000) {
+          this.peersMap.delete(peerId);
           changed = true;
         }
       });
       if (changed) {
         this.notifyState();
       }
-    }, 1500);
+    }, 15000);
+
+    // Periodic heartbeat every 10s to keep presence alive across tabs & clients
+    this.heartbeatTimer = setInterval(() => {
+      if (this.isConnected) {
+        this.updatePresence();
+      }
+    }, 10000);
   }
 
   private refreshUserIdentity() {
@@ -280,6 +288,11 @@ class MultiplayerService {
     }
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
     }
     if (this.channel) {
       try {
@@ -463,11 +476,13 @@ class MultiplayerService {
       cursorYPercent: payload.yPercent,
       lastActive: Date.now(),
     });
-    if (!this.cursorNotifyTimer) {
-      this.cursorNotifyTimer = setTimeout(() => {
-        this.cursorNotifyTimer = null;
+
+    // Schedule 60fps instant UI update via requestAnimationFrame
+    if (!this.cursorRafId && typeof window !== 'undefined') {
+      this.cursorRafId = window.requestAnimationFrame(() => {
+        this.cursorRafId = null;
         this.notifyState();
-      }, 40);
+      });
     }
   }
 
@@ -572,6 +587,32 @@ class MultiplayerService {
         this.handleCommentsSync(payload);
         break;
       case 'presence_join':
+        this.upsertPeer(payload.userId, {
+          name: payload.name,
+          avatarId: payload.avatarId,
+          avatarColor: payload.avatarColor,
+          activeSlideIndex: payload.activeSlideIndex ?? 0,
+          selectedElementId: payload.selectedElementId ?? null,
+          onlineAt: payload.onlineAt || new Date().toISOString(),
+          lastActive: Date.now(),
+        });
+        this.notifyState();
+
+        // Immediately respond with our presence so the newcomer knows about us instantly
+        this.broadcastToLocalBus({
+          type: 'presence_sync',
+          payload: {
+            userId: this.myUserId,
+            name: this.myName,
+            avatarId: this.myAvatarId,
+            avatarColor: this.myAvatarColor,
+            activeSlideIndex: this.mySlideIndex,
+            selectedElementId: this.mySelectedElementId,
+            onlineAt: new Date().toISOString(),
+          },
+        });
+        break;
+
       case 'presence_sync':
         this.upsertPeer(payload.userId, {
           name: payload.name,

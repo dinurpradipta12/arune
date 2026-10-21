@@ -100,7 +100,7 @@ export const MultiplayerCursorsLayer: React.FC<MultiplayerCursorsLayerProps> = (
         return (
           <div
             key={peer.userId}
-            className="absolute pointer-events-none transition-[left,top] duration-75 ease-out z-40 select-none will-change-transform"
+            className="absolute pointer-events-none transition-[left,top] duration-[40ms] ease-linear z-40 select-none will-change-[left,top]"
             style={{
               left: `${peer.cursorXPercent}%`,
               top: `${peer.cursorYPercent}%`,

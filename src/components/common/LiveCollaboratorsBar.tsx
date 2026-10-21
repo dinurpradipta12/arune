@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Users, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import {
   multiplayerService,
   type MultiplayerState,
@@ -66,19 +66,19 @@ export const LiveCollaboratorsBar: React.FC<LiveCollaboratorsBarProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        title="Kolaborasi Realtime Tim & Kursor Multiplayer"
-        className={`flex items-center gap-1.5 rounded-md border font-medium transition-all cursor-pointer ${
-          compact ? 'px-2 py-0.5 text-[11px] h-5.5' : 'px-2.5 py-1.5 text-xs'
+        title="Kolaborasi Realtime Tim & Kursor Multiplayer (Klik untuk membuka jendela detail)"
+        className={`flex items-center gap-1.5 rounded-full border transition-all cursor-pointer select-none font-semibold ${
+          compact ? 'px-2.5 py-0.5 text-[11px] h-6' : 'px-3 py-1 text-xs'
         } ${
           darkMode
-            ? 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-zinc-200'
-            : 'bg-white hover:bg-zinc-50 border-zinc-200/90 text-zinc-700 shadow-2xs'
+            ? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/40 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+            : 'bg-emerald-50 hover:bg-emerald-100/90 border-emerald-300 text-emerald-800 shadow-xs'
         }`}
       >
-        {/* Pulsing Green Live Dot */}
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        {/* Pulsing Green Live Beacon Dot */}
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]"></span>
         </span>
 
         {/* Stacked Avatars for other peers */}
@@ -103,23 +103,33 @@ export const LiveCollaboratorsBar: React.FC<LiveCollaboratorsBarProps> = ({
             )}
           </div>
         ) : (
-          <Users className="w-3 h-3 text-emerald-500" />
+          <img
+            src={myAvatarPreset.svgDataUri}
+            alt="Anda"
+            className="w-3.5 h-3.5 rounded-full ring-1 ring-emerald-500/50 object-cover"
+          />
         )}
 
-        <span className="font-semibold text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+        <span className="font-bold text-[11px] font-mono tracking-tight">
           {multiplayerState.activeUsersCount} Online
         </span>
+
+        {placement === 'top' ? (
+          <ChevronUp className="w-3 h-3 opacity-75 shrink-0" />
+        ) : (
+          <ChevronDown className="w-3 h-3 opacity-75 shrink-0" />
+        )}
       </button>
 
       {/* Popover / Dropdown Menu Floating Window */}
       {isOpen && (
         <div
           className={`absolute right-0 w-72 rounded-xl border shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md ${
-            placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+            placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
           } ${
             darkMode
-              ? 'bg-zinc-950/95 border-zinc-800 text-zinc-100'
-              : 'bg-white/95 border-zinc-200 text-zinc-800'
+              ? 'bg-zinc-950/95 border-zinc-800 text-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.65)]'
+              : 'bg-white/95 border-zinc-200 text-zinc-800 shadow-xl'
           }`}
         >
           {/* Header */}

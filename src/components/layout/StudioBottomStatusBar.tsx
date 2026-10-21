@@ -20,10 +20,10 @@ export const StudioBottomStatusBar: React.FC = () => {
 
   return (
     <footer
-      className={`h-7 px-3 border-t flex items-center justify-between text-[11px] select-none shrink-0 z-30 transition-colors ${
+      className={`h-8 px-3 border-t flex items-center justify-between text-[11px] select-none shrink-0 z-30 transition-colors ${
         workspaceDarkMode
-          ? 'bg-zinc-950 border-zinc-800/80 text-zinc-400'
-          : 'bg-white border-zinc-200/90 text-zinc-600 shadow-2xs'
+          ? 'bg-zinc-950 border-zinc-800 text-zinc-300'
+          : 'bg-zinc-50 border-zinc-200 text-zinc-700 shadow-xs'
       }`}
     >
       {/* Left: Slide & Project Context */}

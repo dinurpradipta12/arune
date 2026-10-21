@@ -242,9 +242,15 @@ export const CenterWorkspace: React.FC = () => {
     multiplayerService.sendCursorPosition(xPercent, yPercent, activeSlideIndex);
   };
 
-  const handleSlideMouseLeave = () => {
-    multiplayerService.sendCursorLeave();
-  };
+  // Keep cursor visible at last known position while active in window (Figma style).
+  // Only send cursor leave when user actually unfocuses or leaves the window.
+  useEffect(() => {
+    const handleBlur = () => {
+      multiplayerService.sendCursorLeave();
+    };
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, []);
 
   const [justSaved, setJustSaved] = useState(false);
   const [activePopover, setActivePopover] = useState<
@@ -1667,7 +1673,6 @@ export const CenterWorkspace: React.FC = () => {
               height: `${scaledH}px`,
             }}
             onMouseMove={handleSlideMouseMove}
-            onMouseLeave={handleSlideMouseLeave}
           >
             <SlideStage
               slide={activeSlide}
