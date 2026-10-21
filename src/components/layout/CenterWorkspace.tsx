@@ -1,42 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Blend,
-  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
-  Crop,
-  Eraser,
   FileText,
   FolderOpen,
-  ImagePlus,
   Loader2,
-  MessageSquare,
   Plus,
-  Save,
-  Scaling,
   Trash2,
   Upload,
-  Wand2,
   X,
 } from 'lucide-react';
 import {
   ASPECT_RATIOS,
-  THEME_PALETTES,
 } from '../../constants/themesAndPresets';
 import { useStudioStore, loadSavedWorkingProjectFromStorage } from '../../store/useStudioStore';
 import type { AspectRatioKey, CanvasElement } from '../../types/studio';
-import {
-  removeImageBackground,
-  trimTransparentImage,
-} from '../../services/backgroundRemoval';
+import { removeImageBackground } from '../../services/backgroundRemoval';
 import { SlideStage } from '../canvas/SlideStage';
 import { MultiplayerCursorsLayer } from '../canvas/MultiplayerCursorsLayer';
 import { CanvasCommentsLayer } from '../canvas/CanvasCommentsLayer';
 import {
-  FloatingCanvasTools,
+  DockedCanvasToolstrip,
   type CanvasToolMode,
-} from '../canvas/FloatingCanvasTools';
+} from '../canvas/DockedCanvasToolstrip';
 import {
   multiplayerService,
   type RemotePeer,
@@ -51,9 +38,6 @@ export const CenterWorkspace: React.FC = () => {
     activeSlideIndex,
     setActiveSlideIndex,
     aspectRatio,
-    setAspectRatio,
-    activeThemeId,
-    setActiveTheme,
     getActiveTheme,
     branding,
     canvasZoom,
@@ -63,8 +47,6 @@ export const CenterWorkspace: React.FC = () => {
     setSelectedElementId,
     getSelectedElement,
     updateElement,
-    alignElementOnCanvas,
-    setSlideBackgroundColor,
     commitElementHistory,
     addElement,
     addSlide,
@@ -84,8 +66,6 @@ export const CenterWorkspace: React.FC = () => {
     updateSlideElementRemote,
     syncRemoteCanvasSnapshot,
     loadProjectSnapshot,
-    comments,
-    isCommentMode,
     setCommentMode,
     syncRemoteComments,
   } = useStudioStore();
@@ -294,9 +274,6 @@ export const CenterWorkspace: React.FC = () => {
   }, []);
 
   const [justSaved, setJustSaved] = useState(false);
-  const [activePopover, setActivePopover] = useState<
-    'resize' | 'transparent' | 'color' | 'crop' | null
-  >(null);
   const [isErasingBg, setIsErasingBg] = useState(false);
   const [erasingProgress, setErasingProgress] = useState<string>('');
   const [erasingError, setErasingError] = useState<string | null>(null);
@@ -361,7 +338,6 @@ export const CenterWorkspace: React.FC = () => {
 
     if (e.target === e.currentTarget) {
       setSelectedElementId(null);
-      setActivePopover(null);
     }
   };
 
@@ -465,7 +441,6 @@ export const CenterWorkspace: React.FC = () => {
         },
         true
       );
-      setActivePopover(null);
     } catch (err: unknown) {
       console.error('Failed to remove background:', err);
       const msg = err instanceof Error ? err.message : 'Gagal menghapus background foto.';
@@ -501,7 +476,6 @@ export const CenterWorkspace: React.FC = () => {
       },
       true
     );
-    setActivePopover(null);
   };
 
   // Helper to read an image File or Blob and add it to canvas with appropriate dimensions
@@ -720,45 +694,6 @@ export const CenterWorkspace: React.FC = () => {
     }
   };
 
-  // Determine active color for the object color indicator
-  const currentObjectColor = (() => {
-    if (!selectedElement) {
-      return activeSlide?.backgroundColor || theme.background;
-    }
-    if (selectedElement.type === 'text' || selectedElement.type === 'badge') {
-      return selectedElement.color || theme.textPrimary;
-    }
-    if (selectedElement.type === 'divider') {
-      return selectedElement.color || theme.divider;
-    }
-    return selectedElement.borderColor || theme.accent;
-  })();
-
-  const handleObjectColorChange = (nextColor: string) => {
-    if (!selectedElement) {
-      setSlideBackgroundColor(activeSlideIndex, nextColor);
-      return;
-    }
-    if (
-      selectedElement.type === 'text' ||
-      selectedElement.type === 'badge' ||
-      selectedElement.type === 'divider'
-    ) {
-      updateElement(selectedElement.id, { color: nextColor }, true);
-    } else if (selectedElement.type === 'image') {
-      updateElement(
-        selectedElement.id,
-        {
-          borderColor: nextColor,
-          borderWidth: Math.max(selectedElement.borderWidth || 0, 2),
-        },
-        true
-      );
-    }
-  };
-
-  const currentOpacity = selectedElement ? selectedElement.opacity : 1;
-
   // Pixel ticks for Top Horizontal Ruler (0 .. exportWidth) & Left Vertical Ruler (0 .. exportHeight)
   const horizontalTicks = Array.from(
     { length: Math.floor(dim.exportWidth / 50) + 1 },
@@ -872,78 +807,101 @@ export const CenterWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* ================================================================== */}
-      {/* TOP HORIZONTAL RULER ("RULER BAGIAN ATAS")                         */}
-      {/* ================================================================== */}
-      {settings.showCanvasRulers && (
-        <div className="h-6 border-b border-zinc-800/80 bg-zinc-950/95 flex items-stretch shrink-0 select-none z-20">
-          {/* Top-Left Origin Corner Box (px) */}
-          <div className="w-6 h-6 border-r border-zinc-800/80 bg-zinc-900/90 flex items-center justify-center text-[8.5px] font-mono text-blue-900 font-semibold shrink-0">
-            px
-          </div>
-
-          {/* Top Horizontal Ruler Track */}
-          <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-            <div
-              className="relative h-full border-x border-blue-900/30 bg-zinc-900/25 transition-[width] duration-150"
-              style={{ width: `${scaledW}px` }}
-            >
-              {/* Selected Object Horizontal Highlight on Top Ruler */}
-              {selLeftPct !== null && selWidthPct !== null && (
-                <div
-                  className="absolute inset-y-0 bg-blue-900/20 border-x border-blue-900/80 pointer-events-none"
-                  style={{
-                    left: `${selLeftPct}%`,
-                    width: `${selWidthPct}%`,
-                  }}
-                />
-              )}
-
-              {/* Tick Marks (every 50px in export coordinates, labeled every 200px) */}
-              {horizontalTicks.map((pxVal) => {
-                const pct = (pxVal / dim.exportWidth) * 100;
-                const isMajor = pxVal % 200 === 0;
-                const isMid = pxVal % 100 === 0;
-                return (
-                  <div
-                    key={pxVal}
-                    className="absolute bottom-0 flex flex-col items-start pointer-events-none"
-                    style={{ left: `${pct}%` }}
-                  >
-                    {isMajor && (
-                      <span className="text-[8px] font-mono text-zinc-400 pl-0.5 leading-none mb-0.5">
-                        {pxVal}
-                      </span>
-                    )}
-                    <div
-                      className={`w-px ${
-                        isMajor
-                          ? 'h-2.5 bg-zinc-400'
-                          : isMid
-                          ? 'h-1.5 bg-zinc-500/80'
-                          : 'h-1 bg-zinc-600/60'
-                      }`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Hidden File Input for Image Upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
 
       {/* ================================================================== */}
-      {/* WORKSPACE BODY: LEFT VERTICAL RULER + MAIN DOT-GRID CANVAS AREA    */}
+      {/* MAIN WORKSPACE: DOCKED LEFT TOOLBAR + (RULERS & CANVAS COLUMN)    */}
       {/* ================================================================== */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        {/* Floating Quick Tools (Move, Hand/Pan, Text, Shapes with Radius, Eraser, Comments) */}
-        <FloatingCanvasTools
+        {/* Docked Left Toolstrip (Photoshop Style Column) */}
+        <DockedCanvasToolstrip
           activeTool={activeTool}
           setActiveTool={setActiveTool}
           onTriggerImageUpload={() => fileInputRef.current?.click()}
           onTriggerEraser={handleRemoveBackground}
+          onRevertEraser={handleRevertOriginalPhoto}
           isErasingBg={isErasingBg}
+          erasingProgress={erasingProgress}
+          onOpenScriptModal={() => setActiveModal('script')}
+          onQuickSave={handleQuickSave}
+          justSaved={justSaved}
+          lastSavedAt={lastSavedAt}
         />
+
+        {/* Right Canvas Column: Top ruler + (Vertical ruler + Canvas stage) */}
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
+          {/* ================================================================== */}
+          {/* TOP HORIZONTAL RULER ("RULER BAGIAN ATAS")                         */}
+          {/* ================================================================== */}
+          {settings.showCanvasRulers && (
+            <div className="h-6 border-b border-zinc-800/80 bg-zinc-950/95 flex items-stretch shrink-0 select-none z-20">
+              {/* Top-Left Origin Corner Box (px) */}
+              <div className="w-6 h-6 border-r border-zinc-800/80 bg-zinc-900/90 flex items-center justify-center text-[8.5px] font-mono text-blue-900 font-semibold shrink-0">
+                px
+              </div>
+
+              {/* Top Horizontal Ruler Track */}
+              <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+                <div
+                  className="relative h-full border-x border-blue-900/30 bg-zinc-900/25 transition-[width] duration-150"
+                  style={{ width: `${scaledW}px` }}
+                >
+                  {/* Selected Object Horizontal Highlight on Top Ruler */}
+                  {selLeftPct !== null && selWidthPct !== null && (
+                    <div
+                      className="absolute inset-y-0 bg-blue-900/20 border-x border-blue-900/80 pointer-events-none"
+                      style={{
+                        left: `${selLeftPct}%`,
+                        width: `${selWidthPct}%`,
+                      }}
+                    />
+                  )}
+
+                  {/* Tick Marks (every 50px in export coordinates, labeled every 200px) */}
+                  {horizontalTicks.map((pxVal) => {
+                    const pct = (pxVal / dim.exportWidth) * 100;
+                    const isMajor = pxVal % 200 === 0;
+                    const isMid = pxVal % 100 === 0;
+                    return (
+                      <div
+                        key={pxVal}
+                        className="absolute bottom-0 flex flex-col items-start pointer-events-none"
+                        style={{ left: `${pct}%` }}
+                      >
+                        {isMajor && (
+                          <span className="text-[8px] font-mono text-zinc-400 pl-0.5 leading-none mb-0.5">
+                            {pxVal}
+                          </span>
+                        )}
+                        <div
+                          className={`w-px ${
+                            isMajor
+                              ? 'h-2.5 bg-zinc-400'
+                              : isMid
+                              ? 'h-1.5 bg-zinc-500/80'
+                              : 'h-1 bg-zinc-600/60'
+                          }`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================================================================== */}
+          {/* WORKSPACE BODY: LEFT VERTICAL RULER + MAIN DOT-GRID CANVAS AREA    */}
+          {/* ================================================================== */}
+          <div className="flex-1 flex min-h-0 overflow-hidden relative">
 
         {/* Left Vertical Ruler */}
         {settings.showCanvasRulers && (
@@ -1032,808 +990,34 @@ export const CenterWorkspace: React.FC = () => {
               </p>
             </div>
           )}
-          {/* Top Floating Icon-Only Quick Action Pill (Positioned cleanly below Top Ruler) */}
-          <div className="sticky top-0 z-30 flex flex-col items-center mb-3">
-            <div
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full border shadow-md backdrop-blur-md ${
-                workspaceDarkMode
-                  ? 'bg-zinc-900/90 border-zinc-800 text-zinc-200'
-                  : 'bg-white/95 border-zinc-300 text-zinc-700'
-              }`}
-            >
-              {/* Previous Slide */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))
-                }
-                disabled={activeSlideIndex === 0}
-                className={`p-1.5 rounded-full disabled:opacity-30 cursor-pointer transition-colors ${
-                  workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
-                }`}
-                title={`Slide Sebelumnya (${activeSlideIndex + 1}/${slides.length})`}
-                aria-label="Previous Slide"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
 
-              <div
-                className={`w-px h-4 mx-0.5 ${
-                  workspaceDarkMode ? 'bg-zinc-800' : 'bg-zinc-200'
-                }`}
-              />
-
-              {/* 1. Script Auto-Generator Icon */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActivePopover(null);
-                  setActiveModal('script');
-                }}
-                title="Script Auto-Generator"
-                aria-label="Script Auto-Generator"
-                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                  workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-blue-400 hover:text-blue-300'
-                    : 'hover:bg-blue-50 text-blue-600 hover:text-blue-700'
-                }`}
-              >
-                <Wand2 className="w-3.5 h-3.5" />
-              </button>
-
-              {/* 2. Save Project Icon */}
-              <button
-                type="button"
-                onClick={handleQuickSave}
-                title={
-                  lastSavedAt
-                    ? `Simpan Project (Terakhir: ${lastSavedAt})`
-                    : 'Simpan Project'
-                }
-                aria-label="Simpan Project"
-                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                  justSaved
-                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                    : workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
-                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
-                }`}
-              >
-                {justSaved ? (
-                  <Check className="w-3.5 h-3.5" />
-                ) : (
-                  <Save className="w-3.5 h-3.5" />
-                )}
-              </button>
-
-              {/* 3. Resize Canvas & Object Icon */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActivePopover(activePopover === 'resize' ? null : 'resize')
-                }
-                title={`Resize Canvas (${ASPECT_RATIOS[aspectRatio].shortLabel}) & Object`}
-                aria-label="Resize Canvas and Object"
-                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                  activePopover === 'resize'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
-                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
-                }`}
-              >
-                <Scaling className="w-3.5 h-3.5" />
-              </button>
-
-              {/* 4. Transparent / Opacity Icon */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActivePopover(
-                    activePopover === 'transparent' ? null : 'transparent'
-                  )
-                }
-                title={`Transparansi / Opacity (${Math.round(currentOpacity * 100)}%)`}
-                aria-label="Transparency and Opacity"
-                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                  activePopover === 'transparent' || currentOpacity < 1
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
-                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
-                }`}
-              >
-                <Blend className="w-3.5 h-3.5" />
-              </button>
-
-              {/* 5. Add / Upload Photo Button */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="Add Photo / Upload Gambar (atau Paste Ctrl+V / Drag-Drop foto ke canvas)"
-                aria-label="Add Photo"
-                className={`p-1.5 rounded-full cursor-pointer transition-colors ${
-                  workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-blue-400'
-                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-blue-600'
-                }`}
-              >
-                <ImagePlus className="w-3.5 h-3.5" />
-              </button>
-
-              {/* 6. AI Background Eraser / Remover Tool (Direct 1-Click) */}
-              <button
-                type="button"
-                disabled={isErasingBg || selectedElement?.type !== 'image'}
-                onClick={() => {
-                  if (isErasingBg || !selectedElement || selectedElement.type !== 'image') return;
-                  if (selectedElement.originalSrc) {
-                    handleRevertOriginalPhoto();
-                  } else {
-                    handleRemoveBackground();
-                  }
-                }}
-                title={
-                  isErasingBg
-                    ? erasingProgress || 'Sedang menghapus background...'
-                    : selectedElement?.type === 'image'
-                    ? selectedElement.originalSrc
-                      ? 'Kembalikan Foto Asli (Background sudah dihapus)'
-                      : 'Hapus Background Foto (1-Klik AI)'
-                    : 'Pilih foto di canvas terlebih dahulu untuk menghapus background'
-                }
-                aria-label="AI Background Eraser"
-                className={`p-1.5 rounded-full transition-all relative ${
-                  isErasingBg
-                    ? 'bg-blue-600/20 text-blue-500 cursor-wait'
-                    : selectedElement?.type === 'image'
-                    ? selectedElement.originalSrc
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/30 cursor-pointer shadow-xs'
-                      : workspaceDarkMode
-                      ? 'text-zinc-300 hover:text-white hover:bg-blue-600 cursor-pointer'
-                      : 'text-zinc-700 hover:text-blue-600 hover:bg-blue-50 cursor-pointer'
-                    : 'opacity-35 text-zinc-400 cursor-not-allowed'
-                }`}
-              >
-                {isErasingBg ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Eraser className="w-3.5 h-3.5" />
-                )}
-                {selectedElement?.type === 'image' && selectedElement.originalSrc && !isErasingBg && (
-                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950" />
-                )}
-              </button>
-
-              {/* 7. Crop / Trim Bounding Box Tool */}
-              <button
-                type="button"
-                disabled={selectedElement?.type !== 'image'}
-                onClick={() => setActivePopover(activePopover === 'crop' ? null : 'crop')}
-                title={
-                  selectedElement?.type === 'image'
-                    ? 'Crop / Potong Bounding Box Foto (Kiri, Kanan, Atas, Bawah)'
-                    : 'Pilih foto di canvas untuk memotong (crop) bounding box'
-                }
-                aria-label="Crop Bounding Box"
-                className={`p-1.5 rounded-full transition-all cursor-pointer ${
-                  activePopover === 'crop'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : selectedElement?.type === 'image'
-                    ? workspaceDarkMode
-                      ? 'text-zinc-300 hover:text-white hover:bg-zinc-800'
-                      : 'text-zinc-700 hover:text-blue-600 hover:bg-blue-50'
-                    : 'opacity-35 text-zinc-400 cursor-not-allowed'
-                }`}
-              >
-                <Crop className="w-3.5 h-3.5" />
-              </button>
-
-              {/* 8. Indikator Ganti Warna Object */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActivePopover(activePopover === 'color' ? null : 'color')
-                }
-                title={
-                  selectedElement
-                    ? `Ganti Warna ${selectedElement.name} (${currentObjectColor})`
-                    : `Ganti Warna Background Slide (${currentObjectColor})`
-                }
-                aria-label="Object Color Indicator"
-                className={`p-1 rounded-full cursor-pointer transition-all flex items-center justify-center ${
-                  activePopover === 'color'
-                    ? 'ring-2 ring-blue-500 ' + (workspaceDarkMode ? 'bg-zinc-800' : 'bg-blue-50')
-                    : workspaceDarkMode
-                    ? 'hover:bg-zinc-800'
-                    : 'hover:bg-zinc-100'
-                }`}
-              >
-                <span
-                  className="w-4 h-4 rounded-full border border-zinc-400/60 shadow-xs block"
-                  style={{ backgroundColor: currentObjectColor }}
-                />
-              </button>
-
-              {/* 9. In-Canvas Commenting (Figma-Style Pin & Feedback) */}
-              <button
-                type="button"
-                onClick={() => setCommentMode(!isCommentMode)}
-                title={
-                  isCommentMode
-                    ? 'Keluar dari Mode Komentar (Esc)'
-                    : 'Beri Komentar & Pin Catatan (Hotkey: C)'
-                }
-                aria-label="Toggle Comment Mode"
-                className={`p-1.5 rounded-full cursor-pointer transition-all relative ${
-                  isCommentMode
-                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/40'
-                    : workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                {comments.filter((c) => !c.isResolved).length > 0 && (
-                  <span className="absolute -top-1 -right-1 px-1 min-w-[14px] h-[14px] rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center leading-none shadow-xs">
-                    {comments.filter((c) => !c.isResolved).length}
-                  </span>
-                )}
-              </button>
-
-              <div
-                className={`w-px h-4 mx-0.5 ${
-                  workspaceDarkMode ? 'bg-zinc-800' : 'bg-zinc-200'
-                }`}
-              />
-
-              {/* Next Slide */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveSlideIndex(
-                    Math.min(slides.length - 1, activeSlideIndex + 1)
-                  )
-                }
-                disabled={activeSlideIndex === slides.length - 1}
-                className={`p-1.5 rounded-full disabled:opacity-30 cursor-pointer transition-colors ${
-                  workspaceDarkMode
-                    ? 'hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                    : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
-                }`}
-                title={`Slide Berikutnya (${activeSlideIndex + 1}/${slides.length})`}
-                aria-label="Next Slide"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-          </div>
-
-          {/* POPOVER 1: RESIZE CANVAS & OBJECT */}
-          {activePopover === 'resize' && (
-            <div className={`mt-2 p-2.5 rounded-xl border shadow-xl backdrop-blur-md w-56 space-y-2.5 text-xs ${
-              workspaceDarkMode
-                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
-                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
-            }`}>
-              <div className="flex items-center justify-between text-[10px] opacity-70 font-medium">
-                <span>Ukuran Canvas (Resize)</span>
-                <span className="font-mono text-[9.5px]">
-                  {dim.exportWidth}×{dim.exportHeight}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-1">
-                {(Object.keys(ASPECT_RATIOS) as AspectRatioKey[]).map((key) => {
-                  const cfg = ASPECT_RATIOS[key];
-                  const active = aspectRatio === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setAspectRatio(key)}
-                      className={`py-1.5 px-1.5 rounded-lg border text-[10px] font-medium cursor-pointer transition-all ${
-                        active
-                          ? 'bg-blue-600/15 border-blue-600 text-blue-600 font-semibold'
-                          : workspaceDarkMode
-                          ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-                          : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
-                      }`}
-                    >
-                      {cfg.shortLabel}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {selectedElement && (
-                <div className={`pt-2 border-t space-y-1.5 ${workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'}`}>
-                  <span className="text-[10px] opacity-70 block">
-                    Resize Object ({selectedElement.name})
-                  </span>
-                  <div className="grid grid-cols-4 gap-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateElement(
-                          selectedElement.id,
-                          {
-                            width: Math.max(
-                              20,
-                              Math.round(selectedElement.width * 0.9)
-                            ),
-                            height: Math.max(
-                              10,
-                              Math.round(selectedElement.height * 0.9)
-                            ),
-                          },
-                          true
-                        )
-                      }
-                      title="Perkecil Object -10%"
-                      className={`py-1 rounded border text-[10px] font-mono cursor-pointer ${
-                        workspaceDarkMode
-                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      -10%
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateElement(
-                          selectedElement.id,
-                          {
-                            width: Math.round(selectedElement.width * 1.1),
-                            height: Math.round(selectedElement.height * 1.1),
-                          },
-                          true
-                        )
-                      }
-                      title="Perbesar Object +10%"
-                      className={`py-1 rounded border text-[10px] font-mono cursor-pointer ${
-                        workspaceDarkMode
-                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      +10%
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        alignElementOnCanvas(selectedElement.id, 'fit-margin')
-                      }
-                      title="Fit ke Margin"
-                      className={`py-1 rounded border text-[10px] cursor-pointer ${
-                        workspaceDarkMode
-                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      Margin
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        alignElementOnCanvas(selectedElement.id, 'fit-canvas')
-                      }
-                      title="Full Bleed Canvas"
-                      className={`py-1 rounded border text-[10px] cursor-pointer ${
-                        workspaceDarkMode
-                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      Full
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* POPOVER 2: TRANSPARENT / OPACITY */}
-          {activePopover === 'transparent' && (
-            <div className={`mt-2 p-2.5 rounded-xl border shadow-xl backdrop-blur-md w-56 space-y-2 text-xs ${
-              workspaceDarkMode
-                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
-                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
-            }`}>
-              {selectedElement ? (
-                <>
-                  <div className="flex items-center justify-between text-[10px] opacity-70">
-                    <span className="truncate max-w-[140px]">
-                      Transparansi ({selectedElement.name})
-                    </span>
-                    <span className="font-mono text-blue-600 font-semibold">
-                      {Math.round(selectedElement.opacity * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={selectedElement.opacity}
-                    onChange={(e) =>
-                      updateElement(
-                        selectedElement.id,
-                        { opacity: Number(e.target.value) },
-                        false
-                      )
-                    }
-                    className="w-full accent-blue-600 cursor-pointer"
-                  />
-                  <div className="grid grid-cols-5 gap-1">
-                    {[
-                      { label: '0%', val: 0 },
-                      { label: '25%', val: 0.25 },
-                      { label: '50%', val: 0.5 },
-                      { label: '75%', val: 0.75 },
-                      { label: '100%', val: 1 },
-                    ].map((preset) => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() =>
-                          updateElement(
-                            selectedElement.id,
-                            { opacity: preset.val },
-                            true
-                          )
-                        }
-                        className={`py-1 rounded border text-[9.5px] font-mono cursor-pointer ${
-                          Math.abs(selectedElement.opacity - preset.val) < 0.03
-                            ? 'bg-blue-600/15 border-blue-600 text-blue-600 font-semibold'
-                            : workspaceDarkMode
-                            ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                            : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
-                        }`}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-                  {(selectedElement.type === 'text' ||
-                    selectedElement.type === 'badge') && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateElement(
-                          selectedElement.id,
-                          { backgroundColor: 'transparent' },
-                          true
-                        )
-                      }
-                      className={`w-full py-1 px-2 rounded-lg border text-[10px] cursor-pointer ${
-                        workspaceDarkMode
-                          ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-                          : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      Set Background Box Transparan
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="space-y-1.5">
-                  <span className="text-[10px] opacity-70 block">
-                    Pilih objek di canvas untuk mengatur tingkat transparansi
-                    objek, atau reset background slide:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSlideBackgroundColor(
-                        activeSlideIndex,
-                        theme.background
-                      )
-                    }
-                    className={`w-full py-1.5 px-2 rounded-lg border text-[10px] cursor-pointer ${
-                      workspaceDarkMode
-                        ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200'
-                        : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-800'
-                    }`}
-                  >
-                    Reset ke Warna Kertas Default Theme
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* POPOVER 3: INDIKATOR GANTI WARNA OBJECT & THEME */}
-          {activePopover === 'color' && (
-            <div className={`mt-2 p-2.5 rounded-xl border shadow-xl backdrop-blur-md w-60 space-y-2.5 text-xs ${
-              workspaceDarkMode
-                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
-                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
-            }`}>
-              <div className="flex items-center justify-between text-[10px] opacity-70">
-                <span className="truncate">
-                  {selectedElement
-                    ? `Warna: ${selectedElement.name}`
-                    : 'Warna Background Slide'}
-                </span>
-                <span className="font-mono text-[9.5px]">
-                  {currentObjectColor}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={
-                    currentObjectColor.startsWith('#')
-                      ? currentObjectColor
-                      : '#1C1917'
-                  }
-                  onChange={(e) => handleObjectColorChange(e.target.value)}
-                  aria-label="Color Picker"
-                  className={`w-7 h-7 rounded-lg cursor-pointer border p-0.5 shrink-0 ${
-                    workspaceDarkMode
-                      ? 'bg-zinc-900 border-zinc-700'
-                      : 'bg-white border-zinc-300'
-                  }`}
-                />
-                <input
-                  type="text"
-                  value={currentObjectColor}
-                  onChange={(e) => handleObjectColorChange(e.target.value)}
-                  className={`flex-1 border rounded-lg px-2 py-1 text-[11px] font-mono focus:outline-none ${
-                    workspaceDarkMode
-                      ? 'bg-zinc-900 border-zinc-800 text-zinc-100'
-                      : 'bg-zinc-50 border-zinc-200 text-zinc-900'
-                  }`}
-                />
-              </div>
-
-              {/* Quick Editorial Swatches */}
-              <div className="grid grid-cols-8 gap-1">
-                {[
-                  theme.textPrimary,
-                  theme.textSecondary,
-                  theme.accent,
-                  theme.background,
-                  theme.surface,
-                  theme.darkBackground,
-                  '#FFFFFF',
-                  '#090F1E',
-                ].map((swatch, idx) => (
-                  <button
-                    key={`${swatch}-${idx}`}
-                    type="button"
-                    onClick={() => handleObjectColorChange(swatch)}
-                    title={swatch}
-                    className="w-5 h-5 rounded-full border border-zinc-400/40 hover:scale-110 transition-transform cursor-pointer"
-                    style={{ backgroundColor: swatch }}
-                  />
-                ))}
-              </div>
-
-              {/* Global Theme Palette Quick Dots */}
-              <div className={`pt-2 border-t flex items-center justify-between ${
-                workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
-              }`}>
-                <span className="text-[10px] opacity-70">Theme Global</span>
-                <div className="flex items-center gap-1.5">
-                  {THEME_PALETTES.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setActiveTheme(t.id)}
-                      title={t.name}
-                      className={`w-4 h-4 rounded-full border transition-transform cursor-pointer ${
-                        activeThemeId === t.id
-                          ? 'scale-115 border-blue-600 ring-2 ring-blue-500/40'
-                          : 'border-zinc-400/40 opacity-75 hover:opacity-100'
-                      }`}
-                      style={{ backgroundColor: t.background }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* POPOVER: CROP & POTONG BOUNDING BOX */}
-          {activePopover === 'crop' && selectedElement?.type === 'image' && (
-            <div className={`mt-2 p-3 rounded-xl border shadow-2xl backdrop-blur-md w-72 space-y-3 text-xs z-50 ${
-              workspaceDarkMode
-                ? 'border-zinc-800 bg-zinc-950/95 text-zinc-200'
-                : 'border-zinc-200 bg-white/98 text-zinc-800 shadow-zinc-300/40'
-            }`}>
-              <div className={`flex items-center justify-between border-b pb-2 ${
-                workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
-              }`}>
-                <div className="flex items-center gap-1.5 font-semibold text-xs">
-                  <Crop className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Potong Bounding Box</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      commitElementHistory();
-                      const trimmed = await trimTransparentImage(selectedElement.src);
-                      const curCenterX = selectedElement.x + selectedElement.width / 2;
-                      const curCenterY = selectedElement.y + selectedElement.height / 2;
-                      let nextW = selectedElement.width;
-                      let nextH = selectedElement.height;
-                      if (trimmed.width > 0 && trimmed.height > 0) {
-                        const ratio = trimmed.width / trimmed.height;
-                        if (ratio >= 1) {
-                          nextW = Math.round(Math.min(selectedElement.width, selectedElement.height * ratio));
-                          nextH = Math.round(nextW / ratio);
-                        } else {
-                          nextH = Math.round(Math.min(selectedElement.height, selectedElement.width / ratio));
-                          nextW = Math.round(nextH * ratio);
-                        }
-                        nextW = Math.max(36, nextW);
-                        nextH = Math.max(36, nextH);
-                      }
-                      const nextX = Math.round(curCenterX - nextW / 2);
-                      const nextY = Math.round(curCenterY - nextH / 2);
-                      updateElement(
-                        selectedElement.id,
-                        {
-                          src: trimmed.dataUrl,
-                          width: nextW,
-                          height: nextH,
-                          x: nextX,
-                          y: nextY,
-                          cropTop: 0,
-                          cropBottom: 0,
-                          cropLeft: 0,
-                          cropRight: 0,
-                        },
-                        true
-                      );
-                    } catch (err) {
-                      console.error('Trim error:', err);
-                    }
-                  }}
-                  title="Pangkas Bounding Box Kosong (Auto-Trim Transparan)"
-                  className="text-[9.5px] px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer transition-colors shadow-xs"
-                >
-                  ⚡ Auto-Fit Box
-                </button>
-              </div>
-
-              {/* 4-Edge Crop Sliders */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[10.5px] font-medium opacity-80">
-                  <span>Potong Tepi (Kiri, Kanan, Atas, Bawah)</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateElement(
-                        selectedElement.id,
-                        {
-                          cropTop: 0,
-                          cropBottom: 0,
-                          cropLeft: 0,
-                          cropRight: 0,
-                        },
-                        true
-                      )
-                    }
-                    className="text-[9.5px] text-blue-600 hover:underline cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-2 p-2 rounded-lg border ${
-                  workspaceDarkMode
-                    ? 'bg-zinc-900/60 border-zinc-800'
-                    : 'bg-zinc-50 border-zinc-200'
-                }`}>
-                  {(
-                    [
-                      { k: 'cropLeft', label: 'Potong Kiri', val: selectedElement.cropLeft || 0 },
-                      { k: 'cropRight', label: 'Potong Kanan', val: selectedElement.cropRight || 0 },
-                      { k: 'cropTop', label: 'Potong Atas', val: selectedElement.cropTop || 0 },
-                      { k: 'cropBottom', label: 'Potong Bawah', val: selectedElement.cropBottom || 0 },
-                    ] as const
-                  ).map((c) => (
-                    <div key={c.k}>
-                      <div className="flex justify-between text-[9px] opacity-70">
-                        <span>{c.label}</span>
-                        <span className="font-mono text-blue-600 font-semibold">{c.val}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={60}
-                        step={1}
-                        value={c.val}
-                        onChange={(e) =>
-                          updateElement(
-                            selectedElement.id,
-                            { [c.k]: Number(e.target.value) },
-                            false
-                          )
-                        }
-                        className="w-full accent-blue-600 cursor-pointer"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Fit Mode */}
-              <div className={`flex items-center justify-between pt-1 border-t text-[10px] opacity-75 ${
-                workspaceDarkMode ? 'border-zinc-800/80' : 'border-zinc-200'
-              }`}>
-                <span>Mode Tampilan:</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => updateElement(selectedElement.id, { objectFit: 'cover' }, true)}
-                    className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
-                      !selectedElement.objectFit || selectedElement.objectFit === 'cover'
-                        ? 'bg-blue-600 text-white font-medium shadow-xs'
-                        : workspaceDarkMode
-                        ? 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
-                        : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 border border-zinc-200'
-                    }`}
-                  >
-                    Cover
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateElement(selectedElement.id, { objectFit: 'contain' }, true)}
-                    className={`px-2 py-0.5 rounded text-[9.5px] cursor-pointer transition-colors ${
-                      selectedElement.objectFit === 'contain'
-                        ? 'bg-blue-600 text-white font-medium shadow-xs'
-                        : workspaceDarkMode
-                        ? 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
-                        : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 border border-zinc-200'
-                    }`}
-                  >
-                    Contain
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Direct Feedback Toast for Background Removal */}
           {(isErasingBg || erasingError) && (
-            <div className="mt-2 px-3 py-1.5 rounded-full bg-zinc-950/95 border border-zinc-800 text-xs shadow-xl backdrop-blur-md flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-              {isErasingBg ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
-                  <span className="text-zinc-200 text-[11px] font-medium">
-                    {erasingProgress || 'Sedang menghapus background...'}
-                  </span>
-                </>
-              ) : erasingError ? (
-                <div className="flex items-center gap-2 text-rose-400 text-[11px]">
-                  <span>{erasingError}</span>
-                  <button
-                    type="button"
-                    onClick={() => setErasingError(null)}
-                    className="p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : null}
+            <div className="sticky top-3 z-30 flex justify-center mb-3 pointer-events-none">
+              <div className="px-3 py-1.5 rounded-full bg-zinc-950/95 border border-zinc-800 text-xs shadow-xl backdrop-blur-md flex items-center gap-2 pointer-events-auto animate-in fade-in slide-in-from-top-1 duration-200">
+                {isErasingBg ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                    <span className="text-zinc-200 text-[11px] font-medium">
+                      {erasingProgress || 'Sedang menghapus background...'}
+                    </span>
+                  </>
+                ) : erasingError ? (
+                  <div className="flex items-center gap-2 text-rose-400 text-[11px]">
+                    <span>{erasingError}</span>
+                    <button
+                      type="button"
+                      onClick={() => setErasingError(null)}
+                      className="p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           )}
-        </div>
 
         {/* Scaled Wrapper around SlideStage */}
         {activeSlide && (
@@ -1881,6 +1065,8 @@ export const CenterWorkspace: React.FC = () => {
         )}
         </div>
       </div>
+    </div>
+  </div>
 
       {/* Bottom Slide Filmstrip */}
       <div className="h-32 border-t border-zinc-800/80 bg-zinc-950/95 px-4 py-2 flex items-center gap-3 overflow-x-auto scroller-dark shrink-0 z-20">
