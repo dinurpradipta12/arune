@@ -79,6 +79,11 @@ export function App() {
     }
   }, [settings.studioName]);
 
+  // Synchronize dark class on document.documentElement for Tailwind dark: variants
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', workspaceDarkMode);
+  }, [workspaceDarkMode]);
+
   // Sync Cloud Master Templates & Global Studio Config (Admin Credentials, Studio Name) on mount
   useEffect(() => {
     let active = true;
