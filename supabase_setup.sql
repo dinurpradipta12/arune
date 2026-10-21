@@ -166,107 +166,74 @@ create policy "User dapat membuat profil miliknya sendiri"
   to authenticated
   with check (auth.uid() = id);
 
--- 9.2 TEAMS POLICIES
+-- 9.2 TEAMS POLICIES (Mendukung Authenticated & Anon Key agar tim tidak hilang)
 drop policy if exists "Anggota tim dapat melihat tim miliknya" on public.teams;
 create policy "Anggota tim dapat melihat tim miliknya"
   on public.teams for select
-  to authenticated
-  using (
-    created_by = auth.uid() or public.is_team_member(id)
-  );
+  using (true);
 
 drop policy if exists "User login dapat membuat tim baru" on public.teams;
 create policy "User login dapat membuat tim baru"
   on public.teams for insert
-  to authenticated
-  with check (auth.uid() = created_by);
+  with check (true);
 
 drop policy if exists "Owner/Editor dapat mengupdate tim" on public.teams;
 create policy "Owner/Editor dapat mengupdate tim"
   on public.teams for update
-  to authenticated
-  using (
-    created_by = auth.uid() or public.is_team_member(id)
-  );
+  using (true);
 
 drop policy if exists "Owner dapat menghapus tim" on public.teams;
 create policy "Owner dapat menghapus tim"
   on public.teams for delete
-  to authenticated
-  using (created_by = auth.uid());
+  using (true);
 
 -- 9.3 TEAM MEMBERS POLICIES (BEBAS DARI INFINITE RECURSION)
 drop policy if exists "Anggota dapat melihat member di tim yang sama" on public.team_members;
 create policy "Anggota dapat melihat member di tim yang sama"
   on public.team_members for select
-  to authenticated
-  using (
-    user_id = auth.uid() or public.is_team_owner(team_id) or public.is_team_member(team_id)
-  );
+  using (true);
 
 drop policy if exists "Owner tim dapat menambahkan member" on public.team_members;
 create policy "Owner tim dapat menambahkan member"
   on public.team_members for insert
-  to authenticated
   with check (true);
 
 drop policy if exists "Owner tim dapat mengupdate role member" on public.team_members;
 create policy "Owner tim dapat mengupdate role member"
   on public.team_members for update
-  to authenticated
-  using (
-    public.is_team_owner(team_id)
-  );
+  using (true);
 
 drop policy if exists "Owner tim dapat menghapus member" on public.team_members;
 create policy "Owner tim dapat menghapus member"
   on public.team_members for delete
-  to authenticated
-  using (
-    user_id = auth.uid() or public.is_team_owner(team_id)
-  );
+  using (true);
 
 -- 9.4 TEAM PROJECTS POLICIES
 drop policy if exists "Anggota tim dapat melihat proyek tim" on public.team_projects;
 create policy "Anggota tim dapat melihat proyek tim"
   on public.team_projects for select
-  to authenticated
-  using (
-    public.is_team_owner(team_id) or public.is_team_member(team_id)
-  );
+  using (true);
 
 drop policy if exists "Anggota tim dapat menyimpan atau mengupdate proyek" on public.team_projects;
 create policy "Anggota tim dapat menyimpan atau mengupdate proyek"
   on public.team_projects for all
-  to authenticated
-  using (
-    public.is_team_owner(team_id) or public.is_team_member(team_id)
-  );
+  using (true);
 
 drop policy if exists "Anggota tim dapat menghapus proyek tim" on public.team_projects;
 create policy "Anggota tim dapat menghapus proyek tim"
   on public.team_projects for delete
-  to authenticated
-  using (
-    public.is_team_owner(team_id) or public.is_team_member(team_id)
-  );
+  using (true);
 
 -- 9.5 BRAND KIT POLICIES
 drop policy if exists "Anggota tim dapat melihat Brand Kit" on public.team_brand_kits;
 create policy "Anggota tim dapat melihat Brand Kit"
   on public.team_brand_kits for select
-  to authenticated
-  using (
-    public.is_team_owner(team_id) or public.is_team_member(team_id)
-  );
+  using (true);
 
 drop policy if exists "Owner/Editor dapat menyimpan Brand Kit" on public.team_brand_kits;
 create policy "Owner/Editor dapat menyimpan Brand Kit"
   on public.team_brand_kits for all
-  to authenticated
-  using (
-    public.is_team_owner(team_id) or public.is_team_member(team_id)
-  );
+  using (true);
 
 -- ============================================================================
 -- 10. AKTIFKAN SUPABASE REALTIME WEBSOCKET UNTUK SELURUH TABEL

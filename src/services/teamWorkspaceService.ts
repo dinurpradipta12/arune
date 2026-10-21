@@ -357,96 +357,77 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       return getTeams();
     }
 
-    // 2. If user is authenticated but has ZERO teams in Supabase, migrate local team!
+    // 2. If user is authenticated but has ZERO teams in Supabase, migrate ALL local teams!
     if (!teamsData || teamsData.length === 0) {
       const localTeams = getTeams();
       const localProjects = getAllStoredTeamProjects();
-      const firstTeam = localTeams[0] || getInitialTeams()[0];
-      const newTeamId = ensureUuid(firstTeam.id);
 
-      // Insert team into Supabase
-      const { error: insTeamErr } = await client.from('teams').insert({
-        id: newTeamId,
-        name: firstTeam.name || 'Creative Studio Team',
-        description: firstTeam.description || 'Ruang kerja bersama untuk tim desain dan konten editorial.',
-        avatar_color: firstTeam.avatarColor || '#5E887E',
-        created_by: authUser.id,
-      });
+      for (const team of localTeams) {
+        const teamId = ensureUuid(team.id);
+        team.id = teamId;
+        team.ownerId = authUser.id;
 
-      if (!insTeamErr) {
-        // Insert owner into team_members
-        await client.from('team_members').insert({
-          team_id: newTeamId,
-          user_id: authUser.id,
-          role: 'owner',
+        // Insert team into Supabase
+        const { error: insTeamErr } = await client.from('teams').insert({
+          id: teamId,
+          name: team.name || 'Folder Tim',
+          description: team.description || '',
+          avatar_color: team.avatarColor || '#5E887E',
+          icon_url: team.iconUrl || null,
+          created_by: authUser.id,
         });
 
-        // Insert default brand kit
-        await client.from('team_brand_kits').upsert({
-          team_id: newTeamId,
-          publication_name: firstTeam.brandKit?.publicationName || 'Creative Editorial Studio',
-          author_handle: firstTeam.brandKit?.authorOrHandle || '@dinurpradiptaa',
-          issue_label: firstTeam.brandKit?.issueLabel || 'VOL. 01',
-          footer_note: firstTeam.brandKit?.footerNote || 'arune.studio • swipe to read',
-          primary_color: firstTeam.brandKit?.primaryColor || '#2F3E46',
-          accent_color: firstTeam.brandKit?.accentColor || '#5E887E',
-          background_color: firstTeam.brandKit?.backgroundColor || '#FFFFFF',
-          text_color: firstTeam.brandKit?.textColor || '#2F3E46',
-          heading_font: firstTeam.brandKit?.headingFont || 'Plus Jakarta Sans',
-          body_font: firstTeam.brandKit?.bodyFont || 'Plus Jakarta Sans',
-          show_slide_numbers: firstTeam.brandKit?.showSlideNumbers ?? true,
-          show_footer_bar: firstTeam.brandKit?.showFooterBar ?? true,
-        });
+        if (!insTeamErr) {
+          // Insert owner into team_members
+          await client.from('team_members').upsert({
+            team_id: teamId,
+            user_id: authUser.id,
+            role: 'owner',
+          }, { onConflict: 'team_id,user_id' });
 
-        // Migrate local projects to Supabase team_projects
-        for (const lp of localProjects) {
-          try {
-            const parsedJson = typeof lp.projectJson === 'string' ? JSON.parse(lp.projectJson) : lp.projectJson;
-            await client.from('team_projects').insert({
-              id: ensureUuid(lp.id),
-              team_id: newTeamId,
-              title: lp.title || 'Untitled Carousel Project',
-              aspect_ratio: lp.aspectRatio || '4:5',
-              slide_count: lp.slideCount || 6,
-              project_json: parsedJson,
-              last_edited_by: authUser.name || 'Member',
-              last_edited_at: lp.lastEditedAt || new Date().toISOString(),
-            });
-          } catch (e) {
-            console.warn('Failed to migrate local project to Supabase:', e);
-          }
+          // Insert brand kit
+          await client.from('team_brand_kits').upsert({
+            team_id: teamId,
+            publication_name: team.brandKit?.publicationName || 'Creative Editorial Studio',
+            author_handle: team.brandKit?.authorOrHandle || '@dinurpradiptaa',
+            issue_label: team.brandKit?.issueLabel || 'VOL. 01',
+            footer_note: team.brandKit?.footerNote || 'arune.studio • swipe to read',
+            primary_color: team.brandKit?.primaryColor || '#2F3E46',
+            accent_color: team.brandKit?.accentColor || '#5E887E',
+            background_color: team.brandKit?.backgroundColor || '#FFFFFF',
+            text_color: team.brandKit?.textColor || '#2F3E46',
+            heading_font: team.brandKit?.headingFont || 'Plus Jakarta Sans',
+            body_font: team.brandKit?.bodyFont || 'Plus Jakarta Sans',
+            show_slide_numbers: team.brandKit?.showSlideNumbers ?? true,
+            show_footer_bar: team.brandKit?.showFooterBar ?? true,
+          });
         }
-
-        // Try migrating existing members (like Allisha) if they exist in profiles
-        for (const mem of firstTeam.members) {
-          if (mem.email && mem.email.toLowerCase() !== authUser.email.toLowerCase()) {
-            try {
-              const { data: memProfile } = await client
-                .from('profiles')
-                .select('id')
-                .ilike('email', mem.email.trim())
-                .maybeSingle();
-
-              if (memProfile) {
-                await client.from('team_members').upsert({
-                  team_id: newTeamId,
-                  user_id: memProfile.id,
-                  role: mem.role || 'editor',
-                }, { onConflict: 'team_id,user_id' });
-              }
-            } catch {
-              // ignore
-            }
-          }
-        }
-
-        // Return migrated team
-        firstTeam.id = newTeamId;
-        firstTeam.ownerId = authUser.id;
-        saveTeams([firstTeam]);
-        setActiveTeamId(newTeamId);
-        return [firstTeam];
       }
+
+      // Migrate local projects
+      for (const lp of localProjects) {
+        try {
+          const parsedJson = typeof lp.projectJson === 'string' ? JSON.parse(lp.projectJson) : lp.projectJson;
+          await client.from('team_projects').upsert({
+            id: ensureUuid(lp.id),
+            team_id: ensureUuid(lp.teamId || localTeams[0]?.id || ''),
+            title: lp.title || 'Untitled Carousel Project',
+            aspect_ratio: lp.aspectRatio || '4:5',
+            slide_count: lp.slideCount || 6,
+            project_json: parsedJson,
+            last_edited_by: authUser.name || 'Member',
+            last_edited_at: lp.lastEditedAt || new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch (e) {
+          console.warn('Failed to migrate local project to Supabase:', e);
+        }
+      }
+
+      saveTeams(localTeams);
+      if (localTeams.length > 0 && !getActiveTeamId()) {
+        setActiveTeamId(localTeams[0].id);
+      }
+      return localTeams;
     }
 
     // 3. Collect all user IDs from team members to fetch their profile details
@@ -557,11 +538,49 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       };
     });
 
-    saveTeams(mappedTeams);
-    if (!getActiveTeamId() && mappedTeams[0]) {
-      setActiveTeamId(mappedTeams[0].id);
+    // Merge Supabase teams with existing local teams so local teams are NEVER deleted!
+    const localTeams = getTeams();
+    const mergedMap = new Map<string, TeamWorkspace>();
+
+    // 1. Keep existing local teams first
+    localTeams.forEach((t) => mergedMap.set(t.id, t));
+
+    // 2. Overlay with cloud teams
+    mappedTeams.forEach((t) => mergedMap.set(t.id, t));
+
+    const finalTeams = Array.from(mergedMap.values());
+    saveTeams(finalTeams);
+
+    // 3. For any local team that is not yet in Supabase, upload it in the background
+    for (const lt of localTeams) {
+      if (!mappedTeams.some((ct) => ct.id === lt.id)) {
+        void (async () => {
+          try {
+            await client.from('teams').upsert({
+              id: ensureUuid(lt.id),
+              name: lt.name || 'Folder Tim',
+              description: lt.description || '',
+              avatar_color: lt.avatarColor || '#5E887E',
+              icon_url: lt.iconUrl || null,
+              created_by: authUser.id,
+            }, { onConflict: 'id' });
+
+            await client.from('team_members').upsert({
+              team_id: ensureUuid(lt.id),
+              user_id: authUser.id,
+              role: 'owner',
+            }, { onConflict: 'team_id,user_id' });
+          } catch {
+            // ignore background sync errors
+          }
+        })();
+      }
     }
-    return mappedTeams;
+
+    if (!getActiveTeamId() && finalTeams[0]) {
+      setActiveTeamId(finalTeams[0].id);
+    }
+    return finalTeams;
   } catch (err) {
     console.error('Failed to sync teams with Supabase:', err);
     return getTeams();
