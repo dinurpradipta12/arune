@@ -320,6 +320,7 @@ interface StudioState {
   canvasZoom: number; // 0.5 to 1.5
   workspaceDarkMode: boolean;
   leftSidebarOpen: boolean;
+  rightSidebarOpen: boolean;
   activeLeftTab: LeftSidebarTab;
   activeModal: StudioModalType;
   isExporting: boolean;
@@ -483,6 +484,7 @@ interface StudioState {
   setCanvasZoom: (zoom: number) => void;
   setWorkspaceDarkMode: (dark: boolean) => void;
   setLeftSidebarOpen: (open: boolean) => void;
+  setRightSidebarOpen: (open: boolean) => void;
   setActiveLeftTab: (tab: LeftSidebarTab) => void;
   rightSidebarTab: RightSidebarTab;
   setRightSidebarTab: (tab: RightSidebarTab) => void;
@@ -739,6 +741,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   canvasZoom: 0.9,
   workspaceDarkMode: false,
   leftSidebarOpen: true,
+  rightSidebarOpen: true,
   activeLeftTab: 'elements',
   rightSidebarTab: 'inspector',
   activeModal: null,
@@ -2627,6 +2630,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     }),
   setWorkspaceDarkMode: (workspaceDarkMode) => set({ workspaceDarkMode }),
   setLeftSidebarOpen: (leftSidebarOpen) => set({ leftSidebarOpen }),
+  setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),
   setActiveLeftTab: (activeLeftTab) =>
     set({ activeLeftTab, leftSidebarOpen: true }),
   setRightSidebarTab: (rightSidebarTab) => set({ rightSidebarTab }),

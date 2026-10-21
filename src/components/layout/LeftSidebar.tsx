@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import {
   ArrowDown,
   ArrowDownToLine,
@@ -1352,8 +1352,6 @@ export const LeftSidebar: React.FC = () => {
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [editingLayerName, setEditingLayerName] = useState<string>('');
 
-  if (!leftSidebarOpen) return null;
-
   const activeSlide = slides[activeSlideIndex] || slides[0];
   const activeTheme = getActiveTheme();
 
@@ -1362,6 +1360,50 @@ export const LeftSidebar: React.FC = () => {
   const sortedAllElements = [...allElements].sort((a, b) => b.zIndex - a.zIndex);
   const isTopmost = sortedAllElements.length > 0 && sortedAllElements[0]?.id === selectedElementId;
   const isBottommost = sortedAllElements.length > 0 && sortedAllElements[sortedAllElements.length - 1]?.id === selectedElementId;
+
+  // FLIP animation for smooth layer reordering
+  const layerElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const prevLayerTopsRef = useRef<Map<string, number>>(new Map());
+
+  useLayoutEffect(() => {
+    if (prevLayerTopsRef.current.size === 0) return;
+
+    layerElementsRef.current.forEach((el, key) => {
+      const prevTop = prevLayerTopsRef.current.get(key);
+      if (prevTop !== undefined && el) {
+        const newTop = el.getBoundingClientRect().top;
+        const dy = prevTop - newTop;
+        if (Math.abs(dy) > 1) {
+          el.style.transform = `translate3d(0, ${dy}px, 0)`;
+          el.style.transition = 'none';
+          el.style.zIndex = '10';
+
+          requestAnimationFrame(() => {
+            el.style.transition = 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1)';
+            el.style.transform = 'translate3d(0, 0, 0)';
+            const cleanUp = () => {
+              el.style.transition = '';
+              el.style.transform = '';
+              el.style.zIndex = '';
+              el.removeEventListener('transitionend', cleanUp);
+            };
+            el.addEventListener('transitionend', cleanUp);
+          });
+        }
+      }
+    });
+
+    prevLayerTopsRef.current.clear();
+  }, [allElements]);
+
+  const handleAdjustZIndex = (id: string, dir: 'front' | 'forward' | 'backward' | 'back') => {
+    layerElementsRef.current.forEach((el, key) => {
+      if (el) {
+        prevLayerTopsRef.current.set(key, el.getBoundingClientRect().top);
+      }
+    });
+    adjustElementZIndex(id, dir);
+  };
 
   const filteredElements = sortedAllElements.filter((el) => {
     if (layerFilter === 'all') return true;
@@ -1373,9 +1415,26 @@ export const LeftSidebar: React.FC = () => {
   });
 
   return (
-    <aside className="w-72 border-r border-zinc-800/80 bg-zinc-950 flex flex-col shrink-0 select-none z-20 h-full overflow-hidden">
-      {/* Sidebar Brand Header with Favicon Logo */}
-      <div className="h-11 px-3 border-b border-zinc-800/80 bg-zinc-900/60 flex items-center justify-between shrink-0">
+    <aside
+      className={`border-r flex flex-col shrink-0 select-none z-20 h-full overflow-hidden transition-[width,opacity] duration-250 ease-out will-change-[width,opacity] ${
+        leftSidebarOpen
+          ? 'w-72 opacity-100'
+          : 'w-0 opacity-0 border-r-0 pointer-events-none'
+      } ${
+        workspaceDarkMode
+          ? 'border-zinc-800/80 bg-zinc-950 text-zinc-100'
+          : 'border-slate-200 bg-white text-slate-800'
+      }`}
+    >
+      <div className="w-72 flex flex-col h-full shrink-0">
+        {/* Sidebar Brand Header with Favicon Logo */}
+        <div
+          className={`h-11 px-3 border-b flex items-center justify-between shrink-0 ${
+            workspaceDarkMode
+              ? 'border-zinc-800/80 bg-zinc-900/60'
+              : 'border-slate-200 bg-slate-50'
+          }`}
+        >
         <div className="flex items-center gap-2.5 min-w-0">
           <img
             src={studioLogo}
@@ -1555,8 +1614,12 @@ export const LeftSidebar: React.FC = () => {
                 return (
                   <div
                     key={el.id}
+                    ref={(elNode) => {
+                      if (elNode) layerElementsRef.current.set(el.id, elNode);
+                      else layerElementsRef.current.delete(el.id);
+                    }}
                     onClick={() => setSelectedElementId(el.id)}
-                    className={`group flex items-center h-9 border-b transition-colors cursor-pointer ${
+                    className={`group flex items-center h-9 border-b transition-colors cursor-pointer will-change-transform ${
                       isSel
                         ? workspaceDarkMode
                           ? 'bg-[#2F405A] border-blue-400/40 text-white font-medium'
@@ -1760,7 +1823,7 @@ export const LeftSidebar: React.FC = () => {
               <button
                 type="button"
                 disabled={!selectedElementId || isTopmost}
-                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'front')}
+                onClick={() => selectedElementId && handleAdjustZIndex(selectedElementId, 'front')}
                 title={isTopmost ? 'Sudah di paling depan' : 'Geser ke Paling Depan (Top)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
@@ -1773,7 +1836,7 @@ export const LeftSidebar: React.FC = () => {
               <button
                 type="button"
                 disabled={!selectedElementId || isTopmost}
-                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'forward')}
+                onClick={() => selectedElementId && handleAdjustZIndex(selectedElementId, 'forward')}
                 title={isTopmost ? 'Sudah di paling depan' : 'Maju Satu Lapisan (+1)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
@@ -1786,7 +1849,7 @@ export const LeftSidebar: React.FC = () => {
               <button
                 type="button"
                 disabled={!selectedElementId || isBottommost}
-                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'backward')}
+                onClick={() => selectedElementId && handleAdjustZIndex(selectedElementId, 'backward')}
                 title={isBottommost ? 'Sudah di paling belakang' : 'Mundur Satu Lapisan (-1)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
@@ -1799,7 +1862,7 @@ export const LeftSidebar: React.FC = () => {
               <button
                 type="button"
                 disabled={!selectedElementId || isBottommost}
-                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'back')}
+                onClick={() => selectedElementId && handleAdjustZIndex(selectedElementId, 'back')}
                 title={isBottommost ? 'Sudah di paling belakang' : 'Geser ke Paling Belakang (Bottom)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
@@ -2063,6 +2126,7 @@ export const LeftSidebar: React.FC = () => {
 
       {/* TAB 3: CURATED FONT COMBINATIONS (Adobe 10 & Canva Pairings) */}
       {activeLeftTab === 'font-combinations' && <FontCombinationsPanel />}
+      </div>
     </aside>
   );
 };

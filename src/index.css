@@ -93,6 +93,23 @@
   pointer-events: none;
 }
 
+/* Full App Page View Transition (Home Hub <-> Editor <-> Theme Builder <-> Team Workspace) */
+@keyframes studioPageIn {
+  0% {
+    opacity: 0.2;
+    transform: translateY(6px) scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.anim-studio-page {
+  animation: studioPageIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
 /* ==========================================================================
    WORKSPACE THEME ENGINE:
    - Dark Mode: SaaS Brand Guideline (Deep Navy Blue #0A1A2F, Muted Silver #B0B7C0, Soft Lavender #DCD0FF)

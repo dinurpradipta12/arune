@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useLayoutEffect } from 'react';
 import {
   AlignCenter,
   AlignEndHorizontal,
@@ -13,7 +13,6 @@ import {
   ArrowDown,
   ArrowUp,
   Bold,
-  ChevronDown,
   ChevronRight,
   CircleDot,
   Copy,
@@ -95,88 +94,110 @@ interface ModalCardProps {
 /**
  * Reusable Modular Floating Card ("Per Modal Panel") inside the Right Sidebar.
  * Users can collapse/expand or reorder each modal up/down to customize their right workspace.
+ * Equipped with Smooth FLIP transitions on reorder and CSS Grid accordion on collapse/expand.
  */
-const InspectorModalCard: React.FC<ModalCardProps> = ({
-  id,
-  title,
-  subtitle,
-  icon,
-  isCollapsed,
-  onToggleCollapse,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
-  headerAction,
-  children,
-}) => {
-  return (
-    <div className={`inspector-modal-card inspector-card-${id} rounded-xl border border-zinc-800/90 bg-zinc-950 shadow-sm overflow-hidden transition-all`}>
-      {/* Modal Card Header */}
+const InspectorModalCard = React.forwardRef<HTMLDivElement, ModalCardProps>(
+  (
+    {
+      id,
+      title,
+      subtitle,
+      icon,
+      isCollapsed,
+      onToggleCollapse,
+      onMoveUp,
+      onMoveDown,
+      isFirst,
+      isLast,
+      headerAction,
+      children,
+    },
+    ref
+  ) => {
+    return (
       <div
-        onClick={onToggleCollapse}
-        className={`inspector-section-header inspector-header-${id} px-3 py-2.5 flex items-center justify-between gap-1.5 cursor-pointer transition-colors`}
+        ref={ref}
+        className={`inspector-modal-card inspector-card-${id} rounded-xl border border-zinc-800/90 bg-zinc-950 shadow-sm overflow-hidden will-change-transform`}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <GripVertical className="w-3.5 h-3.5 text-zinc-400/70 hover:text-zinc-600 dark:hover:text-zinc-200 shrink-0 cursor-grab active:cursor-grabbing transition-colors" />
-          <div className={`inspector-icon-box inspector-icon-box-${id} w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-xs shadow-xs`}>
-            {icon}
-          </div>
-          <span className="inspector-header-title text-[11.5px] font-bold tracking-wide truncate">
-            {title}
-          </span>
-          {subtitle && (
-            <span className={`inspector-badge inspector-badge-${id} text-[9.5px] font-semibold px-2 py-0.5 rounded-full font-mono shrink-0`}>
-              {subtitle}
+        {/* Modal Card Header */}
+        <div
+          onClick={onToggleCollapse}
+          className={`inspector-section-header inspector-header-${id} px-3 py-2.5 flex items-center justify-between gap-1.5 cursor-pointer transition-colors`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <GripVertical className="w-3.5 h-3.5 text-zinc-400/70 hover:text-zinc-600 dark:hover:text-zinc-200 shrink-0 cursor-grab active:cursor-grabbing transition-colors" />
+            <div
+              className={`inspector-icon-box inspector-icon-box-${id} w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-xs shadow-xs`}
+            >
+              {icon}
+            </div>
+            <span className="inspector-header-title text-[11.5px] font-bold tracking-wide truncate">
+              {title}
             </span>
-          )}
+            {subtitle && (
+              <span
+                className={`inspector-badge inspector-badge-${id} text-[9.5px] font-semibold px-2 py-0.5 rounded-full font-mono shrink-0`}
+              >
+                {subtitle}
+              </span>
+            )}
+          </div>
+
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-0.5 shrink-0"
+          >
+            {headerAction}
+            <button
+              type="button"
+              onClick={onMoveUp}
+              disabled={isFirst}
+              title="Pindahkan Modal ke Atas"
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
+            >
+              <ArrowUp className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={onMoveDown}
+              disabled={isLast}
+              title="Pindahkan Modal ke Bawah"
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
+            >
+              <ArrowDown className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title={isCollapsed ? 'Buka Modal' : 'Lipat Modal'}
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors"
+            >
+              <ChevronRight
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  isCollapsed ? '' : 'rotate-90'
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
+        {/* Modal Card Body with Smooth Accordion */}
         <div
-          onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-0.5 shrink-0"
+          className={`grid transition-[grid-template-rows,opacity] duration-250 ease-out ${
+            isCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+          }`}
         >
-          {headerAction}
-          <button
-            type="button"
-            onClick={onMoveUp}
-            disabled={isFirst}
-            title="Pindahkan Modal ke Atas"
-            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
-          >
-            <ArrowUp className="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            onClick={onMoveDown}
-            disabled={isLast}
-            title="Pindahkan Modal ke Bawah"
-            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
-          >
-            <ArrowDown className="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            title={isCollapsed ? 'Buka Modal' : 'Lipat Modal'}
-            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
-            )}
-          </button>
+          <div className="overflow-hidden">
+            <div className="p-3 space-y-3 bg-zinc-950 border-t border-zinc-800/50">
+              {children}
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Modal Card Body */}
-      {!isCollapsed && (
-        <div className="p-3 space-y-3 bg-zinc-950 border-t border-zinc-800/50">{children}</div>
-      )}
-    </div>
-  );
-};
+    );
+  }
+);
+InspectorModalCard.displayName = 'InspectorModalCard';
 
 export const RightInspector: React.FC = () => {
   const {
@@ -199,6 +220,7 @@ export const RightInspector: React.FC = () => {
     commitElementHistory,
     rightSidebarTab,
     setRightSidebarTab,
+    rightSidebarOpen,
     workspaceDarkMode,
   } = useStudioStore();
 
@@ -233,6 +255,41 @@ export const RightInspector: React.FC = () => {
   const isTeamMode = Boolean(activeTeamId);
   const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
 
+  // FLIP animation for smooth reordering of inspector modules
+  const cardElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const prevRectsRef = useRef<Map<string, number>>(new Map());
+
+  useLayoutEffect(() => {
+    if (prevRectsRef.current.size === 0) return;
+
+    cardElementsRef.current.forEach((el, key) => {
+      const prevTop = prevRectsRef.current.get(key);
+      if (prevTop !== undefined && el) {
+        const newTop = el.getBoundingClientRect().top;
+        const dy = prevTop - newTop;
+        if (Math.abs(dy) > 1) {
+          el.style.transform = `translate3d(0, ${dy}px, 0)`;
+          el.style.transition = 'none';
+          el.style.zIndex = '15';
+
+          requestAnimationFrame(() => {
+            el.style.transition = 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)';
+            el.style.transform = 'translate3d(0, 0, 0)';
+            const cleanUp = () => {
+              el.style.transition = '';
+              el.style.transform = '';
+              el.style.zIndex = '';
+              el.removeEventListener('transitionend', cleanUp);
+            };
+            el.addEventListener('transitionend', cleanUp);
+          });
+        }
+      }
+    });
+
+    prevRectsRef.current.clear();
+  }, [moduleOrder]);
+
   const toggleCollapse = (id: InspectorModuleId) => {
     setCollapsedModules((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -249,6 +306,13 @@ export const RightInspector: React.FC = () => {
         ? visibleList[idxInVisible - 1]
         : visibleList[idxInVisible + 1];
     if (!swapTargetId) return;
+
+    // 1. FIRST: Capture the bounding rect top for both affected cards before state update
+    cardElementsRef.current.forEach((el, key) => {
+      if (el) {
+        prevRectsRef.current.set(key, el.getBoundingClientRect().top);
+      }
+    });
 
     setModuleOrder((prev) => {
       const next = [...prev];
@@ -2648,16 +2712,23 @@ export const RightInspector: React.FC = () => {
 
   return (
     <aside
-      className={`w-84 border-l flex flex-col shrink-0 select-none z-20 h-full overflow-hidden transition-colors ${
-        workspaceDarkMode ? 'border-zinc-800/80 bg-zinc-950' : 'border-zinc-200 bg-white'
+      className={`border-l flex flex-col shrink-0 select-none z-20 h-full overflow-hidden transition-[width,opacity] duration-250 ease-out will-change-[width,opacity] ${
+        rightSidebarOpen
+          ? 'w-84 opacity-100'
+          : 'w-0 opacity-0 border-l-0 pointer-events-none'
+      } ${
+        workspaceDarkMode
+          ? 'border-zinc-800/80 bg-zinc-950 text-zinc-100'
+          : 'border-zinc-200 bg-white text-zinc-800'
       }`}
     >
-      {/* Top Sidebar Tab Switcher: Inspector | Preview IG | Riwayat Tim (Team Mode only) */}
-      <div
-        className={`px-2 pt-2 pb-1.5 border-b flex items-center gap-1.5 shrink-0 transition-colors ${
-          workspaceDarkMode ? 'border-zinc-800/80 bg-zinc-950' : 'border-zinc-200 bg-white'
-        }`}
-      >
+      <div className="w-84 flex flex-col h-full shrink-0">
+        {/* Top Sidebar Tab Switcher: Inspector | Preview IG | Riwayat Tim (Team Mode only) */}
+        <div
+          className={`px-2 pt-2 pb-1.5 border-b flex items-center gap-1.5 shrink-0 transition-colors ${
+            workspaceDarkMode ? 'border-zinc-800/80 bg-zinc-950' : 'border-zinc-200 bg-white'
+          }`}
+        >
         <button
           type="button"
           onClick={() => setRightSidebarTab('inspector')}
@@ -2850,6 +2921,10 @@ export const RightInspector: React.FC = () => {
         {sortedModules.map((mod, idx) => (
           <InspectorModalCard
             key={mod.id}
+            ref={(el) => {
+              if (el) cardElementsRef.current.set(mod.id, el);
+              else cardElementsRef.current.delete(mod.id);
+            }}
             id={mod.id}
             title={mod.title}
             subtitle={mod.subtitle}
@@ -2867,6 +2942,7 @@ export const RightInspector: React.FC = () => {
       </div>
     </>
   )}
-</aside>
+      </div>
+    </aside>
   );
 };

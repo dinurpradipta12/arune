@@ -14,6 +14,8 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   Redo2,
   Settings,
@@ -35,6 +37,8 @@ export const TopHeaderBar: React.FC = () => {
     aspectRatio,
     leftSidebarOpen,
     setLeftSidebarOpen,
+    rightSidebarOpen,
+    setRightSidebarOpen,
     workspaceDarkMode,
     setWorkspaceDarkMode,
     activeView,
@@ -319,6 +323,23 @@ export const TopHeaderBar: React.FC = () => {
           >
             <Settings className="w-3.5 h-3.5 text-zinc-400" />
           </button>
+
+          {activeView === 'editor' && (
+            <button
+              type="button"
+              onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+              title={
+                rightSidebarOpen ? 'Collapse Right Inspector' : 'Expand Right Inspector'
+              }
+              className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-400 transition-colors cursor-pointer"
+            >
+              {rightSidebarOpen ? (
+                <PanelRightClose className="w-3.5 h-3.5 text-zinc-400" />
+              ) : (
+                <PanelRightOpen className="w-3.5 h-3.5 text-zinc-400" />
+              )}
+            </button>
+          )}
 
           <button
             type="button"

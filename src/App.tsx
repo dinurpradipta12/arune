@@ -252,24 +252,26 @@ export function App() {
             : 'studio-theme-light bg-[#F1F5F4] text-[#2F3E46]'
         }`}
       >
-        {/* Main View Switcher: Full-Screen Studio Home Hub vs 3-Column Studio Editor vs Theme Builder vs Team Workspace */}
-        {activeView === 'gallery' ? (
-          <TemplateGalleryPage />
-        ) : activeView === 'theme-builder' ? (
-          <ThemeBuilderPage />
-        ) : activeView === 'team' ? (
-          <TeamWorkspacePage />
-        ) : (
-          <>
-            <TopHeaderBar />
-            <div className="flex-1 flex min-h-0 overflow-hidden">
-              <LeftSidebar />
-              <CenterWorkspace />
-              <RightInspector />
-            </div>
-            <StudioBottomStatusBar />
-          </>
-        )}
+        {/* Main View Switcher with Smooth Page Transition: Full-Screen Studio Home Hub vs 3-Column Studio Editor vs Theme Builder vs Team Workspace */}
+        <div key={activeView} className="anim-studio-page flex-1 flex flex-col min-h-0 overflow-hidden">
+          {activeView === 'gallery' ? (
+            <TemplateGalleryPage />
+          ) : activeView === 'theme-builder' ? (
+            <ThemeBuilderPage />
+          ) : activeView === 'team' ? (
+            <TeamWorkspacePage />
+          ) : (
+            <>
+              <TopHeaderBar />
+              <div className="flex-1 flex min-h-0 overflow-hidden">
+                <LeftSidebar />
+                <CenterWorkspace />
+                <RightInspector />
+              </div>
+              <StudioBottomStatusBar />
+            </>
+          )}
+        </div>
 
         {/* Quick Modals (Global Branding, JSON Import/Export, Supabase Sync, Local & Custom Fonts) */}
         <StudioModals />
