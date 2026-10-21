@@ -415,6 +415,15 @@
 .studio-theme-light .bg-blue-50,
 .studio-theme-light .bg-blue-100,
 .studio-theme-light .bg-blue-500\/10,
+.studio-theme-light .bg-blue-500\/15,
+.studio-theme-light .bg-blue-500\/20,
+.studio-theme-light .bg-blue-500\/25,
+.studio-theme-light .bg-blue-500\/30,
+.studio-theme-light .bg-blue-600\/10,
+.studio-theme-light .bg-blue-600\/15,
+.studio-theme-light .bg-blue-600\/20,
+.studio-theme-light .bg-blue-600\/25,
+.studio-theme-light .bg-blue-600\/30,
 .studio-theme-light .bg-blue-900\/5,
 .studio-theme-light .bg-blue-900\/10,
 .studio-theme-light .bg-blue-900\/15,
@@ -426,7 +435,21 @@
 .studio-theme-light .bg-blue-950\/20,
 .studio-theme-light .bg-blue-950\/30,
 .studio-theme-light .bg-blue-950\/40 {
-  background-color: rgba(94, 136, 126, 0.12) !important;
+  background-color: #E3EDE9 !important;
+  color: #2F3E46 !important;
+}
+
+.studio-theme-light [class*="bg-blue-600/"],
+.studio-theme-light [class*="bg-blue-500/"],
+.studio-theme-light [class*="bg-blue-400/"],
+.studio-theme-light [class*="bg-blue-900/"] {
+  color: #2F3E46 !important;
+}
+
+.studio-theme-light [class*="bg-blue-600/"] span,
+.studio-theme-light [class*="bg-blue-500/"] span,
+.studio-theme-light [class*="bg-blue-400/"] span,
+.studio-theme-light [class*="bg-blue-900/"] span {
   color: #2F3E46 !important;
 }
 

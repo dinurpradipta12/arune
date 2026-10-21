@@ -591,21 +591,40 @@ export const TemplateGalleryPage: React.FC = () => {
                       <div
                         key={doc.id}
                         onClick={() => switchDocumentTab(doc.id)}
-                        className={`flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-[11px] cursor-pointer transition-all ${
+                        className={`flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-[11px] cursor-pointer transition-all ${
                           isActive
-                            ? 'bg-blue-600/25 border-2 border-blue-500 text-white font-bold shadow-xs'
-                            : 'bg-zinc-950/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white'
+                            ? workspaceDarkMode
+                              ? 'bg-blue-600/30 border-2 border-blue-400 text-white font-bold shadow-xs'
+                              : 'bg-[#E3EDE9] border-2 border-[#5E887E] text-[#2F3E46] font-bold shadow-xs'
+                            : workspaceDarkMode
+                              ? 'bg-zinc-950/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white'
+                              : 'bg-white hover:bg-[#F7FAF9] border border-[#DFE6E4] text-[#556B65] hover:text-[#2F3E46]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5 truncate flex-1 min-w-0">
                           {docUnsaved ? (
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" title="Ada perubahan draft" />
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                workspaceDarkMode ? 'bg-blue-400' : 'bg-[#5E887E]'
+                              }`}
+                              title="Ada perubahan draft"
+                            />
                           ) : (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Tersimpan" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Tersimpan" />
                           )}
                           <span className="truncate">{liveTitle}</span>
                         </div>
-                        <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-blue-400 font-semibold shrink-0">
+                        <span
+                          className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded-md font-semibold shrink-0 border ${
+                            isActive
+                              ? workspaceDarkMode
+                                ? 'bg-zinc-900 border-zinc-700 text-blue-300'
+                                : 'bg-white border-[#5E887E]/30 text-[#2F3E46]'
+                              : workspaceDarkMode
+                                ? 'bg-zinc-900 border-zinc-800 text-blue-400'
+                                : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#556B65]'
+                          }`}
+                        >
                           {liveRatio}
                         </span>
                         {openDocuments.length >= 2 && (
@@ -1721,8 +1740,12 @@ export const TemplateGalleryPage: React.FC = () => {
                         onClick={() => setSelectedPresetRatio(rKey)}
                         className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                           isSel
-                            ? 'bg-blue-600/20 border-blue-500 text-white font-semibold shadow-xs'
-                            : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                            ? workspaceDarkMode
+                              ? 'bg-blue-600/25 border-blue-500 text-white font-semibold shadow-xs'
+                              : 'bg-[#E3EDE9] border-2 border-[#5E887E] text-[#2F3E46] font-semibold shadow-xs'
+                            : workspaceDarkMode
+                              ? 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                              : 'bg-white border-[#DFE6E4] text-[#556B65] hover:text-[#2F3E46] hover:border-[#5E887E]/50'
                         }`}
                       >
                         <div className="text-[11px] font-bold">
