@@ -50,6 +50,7 @@ export interface TeamWorkspace {
   description?: string;
   ownerId: string;
   avatarColor: string;
+  iconUrl?: string;
   members: TeamMember[];
   brandKit?: TeamBrandKit;
   createdAt: string;

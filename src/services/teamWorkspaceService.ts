@@ -339,6 +339,7 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
         name,
         description,
         avatar_color,
+        icon_url,
         created_by,
         created_at,
         updated_at,
@@ -548,6 +549,7 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
         description: t.description || '',
         ownerId: t.created_by,
         avatarColor: t.avatar_color || '#5E887E',
+        iconUrl: t.icon_url || undefined,
         members,
         brandKit,
         createdAt: t.created_at,
@@ -610,7 +612,85 @@ export async function syncProjectsFromCloud(teamId: string): Promise<TeamProject
 // CRUD TEAMS & MEMBERS
 // ============================================================================
 
-export async function createTeamCloud(name: string, description?: string): Promise<TeamWorkspace> {
+export async function uploadTeamIcon(teamId: string, file: File): Promise<string> {
+  const client = getSupabaseClient();
+
+  // 1. If Supabase is connected, try uploading to Storage bucket 'team-icons'
+  if (client && isSupabaseConfigured()) {
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const cleanTeamId = ensureUuid(teamId);
+      const fileName = `${cleanTeamId}/icon_${Date.now()}.${fileExt}`;
+
+      const { data, error } = await client.storage
+        .from('team-icons')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (!error && data) {
+        const { data: urlData } = client.storage
+          .from('team-icons')
+          .getPublicUrl(data.path);
+
+        if (urlData?.publicUrl) {
+          return urlData.publicUrl;
+        }
+      } else if (error) {
+        console.warn('Supabase storage upload error:', error);
+      }
+    } catch (err) {
+      console.warn('Failed to upload team icon to Supabase storage, falling back to data URL:', err);
+    }
+  }
+
+  // 2. Fallback: Convert to optimized base64 Data URL so it always works immediately
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return reject(new Error('Gagal membaca file gambar.'));
+
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 256;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/webp', 0.85));
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function createTeamCloud(
+  name: string,
+  description?: string,
+  iconUrl?: string,
+  avatarColor?: string
+): Promise<TeamWorkspace> {
   const client = getSupabaseClient();
   const authUser = getCurrentAuthUser();
   const newTeamId = generateUuid();
@@ -621,7 +701,8 @@ export async function createTeamCloud(name: string, description?: string): Promi
     name: name.trim() || 'Tim Baru',
     description: description?.trim() || '',
     ownerId: authUser?.id || me.id,
-    avatarColor: getRandomAvatarColor(),
+    avatarColor: avatarColor || getRandomAvatarColor(),
+    iconUrl: iconUrl || undefined,
     brandKit: { ...DEFAULT_TEAM_BRAND_KIT },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -646,6 +727,7 @@ export async function createTeamCloud(name: string, description?: string): Promi
         name: newTeam.name,
         description: newTeam.description,
         avatar_color: newTeam.avatarColor,
+        icon_url: newTeam.iconUrl || null,
         created_by: authUser.id,
       });
 
@@ -702,7 +784,10 @@ export function createTeam(name: string, description?: string): TeamWorkspace {
   return newTeam;
 }
 
-export function updateTeam(teamId: string, partial: Partial<TeamWorkspace>): TeamWorkspace | null {
+export async function updateTeamCloud(
+  teamId: string,
+  partial: Partial<TeamWorkspace>
+): Promise<TeamWorkspace | null> {
   const teams = getTeams();
   const index = teams.findIndex((t) => t.id === teamId);
   if (index === -1) return null;
@@ -717,22 +802,36 @@ export function updateTeam(teamId: string, partial: Partial<TeamWorkspace>): Tea
   // Background cloud update
   const client = getSupabaseClient();
   if (client && isSupabaseConfigured()) {
-    client
-      .from('teams')
-      .update({
-        name: teams[index].name,
-        description: teams[index].description,
-        avatar_color: teams[index].avatarColor,
+    try {
+      const updatePayload: any = {
         updated_at: new Date().toISOString(),
-      })
-      .eq('id', teamId)
-      .then();
+      };
+      if (partial.name !== undefined) updatePayload.name = partial.name;
+      if (partial.description !== undefined) updatePayload.description = partial.description;
+      if (partial.avatarColor !== undefined) updatePayload.avatar_color = partial.avatarColor;
+      if (partial.iconUrl !== undefined) updatePayload.icon_url = partial.iconUrl;
+
+      await client
+        .from('teams')
+        .update(updatePayload)
+        .eq('id', teamId);
+    } catch (e) {
+      console.warn('Failed to update team in Supabase:', e);
+    }
   }
 
   return teams[index];
 }
 
-export function deleteTeam(teamId: string): void {
+export function updateTeam(teamId: string, partial: Partial<TeamWorkspace>): TeamWorkspace | null {
+  void updateTeamCloud(teamId, partial);
+  const teams = getTeams();
+  const index = teams.findIndex((t) => t.id === teamId);
+  if (index === -1) return null;
+  return teams[index];
+}
+
+export async function deleteTeamCloud(teamId: string): Promise<boolean> {
   const teams = getTeams().filter((t) => t.id !== teamId);
   saveTeams(teams);
   const currentActive = getActiveTeamId();
@@ -742,8 +841,18 @@ export function deleteTeam(teamId: string): void {
 
   const client = getSupabaseClient();
   if (client && isSupabaseConfigured()) {
-    client.from('teams').delete().eq('id', teamId).then();
+    try {
+      await client.from('teams').delete().eq('id', teamId);
+      return true;
+    } catch (e) {
+      console.warn('Failed to delete team in Supabase:', e);
+    }
   }
+  return true;
+}
+
+export function deleteTeam(teamId: string): void {
+  void deleteTeamCloud(teamId);
 }
 
 /**

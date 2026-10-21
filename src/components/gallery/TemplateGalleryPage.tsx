@@ -1272,12 +1272,20 @@ export const TemplateGalleryPage: React.FC = () => {
                   {/* Team Header */}
                   <div className="flex items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm"
-                        style={{ backgroundColor: currentTeam.avatarColor || '#3B82F6' }}
-                      >
-                        {currentTeam.name.charAt(0).toUpperCase()}
-                      </div>
+                      {currentTeam.iconUrl ? (
+                        <img
+                          src={currentTeam.iconUrl}
+                          alt={currentTeam.name}
+                          className="w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm border border-zinc-700/50"
+                        />
+                      ) : (
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm"
+                          style={{ backgroundColor: currentTeam.avatarColor || '#3B82F6' }}
+                        >
+                          {currentTeam.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <h3 className="text-sm font-bold truncate leading-tight">
                           {currentTeam.name}

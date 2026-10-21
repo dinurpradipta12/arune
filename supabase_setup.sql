@@ -31,6 +31,7 @@ create table if not exists public.teams (
   name text not null,
   description text,
   avatar_color text not null default '#5E887E',
+  icon_url text,
   created_by uuid references auth.users on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -308,4 +309,36 @@ begin
   end if;
 end $$;
 
--- Selesai! Semua tabel, trigger, RLS, dan Realtime WebSocket siap digunakan tanpa loop.
+-- ============================================================================
+-- 11. STORAGE BUCKET UNTUK ICON & LOGO TIM (TEAM-ICONS)
+-- ============================================================================
+alter table public.teams add column if not exists icon_url text;
+
+insert into storage.buckets (id, name, public)
+values ('team-icons', 'team-icons', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Team icons are publicly accessible" on storage.objects;
+create policy "Team icons are publicly accessible"
+  on storage.objects for select
+  using (bucket_id = 'team-icons');
+
+drop policy if exists "Authenticated users can upload team icons" on storage.objects;
+create policy "Authenticated users can upload team icons"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'team-icons');
+
+drop policy if exists "Authenticated users can update team icons" on storage.objects;
+create policy "Authenticated users can update team icons"
+  on storage.objects for update
+  to authenticated
+  using (bucket_id = 'team-icons');
+
+drop policy if exists "Authenticated users can delete team icons" on storage.objects;
+create policy "Authenticated users can delete team icons"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'team-icons');
+
+-- Selesai! Semua tabel, trigger, RLS, Storage Bucket, dan Realtime WebSocket siap digunakan tanpa loop.

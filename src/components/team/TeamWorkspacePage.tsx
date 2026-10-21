@@ -29,12 +29,16 @@ import {
   ChevronDown,
   LayoutGrid,
   LayoutList,
+  Upload,
 } from 'lucide-react';
 import {
   getTeams,
   getActiveTeamId,
   setActiveTeamId,
   createTeamCloud,
+  updateTeamCloud,
+  deleteTeamCloud,
+  uploadTeamIcon,
   addTeamMemberCloud,
   updateMemberRole,
   removeTeamMember,
@@ -99,6 +103,17 @@ const AVAILABLE_BODY_FONTS = [
   'Lato',
 ];
 
+const TEAM_AVATAR_COLORS = [
+  '#3B82F6', // Blue
+  '#10B981', // Emerald
+  '#8B5CF6', // Purple
+  '#F59E0B', // Amber
+  '#EC4899', // Pink
+  '#06B6D4', // Cyan
+  '#E11D48', // Rose
+  '#5E887E', // Sage
+];
+
 export const TeamWorkspacePage: React.FC = () => {
   const {
     projectId,
@@ -156,6 +171,19 @@ export const TeamWorkspacePage: React.FC = () => {
   // Form states for creating new team folder
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDesc, setNewTeamDesc] = useState('');
+  const [newTeamIconUrl, setNewTeamIconUrl] = useState<string | null>(null);
+  const [newTeamAvatarColor, setNewTeamAvatarColor] = useState<string>('#3B82F6');
+  const [isUploadingNewTeamIcon, setIsUploadingNewTeamIcon] = useState(false);
+
+  // Edit Team Modal States
+  const [isEditTeamModalOpen, setIsEditTeamModalOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<TeamWorkspace | null>(null);
+  const [editTeamName, setEditTeamName] = useState('');
+  const [editTeamDesc, setEditTeamDesc] = useState('');
+  const [editTeamIconUrl, setEditTeamIconUrl] = useState<string | null>(null);
+  const [editTeamAvatarColor, setEditTeamAvatarColor] = useState<string>('#3B82F6');
+  const [isUploadingEditTeamIcon, setIsUploadingEditTeamIcon] = useState(false);
+  const [isSavingEditTeam, setIsSavingEditTeam] = useState(false);
 
   // Team projects list & search
   const [teamProjects, setTeamProjects] = useState<TeamProjectRecord[]>([]);
@@ -260,15 +288,119 @@ export const TeamWorkspacePage: React.FC = () => {
     setTeamProjects(cloudProjects);
   };
 
+  const handleOpenCreateTeamModal = () => {
+    setNewTeamName('');
+    setNewTeamDesc('');
+    setNewTeamIconUrl(null);
+    setNewTeamAvatarColor('#3B82F6');
+    setIsCreateTeamModalOpen(true);
+  };
+
+  const handleUploadNewTeamIcon = async (file: File) => {
+    setIsUploadingNewTeamIcon(true);
+    try {
+      const url = await uploadTeamIcon('temp_team_' + Date.now(), file);
+      setNewTeamIconUrl(url);
+    } catch (err) {
+      console.warn('Upload icon error:', err);
+    } finally {
+      setIsUploadingNewTeamIcon(false);
+    }
+  };
+
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeamName.trim()) return;
-    const created = await createTeamCloud(newTeamName, newTeamDesc);
+    const created = await createTeamCloud(
+      newTeamName,
+      newTeamDesc,
+      newTeamIconUrl || undefined,
+      newTeamAvatarColor
+    );
     setNewTeamName('');
     setNewTeamDesc('');
+    setNewTeamIconUrl(null);
     setIsCreateTeamModalOpen(false);
     await refreshData();
     handleSelectTeam(created.id);
+  };
+
+  const handleOpenEditTeamModal = (team: TeamWorkspace) => {
+    setEditingTeam(team);
+    setEditTeamName(team.name);
+    setEditTeamDesc(team.description || '');
+    setEditTeamIconUrl(team.iconUrl || null);
+    setEditTeamAvatarColor(team.avatarColor || '#3B82F6');
+    setIsTeamDropdownOpen(false);
+    setIsEditTeamModalOpen(true);
+  };
+
+  const handleUploadEditTeamIcon = async (file: File) => {
+    if (!editingTeam) return;
+    setIsUploadingEditTeamIcon(true);
+    try {
+      const url = await uploadTeamIcon(editingTeam.id, file);
+      setEditTeamIconUrl(url);
+    } catch (err) {
+      console.warn('Upload edit icon error:', err);
+    } finally {
+      setIsUploadingEditTeamIcon(false);
+    }
+  };
+
+  const handleSaveEditTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeam || !editTeamName.trim()) return;
+    setIsSavingEditTeam(true);
+    try {
+      await updateTeamCloud(editingTeam.id, {
+        name: editTeamName.trim(),
+        description: editTeamDesc.trim(),
+        avatarColor: editTeamAvatarColor,
+        iconUrl: editTeamIconUrl || undefined,
+      });
+      await refreshData();
+      setIsEditTeamModalOpen(false);
+      setDialogModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Ruang Kerja Tim Diperbarui',
+        message: (
+          <span>
+            Pengaturan untuk tim <strong className="text-slate-900 dark:text-white font-semibold">"{editTeamName}"</strong> berhasil disimpan dan disinkronkan ke Supabase Cloud.
+          </span>
+        ),
+        primaryButtonText: 'Selesai',
+        onPrimary: () => setDialogModal(null),
+      });
+    } catch (err: any) {
+      console.error('Failed to update team:', err);
+    } finally {
+      setIsSavingEditTeam(false);
+    }
+  };
+
+  const handleDeleteTeamFromEditModal = () => {
+    if (!editingTeam) return;
+    setDialogModal({
+      isOpen: true,
+      type: 'confirm-delete',
+      title: 'Hapus Ruang Kerja Tim?',
+      message: (
+        <span>
+          Apakah Anda yakin ingin menghapus folder tim <strong className="text-red-500 font-semibold">"{editingTeam.name}"</strong>? Seluruh data proyek bersama dan brand kit di dalam tim ini akan dihapus secara permanen.
+        </span>
+      ),
+      primaryButtonText: 'Ya, Hapus Tim',
+      secondaryButtonText: 'Batal',
+      onPrimary: async () => {
+        await deleteTeamCloud(editingTeam.id);
+        setIsEditTeamModalOpen(false);
+        await refreshData();
+        setDialogModal(null);
+      },
+      onSecondary: () => setDialogModal(null),
+    });
   };
 
   const handleInviteMember = async (e: React.FormEvent) => {
@@ -674,100 +806,162 @@ export const TeamWorkspacePage: React.FC = () => {
 
           <span className={isDark ? 'text-zinc-700' : 'text-slate-300'}>/</span>
 
-          {/* Team Switcher Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsTeamDropdownOpen(!isTeamDropdownOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                isDark
-                  ? 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-white'
-                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-2xs'
-              }`}
-            >
-              <div
-                className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] font-bold shadow-xs"
-                style={{ backgroundColor: currentTeam?.avatarColor || '#3B82F6' }}
+          {/* Team Switcher Dropdown & Quick Edit */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsTeamDropdownOpen(!isTeamDropdownOpen)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  isDark
+                    ? 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-white'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-2xs'
+                }`}
               >
-                {currentTeam?.name?.charAt(0).toUpperCase() || 'T'}
-              </div>
-              <span className="max-w-[150px] truncate">{currentTeam?.name || 'Pilih Tim'}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
-            </button>
-
-            {isTeamDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsTeamDropdownOpen(false)}
-                />
-                <div
-                  className={`absolute left-0 top-full mt-1.5 w-72 rounded-2xl border shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 ${
-                    isDark
-                      ? 'bg-zinc-900 border-zinc-800 text-white'
-                      : 'bg-white border-slate-200 text-slate-800'
-                  }`}
-                >
-                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Ruang Kerja Tim ({teams.length})
+                {currentTeam?.iconUrl ? (
+                  <img
+                    src={currentTeam.iconUrl}
+                    alt={currentTeam.name}
+                    className="w-5 h-5 rounded-md object-cover shadow-xs shrink-0 border border-zinc-700/40"
+                  />
+                ) : (
+                  <div
+                    className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] font-bold shadow-xs shrink-0"
+                    style={{ backgroundColor: currentTeam?.avatarColor || '#3B82F6' }}
+                  >
+                    {currentTeam?.name?.charAt(0).toUpperCase() || 'T'}
                   </div>
-                  <div className="max-h-56 overflow-y-auto space-y-1">
-                    {teams.map((t) => {
-                      const isActive = t.id === activeTeamId;
-                      const pCount = getTeamProjects(t.id).length;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => {
-                            handleSelectTeam(t.id);
-                            setIsTeamDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-colors cursor-pointer ${
-                            isActive
-                              ? isDark
-                                ? 'bg-blue-600/20 text-blue-400 font-semibold'
-                                : 'bg-blue-50 text-blue-600 font-semibold'
-                              : isDark
-                              ? 'hover:bg-zinc-800 text-zinc-300'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div
-                              className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                              style={{ backgroundColor: t.avatarColor || '#3B82F6' }}
-                            >
-                              {t.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="text-left min-w-0">
-                              <div className="truncate font-medium">{t.name}</div>
-                              <div className="text-[10px] text-zinc-400">
-                                {deduplicateTeamMembers(t.members || [], t.ownerId).length} anggota • {pCount} proyek
+                )}
+                <span className="max-w-[150px] truncate">{currentTeam?.name || 'Pilih Tim'}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+              </button>
+
+              {isTeamDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsTeamDropdownOpen(false)}
+                  />
+                  <div
+                    className={`absolute left-0 top-full mt-1.5 w-76 rounded-2xl border shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 ${
+                      isDark
+                        ? 'bg-zinc-900 border-zinc-800 text-white'
+                        : 'bg-white border-slate-200 text-slate-800'
+                    }`}
+                  >
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      Ruang Kerja Tim ({teams.length})
+                    </div>
+                    <div className="max-h-56 overflow-y-auto space-y-1 scroller-dark">
+                      {teams.map((t) => {
+                        const isActive = t.id === activeTeamId;
+                        const pCount = getTeamProjects(t.id).length;
+                        return (
+                          <div
+                            key={t.id}
+                            onClick={() => {
+                              handleSelectTeam(t.id);
+                              setIsTeamDropdownOpen(false);
+                            }}
+                            className={`w-full group/team flex items-center justify-between p-2 rounded-xl text-xs transition-colors cursor-pointer ${
+                              isActive
+                                ? isDark
+                                  ? 'bg-blue-600/20 text-blue-400 font-semibold'
+                                  : 'bg-blue-50 text-blue-600 font-semibold'
+                                : isDark
+                                ? 'hover:bg-zinc-800 text-zinc-300'
+                                : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {t.iconUrl ? (
+                                <img
+                                  src={t.iconUrl}
+                                  alt={t.name}
+                                  className="w-6 h-6 rounded-lg object-cover shrink-0 shadow-2xs border border-zinc-700/50"
+                                />
+                              ) : (
+                                <div
+                                  className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-2xs"
+                                  style={{ backgroundColor: t.avatarColor || '#3B82F6' }}
+                                >
+                                  {t.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="text-left min-w-0">
+                                <div className="truncate font-medium">{t.name}</div>
+                                <div className="text-[10px] text-zinc-400">
+                                  {deduplicateTeamMembers(t.members || [], t.ownerId).length} anggota • {pCount} proyek
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          {isActive && <Check className="w-4 h-4 text-blue-500 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
 
-                  <div className="pt-1 border-t border-zinc-200/50 dark:border-zinc-800 mt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsTeamDropdownOpen(false);
-                        setIsCreateTeamModalOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-semibold text-blue-500 hover:bg-blue-500/10 cursor-pointer transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>+ Buat Ruang Kerja Baru</span>
-                    </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditTeamModal(t);
+                                }}
+                                className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors cursor-pointer"
+                                title="Edit Pengaturan & Icon Tim"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              {isActive && <Check className="w-4 h-4 text-blue-500 shrink-0" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-1 border-t border-zinc-200/50 dark:border-zinc-800 mt-1 space-y-0.5">
+                      {currentTeam && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditTeamModal(currentTeam)}
+                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
+                            isDark
+                              ? 'hover:bg-zinc-800 text-zinc-300'
+                              : 'hover:bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+                          <span>Edit Tim: {currentTeam.name}</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsTeamDropdownOpen(false);
+                          handleOpenCreateTeamModal();
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-500 hover:bg-blue-500/10 cursor-pointer transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>+ Buat Ruang Kerja Baru</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </>
+                </>
+              )}
+            </div>
+
+            {/* Direct Edit Button next to team switcher in header */}
+            {currentTeam && (
+              <button
+                type="button"
+                onClick={() => handleOpenEditTeamModal(currentTeam)}
+                className={`p-1.5 rounded-xl border text-zinc-400 hover:text-blue-500 transition-colors cursor-pointer ${
+                  isDark
+                    ? 'border-zinc-800 hover:bg-zinc-800'
+                    : 'border-slate-200 hover:bg-slate-100 shadow-2xs'
+                }`}
+                title="Edit Nama & Icon Tim Ini"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
 
@@ -2106,6 +2300,83 @@ export const TeamWorkspacePage: React.FC = () => {
               }}
               className="mt-4 space-y-3.5"
             >
+              {/* Team Icon & Avatar Color Picker */}
+              <div>
+                <label className="text-[11px] font-bold block mb-1.5 text-zinc-400">
+                  Logo / Icon Tim & Warna (Opsional)
+                </label>
+                <div className="flex items-center gap-4 p-3 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50">
+                  {/* Icon Preview */}
+                  <div className="relative group shrink-0">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-white text-xl overflow-hidden shadow-xs border border-zinc-700/40 relative"
+                      style={{ backgroundColor: newTeamAvatarColor }}
+                    >
+                      {newTeamIconUrl ? (
+                        <img
+                          src={newTeamIconUrl}
+                          alt="Icon Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>{newTeamName ? newTeamName.charAt(0).toUpperCase() : 'T'}</span>
+                      )}
+                      {isUploadingNewTeamIcon && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions & Color Swatches */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors bg-white hover:bg-slate-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 flex items-center gap-1.5 shadow-2xs">
+                        <Upload className="w-3.5 h-3.5 text-blue-500" />
+                        <span>{newTeamIconUrl ? 'Ganti Logo' : 'Unggah Logo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void handleUploadNewTeamIcon(file);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+
+                      {newTeamIconUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setNewTeamIconUrl(null)}
+                          className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-red-500 hover:bg-red-500/10 cursor-pointer transition-colors"
+                        >
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Color Swatches */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {TEAM_AVATAR_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setNewTeamAvatarColor(c)}
+                          className={`w-5 h-5 rounded-full transition-transform cursor-pointer ${
+                            newTeamAvatarColor === c ? 'scale-125 ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-zinc-900' : 'hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: c }}
+                          title={c}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="text-[11px] font-bold block mb-1 text-zinc-400">
                   Nama Ruang Kerja / Tim
@@ -2158,6 +2429,186 @@ export const TeamWorkspacePage: React.FC = () => {
                 >
                   Buat Ruang Kerja
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: EDIT RUANG KERJA TIM
+         ======================================================== */}
+      {isEditTeamModalOpen && editingTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-2xl p-6 border shadow-2xl transition-all transform animate-in zoom-in-95 duration-150 ${
+              isDark ? 'bg-[#0A1A2F] border-zinc-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200/50 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">Edit Ruang Kerja Tim</h3>
+                  <p className="text-[11px] text-zinc-400">Ubah nama, deskripsi, logo icon, dan warna tim</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditTeamModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditTeam} className="mt-4 space-y-4">
+              {/* Logo / Icon Tim & Avatar Color */}
+              <div>
+                <label className="text-[11px] font-bold block mb-1.5 text-zinc-400">
+                  Logo / Icon Tim & Warna
+                </label>
+                <div className="flex items-center gap-4 p-3 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-white text-xl overflow-hidden shadow-xs border border-zinc-700/40 shrink-0 relative"
+                    style={{ backgroundColor: editTeamAvatarColor }}
+                  >
+                    {editTeamIconUrl ? (
+                      <img
+                        src={editTeamIconUrl}
+                        alt="Icon Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{editTeamName ? editTeamName.charAt(0).toUpperCase() : 'T'}</span>
+                    )}
+                    {isUploadingEditTeamIcon && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors bg-white hover:bg-slate-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 flex items-center gap-1.5 shadow-2xs">
+                        <Upload className="w-3.5 h-3.5 text-blue-500" />
+                        <span>{editTeamIconUrl ? 'Ganti Logo' : 'Unggah Logo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void handleUploadEditTeamIcon(file);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+
+                      {editTeamIconUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditTeamIconUrl(null)}
+                          className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-red-500 hover:bg-red-500/10 cursor-pointer transition-colors"
+                        >
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Color Swatches */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {TEAM_AVATAR_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setEditTeamAvatarColor(c)}
+                          className={`w-5 h-5 rounded-full transition-transform cursor-pointer ${
+                            editTeamAvatarColor === c ? 'scale-125 ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-zinc-900' : 'hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: c }}
+                          title={c}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold block mb-1 text-zinc-400">
+                  Nama Ruang Kerja / Tim
+                </label>
+                <input
+                  type="text"
+                  placeholder="Nama tim..."
+                  value={editTeamName}
+                  onChange={(e) => setEditTeamName(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                  }`}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold block mb-1 text-zinc-400">
+                  Deskripsi Singkat (Opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Deskripsi ruang kerja tim..."
+                  value={editTeamDesc}
+                  onChange={(e) => setEditTeamDesc(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                  }`}
+                />
+              </div>
+
+              <div className="pt-3 border-t border-zinc-200/50 dark:border-zinc-800 flex items-center justify-between gap-2">
+                {/* Delete button */}
+                <button
+                  type="button"
+                  onClick={handleDeleteTeamFromEditModal}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 cursor-pointer transition-colors flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Tim</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditTeamModalOpen(false)}
+                    className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer ${
+                      isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEditTeam || !editTeamName.trim()}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
+                  >
+                    {isSavingEditTeam ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Menyimpan...</span>
+                      </>
+                    ) : (
+                      <span>Simpan Perubahan</span>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
