@@ -188,6 +188,37 @@ export function getInitialTeams(): TeamWorkspace[] {
   ];
 }
 
+export function deduplicateTeamMembers(members: TeamMember[], ownerId?: string): TeamMember[] {
+  const map = new Map<string, TeamMember>();
+
+  for (const m of members) {
+    if (!m) continue;
+    const emailKey = (m.email || '').trim().toLowerCase();
+    const idKey = (m.id || '').trim();
+    const key = emailKey || idKey;
+    if (!key) continue;
+
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, m);
+    } else {
+      const isOwner =
+        m.role === 'owner' ||
+        existing.role === 'owner' ||
+        (ownerId ? m.id === ownerId || existing.id === ownerId : false);
+      map.set(key, {
+        ...existing,
+        ...m,
+        id: ownerId && (existing.id === ownerId || m.id === ownerId) ? ownerId : (m.id || existing.id),
+        role: isOwner ? 'owner' : (m.role || existing.role),
+        isCurrentUser: existing.isCurrentUser || m.isCurrentUser,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 export function getTeams(): TeamWorkspace[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TEAMS);
@@ -197,15 +228,17 @@ export function getTeams(): TeamWorkspace[] {
         let changed = false;
         const sanitized = parsed.map((t) => {
           const validId = ensureUuid(t.id);
-          if (validId !== t.id) {
+          const dedupedMembers = deduplicateTeamMembers(t.members || [], t.ownerId);
+          if (validId !== t.id || dedupedMembers.length !== (t.members?.length || 0)) {
             changed = true;
+          }
+          if (validId !== t.id) {
             const currentActive = localStorage.getItem(STORAGE_KEY_ACTIVE_TEAM);
             if (currentActive === t.id) {
               localStorage.setItem(STORAGE_KEY_ACTIVE_TEAM, validId);
             }
-            return { ...t, id: validId };
           }
-          return t;
+          return { ...t, id: validId, members: dedupedMembers };
         });
         if (changed) {
           saveTeams(sanitized);
@@ -447,12 +480,12 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
 
     // 4. Map Supabase rows to TeamWorkspace objects
     const mappedTeams: TeamWorkspace[] = teamsData.map((t: any) => {
-      const members: TeamMember[] = Array.isArray(t.team_members)
+      const rawMembers: TeamMember[] = Array.isArray(t.team_members)
         ? t.team_members.map((m: any) => {
             const profile = profilesMap.get(m.user_id);
             const isMe = m.user_id === authUser.id;
             return {
-              id: m.id || m.user_id,
+              id: m.user_id || m.id,
               name: isMe ? (authUser.name || profile?.name || 'Anda') : (profile?.name || 'Member'),
               email: profile?.email || (isMe ? authUser.email : ''),
               role: (m.role as TeamRole) || 'editor',
@@ -464,10 +497,18 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
         : [];
 
       // Make sure owner is in members list if not already
-      if (!members.some((m) => m.id === t.created_by)) {
-        const ownerProf = profilesMap.get(t.created_by);
-        const isMeOwner = t.created_by === authUser.id;
-        members.unshift({
+      const ownerProf = profilesMap.get(t.created_by);
+      const isMeOwner = t.created_by === authUser.id;
+      const ownerEmail = (ownerProf?.email || (isMeOwner ? authUser.email : '')).trim().toLowerCase();
+
+      const hasOwner = rawMembers.some(
+        (m) =>
+          (t.created_by && (m.id === t.created_by || (m as any).user_id === t.created_by)) ||
+          (ownerEmail && m.email.trim().toLowerCase() === ownerEmail)
+      );
+
+      if (!hasOwner && t.created_by) {
+        rawMembers.unshift({
           id: t.created_by,
           name: isMeOwner ? (authUser.name || ownerProf?.name || 'Anda') : (ownerProf?.name || 'Owner'),
           email: ownerProf?.email || (isMeOwner ? authUser.email : ''),
@@ -477,6 +518,8 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
           isCurrentUser: isMeOwner,
         });
       }
+
+      const members = deduplicateTeamMembers(rawMembers, t.created_by);
 
       // Map brand kit if exists
       let brandKit: TeamBrandKit = { ...DEFAULT_TEAM_BRAND_KIT };
@@ -800,7 +843,7 @@ export async function addTeamMemberCloud(
       }
 
       const newMember: TeamMember = {
-        id: tmData?.id || profile.id,
+        id: profile.id,
         name: profile.name || memberData.name.trim(),
         email: profile.email || trimmedEmail,
         role: memberData.role,
@@ -808,7 +851,7 @@ export async function addTeamMemberCloud(
         joinedAt: tmData?.created_at || new Date().toISOString(),
       };
 
-      team.members.push(newMember);
+      team.members = deduplicateTeamMembers([...team.members, newMember], team.ownerId);
       team.updatedAt = new Date().toISOString();
       saveTeams(teams);
 
@@ -840,7 +883,7 @@ export async function addTeamMemberCloud(
     joinedAt: new Date().toISOString(),
   };
 
-  team.members.push(newMember);
+  team.members = deduplicateTeamMembers([...team.members, newMember], team.ownerId);
   team.updatedAt = new Date().toISOString();
   saveTeams(teams);
 
@@ -880,7 +923,7 @@ export function addTeamMember(
     joinedAt: new Date().toISOString(),
   };
 
-  team.members.push(newMember);
+  team.members = deduplicateTeamMembers([...team.members, newMember], team.ownerId);
   team.updatedAt = new Date().toISOString();
   saveTeams(teams);
 

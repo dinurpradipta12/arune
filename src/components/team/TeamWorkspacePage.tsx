@@ -48,6 +48,7 @@ import {
   syncTeamsFromCloud,
   syncProjectsFromCloud,
   ensureUuid,
+  deduplicateTeamMembers,
   type UserProfile,
 } from '../../services/teamWorkspaceService';
 import { getSupabaseClient, isSupabaseConfigured } from '../../services/supabaseClient';
@@ -216,6 +217,11 @@ export const TeamWorkspacePage: React.FC = () => {
   };
 
   const currentTeam = teams.find((t) => t.id === activeTeamId) || teams[0];
+
+  const teamMembers = useMemo(() => {
+    if (!currentTeam?.members) return [];
+    return deduplicateTeamMembers(currentTeam.members, currentTeam.ownerId);
+  }, [currentTeam?.members, currentTeam?.ownerId]);
 
   const handleSelectTeam = async (teamId: string) => {
     setActiveTeamId(teamId);
@@ -605,7 +611,7 @@ export const TeamWorkspacePage: React.FC = () => {
                             <div className="text-left min-w-0">
                               <div className="truncate font-medium">{t.name}</div>
                               <div className="text-[10px] text-zinc-400">
-                                {t.members.length} anggota • {pCount} proyek
+                                {deduplicateTeamMembers(t.members || [], t.ownerId).length} anggota • {pCount} proyek
                               </div>
                             </div>
                           </div>
@@ -690,7 +696,7 @@ export const TeamWorkspacePage: React.FC = () => {
             <Users className="w-3.5 h-3.5" />
             <span>Anggota & Akses</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500">
-              {currentTeam?.members?.length || 0}
+              {teamMembers.length}
             </span>
           </button>
         </div>
@@ -761,7 +767,7 @@ export const TeamWorkspacePage: React.FC = () => {
           onClick={() => setActiveTab('members')}
           className={`px-3 py-1 rounded-lg ${activeTab === 'members' ? 'bg-emerald-600 text-white' : 'text-zinc-400'}`}
         >
-          Anggota ({currentTeam?.members?.length || 0})
+          Anggota ({teamMembers.length})
         </button>
       </div>
 
@@ -1604,7 +1610,7 @@ export const TeamWorkspacePage: React.FC = () => {
                   <h3 className="text-base font-bold flex items-center gap-2">
                     <span>Anggota Ruang Kerja</span>
                     <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/10 text-blue-500">
-                      {currentTeam?.members?.length || 0} Member
+                      {teamMembers.length} Member
                     </span>
                   </h3>
                   <p className="text-xs text-zinc-400 mt-1">
@@ -1630,9 +1636,9 @@ export const TeamWorkspacePage: React.FC = () => {
                     : 'border-slate-200 bg-white divide-y divide-slate-100 shadow-xs'
                 }`}
               >
-                {currentTeam?.members.map((member) => (
+                {teamMembers.map((member) => (
                   <div
-                    key={member.id}
+                    key={member.id || member.email}
                     className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
