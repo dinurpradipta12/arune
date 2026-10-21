@@ -3166,8 +3166,8 @@ create policy "Public read and admin write editorial_templates" on public.editor
                       },
                       {
                         id: 'pdf',
-                        title: 'PDF Document',
-                        desc: 'Dokumen Multi-Halaman Carousel',
+                        title: 'LinkedIn Carousel (.PDF)',
+                        desc: 'Multi-halaman PDF siap upload langsung ke LinkedIn',
                         icon: FileText,
                       },
                     ] as {
@@ -3183,7 +3183,12 @@ create policy "Public read and admin write editorial_templates" on public.editor
                       <button
                         key={fmt.id}
                         type="button"
-                        onClick={() => setExportFormat(fmt.id)}
+                        onClick={() => {
+                          setExportFormat(fmt.id);
+                          if (fmt.id === 'pdf') {
+                            setExportPackageAsZip(false);
+                          }
+                        }}
                         className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                           active
                             ? 'bg-blue-900/10 border-blue-900/40 text-blue-900 font-semibold shadow-xs'
@@ -3201,6 +3206,21 @@ create policy "Public read and admin write editorial_templates" on public.editor
                     );
                   })}
                 </div>
+
+                {/* Info Khusus Format LinkedIn PDF */}
+                {exportFormat === 'pdf' && (
+                  <div className="mt-2 p-3 rounded-xl bg-blue-950/30 border border-blue-900/40 text-blue-300 text-xs flex items-start gap-2.5">
+                    <FileText className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-[11px] text-blue-200">
+                        LinkedIn Carousel Ready Document
+                      </p>
+                      <p className="text-[10.5px] text-blue-300/90 leading-relaxed">
+                        Seluruh {selectedExportIndices.length} slide akan digabungkan menjadi 1 file PDF multi-halaman beresolusi tinggi ({exportTargetWidthPx}px). Anda dapat langsung mengunggah file ini ke LinkedIn sebagai postingan carousel swipeable.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Opsi Transparan Khusus Format PNG */}
                 {exportFormat === 'png' && (

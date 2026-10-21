@@ -1,6 +1,7 @@
 import { saveAs } from 'file-saver';
 import { toJpeg, toPng } from 'html-to-image';
 import JSZip from 'jszip';
+import jsPDF from 'jspdf';
 import { ASPECT_RATIOS } from '../constants/themesAndPresets';
 import type { AspectRatioKey, Slide } from '../types/studio';
 
@@ -48,115 +49,6 @@ async function waitForImagesInNode(node: HTMLElement): Promise<void> {
         })
     )
   );
-}
-
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-/**
- * Builds a valid multi-page PDF 1.4 binary Blob from an array of JPEG images.
- */
-function buildMultiPagePdfFromJpegs(
-  pages: {
-    jpegBytes: Uint8Array;
-    widthPx: number;
-    heightPx: number;
-  }[]
-): Blob {
-  const encoder = new TextEncoder();
-  const chunks: Uint8Array[] = [];
-  let offset = 0;
-
-  const pushText = (str: string) => {
-    const bytes = encoder.encode(str);
-    chunks.push(bytes);
-    offset += bytes.length;
-  };
-
-  const pushBytes = (bytes: Uint8Array) => {
-    chunks.push(bytes);
-    offset += bytes.length;
-  };
-
-  // Object IDs:
-  // 1: Catalog
-  // 2: Pages
-  // For each page i (0..N-1):
-  //   pageObjId = 3 + i * 3
-  //   contentObjId = 4 + i * 3
-  //   imageObjId = 5 + i * 3
-  const totalObjects = 2 + pages.length * 3;
-  const xrefOffsets: number[] = new Array(totalObjects + 1).fill(0);
-
-  pushText('%PDF-1.4\n%\xFF\xFF\xFF\xFF\n');
-
-  // 1: Catalog
-  xrefOffsets[1] = offset;
-  pushText('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
-
-  // 2: Pages Kids list
-  const kidsRefs = pages.map((_, i) => `${3 + i * 3} 0 R`).join(' ');
-  xrefOffsets[2] = offset;
-  pushText(
-    `2 0 obj\n<< /Type /Pages /Count ${pages.length} /Kids [ ${kidsRefs} ] >>\nendobj\n`
-  );
-
-  for (let i = 0; i < pages.length; i++) {
-    const page = pages[i];
-    const pageObjId = 3 + i * 3;
-    const contentObjId = 4 + i * 3;
-    const imageObjId = 5 + i * 3;
-
-    // Convert pixel dimensions to PDF points (72 pt = 96 px -> * 0.75)
-    const wPt = Math.round(page.widthPx * 0.75);
-    const hPt = Math.round(page.heightPx * 0.75);
-    const imgName = `/Im${i + 1}`;
-
-    // Page object
-    xrefOffsets[pageObjId] = offset;
-    pushText(
-      `${pageObjId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [ 0 0 ${wPt} ${hPt} ] /Resources << /XObject << ${imgName} ${imageObjId} 0 R >> >> /Contents ${contentObjId} 0 R >>\nendobj\n`
-    );
-
-    // Content stream drawing the image full-bleed
-    const contentStream = `q\n${wPt} 0 0 ${hPt} 0 0 cm\n${imgName} Do\nQ\n`;
-    const contentBytes = encoder.encode(contentStream);
-    xrefOffsets[contentObjId] = offset;
-    pushText(
-      `${contentObjId} 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`
-    );
-    pushBytes(contentBytes);
-    pushText('\nendstream\nendobj\n');
-
-    // Image XObject (DCTDecode JPEG)
-    xrefOffsets[imageObjId] = offset;
-    pushText(
-      `${imageObjId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${page.widthPx} /Height ${page.heightPx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.jpegBytes.length} >>\nstream\n`
-    );
-    pushBytes(page.jpegBytes);
-    pushText('\nendstream\nendobj\n');
-  }
-
-  const xrefStart = offset;
-  pushText(`xref\n0 ${totalObjects + 1}\n`);
-  pushText('0000000000 65535 f \n');
-  for (let objId = 1; objId <= totalObjects; objId++) {
-    const padded = String(xrefOffsets[objId]).padStart(10, '0');
-    pushText(`${padded} 00000 n \n`);
-  }
-
-  pushText(
-    `trailer\n<< /Size ${totalObjects + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`
-  );
-
-  return new Blob(chunks as BlobPart[], { type: 'application/pdf' });
 }
 
 async function renderSlideNodeToDataUrl(
@@ -263,19 +155,21 @@ export async function exportCustomSlides(
 
   const baseSlug = slugify(projectTitle);
 
-  // CASE 1: PDF EXPORT (Multi-page PDF or inside ZIP)
+  // CASE 1: PDF EXPORT (Multi-page PDF for LinkedIn / SlideShare)
   if (format === 'pdf') {
-    const pdfPages: {
-      jpegBytes: Uint8Array;
-      widthPx: number;
-      heightPx: number;
-    }[] = [];
+    const isLandscape = outWidthPx > outHeightPx;
+    const doc = new jsPDF({
+      orientation: isLandscape ? 'landscape' : 'portrait',
+      unit: 'px',
+      format: [outWidthPx, outHeightPx],
+      hotfixes: ['px_scaling'],
+    });
 
     for (let k = 0; k < validIndices.length; k++) {
       const slideIdx = validIndices[k];
       const slideNum = String(slideIdx + 1).padStart(2, '0');
       onProgress?.(
-        `Merender Slide ${slideNum} (${k + 1}/${validIndices.length}) untuk PDF (${outWidthPx}×${outHeightPx}px)...`
+        `Merender Slide ${slideNum} (${k + 1}/${validIndices.length}) untuk LinkedIn PDF (${outWidthPx}×${outHeightPx}px)...`
       );
 
       const node = document.getElementById(`export-slide-node-${slideIdx}`);
@@ -292,16 +186,14 @@ export async function exportCustomSlides(
         fallbackBackgroundColor: slides[slideIdx]?.backgroundColor || '#FFFFFF',
       });
 
-      const base64 = jpegDataUrl.replace(/^data:image\/jpeg;base64,/, '');
-      pdfPages.push({
-        jpegBytes: base64ToUint8Array(base64),
-        widthPx: outWidthPx,
-        heightPx: outHeightPx,
-      });
+      if (k > 0) {
+        doc.addPage([outWidthPx, outHeightPx], isLandscape ? 'landscape' : 'portrait');
+      }
+      doc.addImage(jpegDataUrl, 'JPEG', 0, 0, outWidthPx, outHeightPx, undefined, 'FAST');
     }
 
-    onProgress?.('Menyusun dokumen PDF...');
-    const pdfBlob = buildMultiPagePdfFromJpegs(pdfPages);
+    onProgress?.('Menyusun dokumen PDF Carousel...');
+    const pdfBlob = doc.output('blob');
 
     if (packageAsZip) {
       const zip = new JSZip();
@@ -315,7 +207,7 @@ export async function exportCustomSlides(
       });
       saveAs(zipBlob, `${folderName}.zip`);
     } else {
-      saveAs(pdfBlob, `${baseSlug}-${outWidthPx}px.pdf`);
+      saveAs(pdfBlob, `${baseSlug}-linkedin-carousel-${outWidthPx}px.pdf`);
     }
     return;
   }
