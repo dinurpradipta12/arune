@@ -10,6 +10,7 @@ import {
   Folder,
   FolderHeart,
   FolderOpen,
+  FolderPlus,
   LayoutGrid,
   LayoutList,
   Moon,
@@ -59,6 +60,13 @@ import {
 } from '../../utils/scriptParser';
 import { SlideStage } from '../canvas/SlideStage';
 import { DownloadStandaloneModal } from '../modals/DownloadStandaloneModal';
+import { MoveToFolderModal } from '../folders/MoveToFolderModal';
+import {
+  type ProjectFolder,
+  getProjectFolders,
+  getFolderColorTheme,
+  subscribeToProjectFolders,
+} from '../../services/projectFolderService';
 import { UserAuthButton } from '../common/UserAuthButton';
 import { studioLogo } from '../../assets/branding';
 import { isElectronMac } from '../../utils/platform';
@@ -95,6 +103,17 @@ export const TemplateGalleryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+  // Project Folders State
+  const [allFolders, setAllFolders] = useState<ProjectFolder[]>(() => getProjectFolders());
+  const [projectForFolderModal, setProjectForFolderModal] = useState<CloudTemplateRecord | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToProjectFolders((updated) => {
+      setAllFolders(updated);
+    });
+    return () => unsub();
+  }, []);
 
   // User Profile & Warm Greeting State
   const currentUser = useMemo(() => getCurrentUserProfile(), []);
@@ -978,6 +997,28 @@ export const TemplateGalleryPage: React.FC = () => {
                         <div className="text-[11px] text-zinc-400 truncate">
                           {proj.description || `${proj.slides.length} slides • ${proj.aspectRatio}`}
                         </div>
+
+                        {/* Folder Badges in List View */}
+                        {(() => {
+                          const assigned = allFolders.filter((f) => f.projectIds.includes(proj.id));
+                          if (assigned.length === 0) return null;
+                          return (
+                            <div className="flex items-center gap-1 flex-wrap mt-1">
+                              {assigned.map((f) => {
+                                const c = getFolderColorTheme(f.color);
+                                return (
+                                  <span
+                                    key={f.id}
+                                    className={`text-[9.5px] font-semibold px-1.5 py-0.2 rounded border flex items-center gap-1 ${c.bg} ${c.border} ${c.text}`}
+                                  >
+                                    <Folder className="w-2.5 h-2.5" />
+                                    <span>{f.name}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -994,6 +1035,18 @@ export const TemplateGalleryPage: React.FC = () => {
                         className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs cursor-pointer shadow-xs"
                       >
                         Buka
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProjectForFolderModal(proj)}
+                        title="Simpan / Pindahkan ke Folder"
+                        className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                          workspaceDarkMode
+                            ? 'bg-zinc-800 hover:bg-zinc-700 text-amber-400 border-zinc-700'
+                            : 'bg-white hover:bg-slate-100 text-amber-600 border-slate-200'
+                        }`}
+                      >
+                        <FolderPlus className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
@@ -1102,6 +1155,28 @@ export const TemplateGalleryPage: React.FC = () => {
                           <p className="text-[11px] text-zinc-400 truncate mt-0.5">
                             {proj.description || 'Proyek Carousel'}
                           </p>
+
+                          {/* Folder Tags in Grid Card */}
+                          {(() => {
+                            const assigned = allFolders.filter((f) => f.projectIds.includes(proj.id));
+                            if (assigned.length === 0) return null;
+                            return (
+                              <div className="flex items-center gap-1 flex-wrap mt-2">
+                                {assigned.map((f) => {
+                                  const c = getFolderColorTheme(f.color);
+                                  return (
+                                    <span
+                                      key={f.id}
+                                      className={`text-[9.5px] font-semibold px-2 py-0.5 rounded-md border flex items-center gap-1 ${c.bg} ${c.border} ${c.text}`}
+                                    >
+                                      <Folder className="w-2.5 h-2.5" />
+                                      <span className="truncate max-w-[110px]">{f.name}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         <div
@@ -1115,6 +1190,18 @@ export const TemplateGalleryPage: React.FC = () => {
                           >
                             <span>Buka</span>
                             <ArrowRight className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProjectForFolderModal(proj)}
+                            title="Simpan / Pindahkan ke Folder"
+                            className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                              workspaceDarkMode
+                                ? 'bg-zinc-800 hover:bg-zinc-700 text-amber-400 border-zinc-700'
+                                : 'bg-white hover:bg-slate-100 text-amber-600 border-slate-200'
+                            }`}
+                          >
+                            <FolderPlus className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
@@ -1632,6 +1719,23 @@ export const TemplateGalleryPage: React.FC = () => {
         isOpen={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
       />
+
+      {/* Move / Save to Folder Modal */}
+      {projectForFolderModal && (
+        <MoveToFolderModal
+          isOpen={Boolean(projectForFolderModal)}
+          project={projectForFolderModal}
+          onClose={() => setProjectForFolderModal(null)}
+          onSuccess={(assigned) => {
+            setSaveToast(
+              assigned.length > 0
+                ? `Proyek dimasukkan ke ${assigned.map((f) => f.name).join(', ')}`
+                : 'Proyek dikeluarkan dari folder'
+            );
+            setTimeout(() => setSaveToast(null), 3000);
+          }}
+        />
+      )}
     </div>
   );
 };

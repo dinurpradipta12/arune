@@ -7,6 +7,7 @@ import {
   Eye,
   FileJson,
   FilePlus2,
+  Folder,
   Home,
   ImageDown,
   Loader2,
@@ -28,9 +29,16 @@ import { copySlideToClipboard, exportSingleSlidePng } from '../../utils/exportEn
 import { isElectronMac } from '../../utils/platform';
 import { UserAuthButton } from '../common/UserAuthButton';
 import { getActiveTeamId, getCurrentUserTeamRole } from '../../services/teamWorkspaceService';
+import { MoveToFolderModal } from '../folders/MoveToFolderModal';
+import {
+  type ProjectFolder,
+  getFoldersForProject,
+  subscribeToProjectFolders,
+} from '../../services/projectFolderService';
 
 export const TopHeaderBar: React.FC = () => {
   const {
+    projectId,
     projectTitle,
     setProjectTitle,
     aspectRatio,
@@ -53,6 +61,8 @@ export const TopHeaderBar: React.FC = () => {
     openBlankDocumentTab,
     slides,
     activeSlideIndex,
+    lastSavedAt,
+    saveCurrentProjectToVault,
   } = useStudioStore();
 
   const activeTeamId = getActiveTeamId();
@@ -63,6 +73,35 @@ export const TopHeaderBar: React.FC = () => {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [isCopyingSlide, setIsCopyingSlide] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+
+  // Folder Modal & Membership State
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [assignedFolders, setAssignedFolders] = useState<ProjectFolder[]>(() =>
+    projectId ? getFoldersForProject(projectId) : []
+  );
+
+  useEffect(() => {
+    if (projectId) {
+      setAssignedFolders(getFoldersForProject(projectId));
+    } else {
+      setAssignedFolders([]);
+    }
+
+    const unsub = subscribeToProjectFolders(() => {
+      if (projectId) {
+        setAssignedFolders(getFoldersForProject(projectId));
+      }
+    });
+    return () => unsub();
+  }, [projectId]);
+
+  const handleOpenFolderModal = async () => {
+    // If project has not been saved yet, save it first so it gets a stable ID in templates
+    if (!projectId || !lastSavedAt) {
+      await saveCurrentProjectToVault();
+    }
+    setIsFolderModalOpen(true);
+  };
 
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
@@ -199,6 +238,34 @@ export const TopHeaderBar: React.FC = () => {
                 <span className="hidden xl:inline">+ Tab</span>
               </button>
             )}
+
+            {/* Folder Assignment Button / Pill */}
+            <button
+              type="button"
+              onClick={handleOpenFolderModal}
+              title={
+                assignedFolders.length > 0
+                  ? `Folder: ${assignedFolders.map((f) => f.name).join(', ')} (Klik untuk memindahkan)`
+                  : 'Simpan / Pindahkan ke Folder'
+              }
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-medium transition-all cursor-pointer shrink-0 ${
+                assignedFolders.length > 0
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                  : workspaceDarkMode
+                  ? 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200'
+                  : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600'
+              }`}
+            >
+              <Folder className="w-3 h-3 text-amber-400" />
+              <span className="hidden md:inline font-semibold max-w-[120px] truncate">
+                {assignedFolders.length > 0 ? assignedFolders[0].name : 'Pindahkan ke Folder'}
+              </span>
+              {assignedFolders.length > 1 && (
+                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">
+                  +{assignedFolders.length - 1}
+                </span>
+              )}
+            </button>
           </div>
         )}
 
@@ -342,6 +409,27 @@ export const TopHeaderBar: React.FC = () => {
                 <div>
                   <div className="font-semibold">Import / Export JSON</div>
                   <div className="text-[10px] text-zinc-400">Simpan atau pulihkan file proyek</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  void handleOpenFolderModal();
+                  setMoreMenuOpen(false);
+                }}
+                className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2.5 transition-colors cursor-pointer ${
+                  workspaceDarkMode ? 'hover:bg-zinc-850 hover:text-white' : 'hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Folder className="w-3.5 h-3.5 text-amber-400" />
+                <div>
+                  <div className="font-semibold">Simpan / Pindahkan ke Folder</div>
+                  <div className="text-[10px] text-zinc-400">
+                    {assignedFolders.length > 0
+                      ? `Di folder: ${assignedFolders.map((f) => f.name).join(', ')}`
+                      : 'Kelompokkan proyek ke folder kategori'}
+                  </div>
                 </div>
               </button>
 
@@ -524,6 +612,18 @@ export const TopHeaderBar: React.FC = () => {
         {/* User Profile Avatar */}
         <UserAuthButton darkMode={workspaceDarkMode} />
       </div>
+
+      {/* Move / Save to Folder Modal in Editor */}
+      {isFolderModalOpen && (
+        <MoveToFolderModal
+          isOpen={isFolderModalOpen}
+          project={{
+            id: projectId || 'proj-current',
+            name: projectTitle || 'Dokumen Carousel',
+          }}
+          onClose={() => setIsFolderModalOpen(false)}
+        />
+      )}
     </header>
   );
 };

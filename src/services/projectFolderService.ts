@@ -83,12 +83,32 @@ export function getProjectFolders(): ProjectFolder[] {
   return DEFAULT_FOLDERS;
 }
 
+const folderListeners = new Set<(folders: ProjectFolder[]) => void>();
+
+export function subscribeToProjectFolders(cb: (folders: ProjectFolder[]) => void): () => void {
+  folderListeners.add(cb);
+  return () => {
+    folderListeners.delete(cb);
+  };
+}
+
+function notifyFolderListeners(folders: ProjectFolder[]) {
+  folderListeners.forEach((cb) => {
+    try {
+      cb(folders);
+    } catch {
+      // ignore
+    }
+  });
+}
+
 /**
  * Save all project folders to LocalStorage
  */
 export function saveProjectFolders(folders: ProjectFolder[]): void {
   try {
     localStorage.setItem(LOCAL_STORAGE_FOLDERS_KEY, JSON.stringify(folders));
+    notifyFolderListeners(folders);
   } catch (err) {
     console.warn('Failed to save project folders to localStorage:', err);
   }
@@ -235,6 +255,31 @@ export function moveProjectToFolder(projectId: string, targetFolderId: string | 
       target.updatedAt = new Date().toISOString();
     }
   }
+
+  saveProjectFolders(folders);
+}
+
+/**
+ * Set exact folder memberships for a project (toggle multiple folders)
+ */
+export function setProjectFolderMemberships(projectId: string, targetFolderIds: string[]): void {
+  const folders = getProjectFolders();
+  const targetSet = new Set(targetFolderIds);
+
+  folders.forEach((f) => {
+    const hasProject = f.projectIds.includes(projectId);
+    const shouldHave = targetSet.has(f.id);
+
+    if (shouldHave && !hasProject) {
+      f.projectIds.push(projectId);
+      f.updatedAt = new Date().toISOString();
+      void syncFolderToCloud(f);
+    } else if (!shouldHave && hasProject) {
+      f.projectIds = f.projectIds.filter((id) => id !== projectId);
+      f.updatedAt = new Date().toISOString();
+      void syncFolderToCloud(f);
+    }
+  });
 
   saveProjectFolders(folders);
 }
