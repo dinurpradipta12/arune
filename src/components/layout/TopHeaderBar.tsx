@@ -1,5 +1,6 @@
 import {
   Download,
+  Eye,
   FileJson,
   FilePlus2,
   Home,
@@ -24,6 +25,7 @@ import { exportSingleSlidePng } from '../../utils/exportEngine';
 import { isElectronMac } from '../../utils/platform';
 import { UserAuthButton } from '../common/UserAuthButton';
 import { LiveCollaboratorsBar } from '../common/LiveCollaboratorsBar';
+import { getActiveTeamId, getCurrentUserTeamRole } from '../../services/teamWorkspaceService';
 
 export const TopHeaderBar: React.FC = () => {
   const {
@@ -50,6 +52,9 @@ export const TopHeaderBar: React.FC = () => {
     slides,
     activeSlideIndex,
   } = useStudioStore();
+
+  const activeTeamId = getActiveTeamId();
+  const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
 
   return (
     <header
@@ -130,6 +135,14 @@ export const TopHeaderBar: React.FC = () => {
             <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
+
+        {/* Viewer Role Indicator Badge */}
+        {isViewer && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[11px] font-semibold shrink-0 animate-in fade-in">
+            <Eye className="w-3.5 h-3.5" />
+            <span>Viewer (Hanya Lihat)</span>
+          </div>
+        )}
       </div>
 
       {/* RIGHT: Canvas Zoom & Export Slide Ini + Utilities + Export HD (.ZIP) */}

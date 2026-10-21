@@ -1173,3 +1173,32 @@ export function updateTeamBrandKit(
 
   return team.brandKit;
 }
+
+/**
+ * Resolves the role of the current logged-in user in the active team workspace.
+ * Returns 'owner' | 'editor' | 'viewer'. Defaults to 'owner' if not in a team workspace.
+ */
+export function getCurrentUserTeamRole(teamId?: string | null): TeamRole {
+  const targetTeamId = teamId || getActiveTeamId();
+  if (!targetTeamId) return 'owner';
+
+  const teams = getTeams();
+  const team = teams.find((t) => t.id === targetTeamId);
+  if (!team) return 'owner';
+
+  const me = getCurrentUserProfile();
+  const authUser = getCurrentAuthUser();
+  const myId = authUser?.id || me.id;
+  const myEmail = (authUser?.email || me.email || '').trim().toLowerCase();
+
+  if (team.ownerId === myId) return 'owner';
+
+  const member = team.members.find(
+    (m) =>
+      m.id === myId ||
+      m.isCurrentUser ||
+      (m.email && myEmail && m.email.trim().toLowerCase() === myEmail)
+  );
+
+  return member ? member.role : 'editor';
+}

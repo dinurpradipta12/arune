@@ -38,7 +38,7 @@ import {
   type RemotePeer,
 } from '../../services/multiplayerService';
 import { getAvatarPresetById } from '../../constants/avatarPresets';
-import { getActiveTeamId, getTeamProjects, subscribeToActiveTeam } from '../../services/teamWorkspaceService';
+import { getActiveTeamId, getCurrentUserTeamRole, getTeamProjects, subscribeToActiveTeam } from '../../services/teamWorkspaceService';
 
 export const CenterWorkspace: React.FC = () => {
   const {
@@ -101,6 +101,8 @@ export const CenterWorkspace: React.FC = () => {
   const collabRoomId = activeTeamId
     ? `team_${activeTeamId}`
     : (activeDocumentId || 'global_collab_room');
+
+  const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
 
   // Connect to multiplayer collaboration room
   useEffect(() => {
@@ -1675,14 +1677,15 @@ export const CenterWorkspace: React.FC = () => {
               theme={theme}
               branding={branding}
               scale={canvasZoom}
-              interactive={true}
-              selectedElementId={selectedElementId}
+              interactive={!isViewer}
+              selectedElementId={isViewer ? null : selectedElementId}
               onSelectElement={(id) => {
+                if (isViewer) return;
                 setSelectedElementId(id);
                 multiplayerService.sendElementSelection(id, activeSlideIndex);
               }}
-              onUpdateElement={handleUpdateElement}
-              onCommitHistory={commitElementHistory}
+              onUpdateElement={isViewer ? () => {} : handleUpdateElement}
+              onCommitHistory={isViewer ? () => {} : commitElementHistory}
             />
 
             {/* Multiplayer Remote Cursors & Peer Selections Layer */}

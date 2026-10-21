@@ -18,6 +18,7 @@ import {
   CircleDot,
   Copy,
   Crop,
+  Eye,
   FlipHorizontal2,
   FlipVertical2,
   GripVertical,
@@ -49,6 +50,7 @@ import {
 import { scanComputerFonts } from '../../services/fontManager';
 import { trimTransparentImage } from '../../services/backgroundRemoval';
 import { useStudioStore } from '../../store/useStudioStore';
+import { getActiveTeamId, getCurrentUserTeamRole } from '../../services/teamWorkspaceService';
 import type {
   BlendModeType,
   CanvasElement,
@@ -218,6 +220,9 @@ export const RightInspector: React.FC = () => {
   const activeSlide = slides[activeSlideIndex] || slides[0];
   const selectedElement = getSelectedElement();
   const theme = getActiveTheme();
+
+  const activeTeamId = getActiveTeamId();
+  const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
 
   const toggleCollapse = (id: InspectorModuleId) => {
     setCollapsedModules((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -2658,6 +2663,19 @@ export const RightInspector: React.FC = () => {
         )}
       </div>
 
+      {/* Viewer Role Lock Notification Banner */}
+      {isViewer && (
+        <div className="p-3 mx-3 my-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5 shrink-0 animate-in fade-in">
+          <Eye className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-0.5 min-w-0">
+            <p className="font-semibold text-[11px] text-amber-200">Mode Lihat Saja (Viewer)</p>
+            <p className="text-[10px] text-amber-300/80 leading-relaxed">
+              Anda memiliki hak akses <strong>Viewer</strong> pada tim ini. Kanvas dan properti desain dikunci dalam mode baca. Gunakan tool Komentar (C) untuk meninggalkan masukan.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Quick Module Toggle Pills Bar (Allows combining/toggling sub-modals quickly) */}
       <div className="px-3 py-2 border-b border-zinc-800/60 bg-zinc-950 flex items-center gap-1.5 overflow-x-auto scroller-dark shrink-0">
         {sortedModules.map((mod) => {
@@ -2682,7 +2700,7 @@ export const RightInspector: React.FC = () => {
       </div>
 
       {/* Modular Stack of Floating Sub-Modals */}
-      <div className="flex-1 overflow-y-auto scroller-dark p-3 space-y-3.5">
+      <div className={`flex-1 overflow-y-auto scroller-dark p-3 space-y-3.5 ${isViewer ? 'pointer-events-none opacity-50 select-none' : ''}`}>
         {sortedModules.map((mod, idx) => (
           <InspectorModalCard
             key={mod.id}
