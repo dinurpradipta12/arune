@@ -6,13 +6,13 @@ import {
   ArrowUpToLine,
   BadgeCheck,
   Check,
+  Copy,
   Eye,
   EyeOff,
   Image as ImageIcon,
   Layers,
   LayoutGrid,
   Lock,
-  Minus,
   Shapes,
   Trash2,
   Type,
@@ -1337,6 +1337,8 @@ export const LeftSidebar: React.FC = () => {
     updateElement,
     adjustElementZIndex,
     deleteElement,
+    duplicateElement,
+    workspaceDarkMode,
     settings,
   } = useStudioStore();
 
@@ -1345,10 +1347,28 @@ export const LeftSidebar: React.FC = () => {
   >('All');
   const [layoutScope, setLayoutScope] = useState<'current' | 'all'>('current');
 
+  // Layers Tab: Kind Filter and inline rename state
+  const [layerFilter, setLayerFilter] = useState<'all' | 'text' | 'image' | 'shape' | 'other'>('all');
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const [editingLayerName, setEditingLayerName] = useState<string>('');
+
   if (!leftSidebarOpen) return null;
 
   const activeSlide = slides[activeSlideIndex] || slides[0];
   const activeTheme = getActiveTheme();
+
+  const allElements = activeSlide?.elements || [];
+  const selectedElement = allElements.find((el) => el.id === selectedElementId);
+  const filteredElements = [...allElements]
+    .sort((a, b) => b.zIndex - a.zIndex)
+    .filter((el) => {
+      if (layerFilter === 'all') return true;
+      if (layerFilter === 'text') return el.type === 'text';
+      if (layerFilter === 'image') return el.type === 'image';
+      if (layerFilter === 'shape') return el.type === 'shape';
+      if (layerFilter === 'other') return el.type === 'badge' || el.type === 'divider';
+      return true;
+    });
 
   return (
     <aside className="w-72 border-r border-zinc-800/80 bg-zinc-950 flex flex-col shrink-0 select-none z-20 h-full overflow-hidden">
@@ -1395,158 +1415,449 @@ export const LeftSidebar: React.FC = () => {
         })}
       </div>
 
-      {/* TAB 1: SLIDE LAYERS STACK ONLY */}
+      {/* TAB 1: SLIDE LAYERS STACK (Photoshop Pro Style) */}
       {activeLeftTab === 'elements' && (
-        <div className="flex-1 overflow-y-auto p-3 space-y-4 scroller-dark">
-          {/* Active Slide Layers List (Z-Index Ordered) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-blue-900" />
-                <span>Slide Layers ({activeSlide?.elements.length || 0})</span>
-              </h3>
-              <span className="text-[10px] text-zinc-500">Depan → Belakang</span>
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden select-none">
+          {/* 1. Header & Filter Bar (Kind: All, Text, Image, Shape) */}
+          <div
+            className={`px-3 py-2 border-b flex items-center justify-between shrink-0 ${
+              workspaceDarkMode
+                ? 'border-zinc-800/80 bg-zinc-900/60'
+                : 'border-slate-200 bg-slate-100/70'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span
+                className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                  workspaceDarkMode ? 'text-zinc-200' : 'text-slate-800'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-blue-500" />
+                <span>Layers</span>
+              </span>
+              <span
+                className={`text-[10px] font-mono ${
+                  workspaceDarkMode ? 'text-zinc-500' : 'text-slate-400'
+                }`}
+              >
+                ({filteredElements.length}/{allElements.length})
+              </span>
             </div>
 
-            <div className="space-y-1">
-              {[...(activeSlide?.elements || [])]
-                .sort((a, b) => b.zIndex - a.zIndex)
-                .map((el) => {
-                  const isSel = selectedElementId === el.id;
-                  return (
-                    <div
-                      key={el.id}
-                      onClick={() => setSelectedElementId(el.id)}
-                      className={`group flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer border transition-colors ${
+            {/* Quick Type Filter Chips (Photoshop "Kind" Filter) */}
+            <div
+              className={`flex items-center p-0.5 rounded-lg border ${
+                workspaceDarkMode
+                  ? 'bg-zinc-950 border-zinc-800'
+                  : 'bg-white border-slate-200 shadow-2xs'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setLayerFilter('all')}
+                title="Tampilkan Semua Layer"
+                className={`px-1.5 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer ${
+                  layerFilter === 'all'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : workspaceDarkMode
+                    ? 'text-zinc-400 hover:text-white'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayerFilter('text')}
+                title="Filter Teks (Type)"
+                className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-serif font-bold transition-all cursor-pointer ${
+                  layerFilter === 'text'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : workspaceDarkMode
+                    ? 'text-zinc-400 hover:text-white'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                T
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayerFilter('image')}
+                title="Filter Gambar / Foto"
+                className={`w-5 h-5 rounded flex items-center justify-center transition-all cursor-pointer ${
+                  layerFilter === 'image'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : workspaceDarkMode
+                    ? 'text-zinc-400 hover:text-white'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <ImageIcon className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayerFilter('shape')}
+                title="Filter Bentuk (Shapes)"
+                className={`w-5 h-5 rounded flex items-center justify-center transition-all cursor-pointer ${
+                  layerFilter === 'shape'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : workspaceDarkMode
+                    ? 'text-zinc-400 hover:text-white'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Shapes className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Scrollable Layer List Rows */}
+          <div className="flex-1 overflow-y-auto scroller-dark">
+            {filteredElements.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-6 text-center h-full">
+                <div
+                  className={`p-2.5 rounded-xl border mb-2 ${
+                    workspaceDarkMode
+                      ? 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+                      : 'bg-slate-100 border-slate-200 text-slate-400'
+                  }`}
+                >
+                  <Layers className="w-5 h-5" />
+                </div>
+                <p
+                  className={`text-xs font-medium ${
+                    workspaceDarkMode ? 'text-zinc-300' : 'text-slate-600'
+                  }`}
+                >
+                  {layerFilter !== 'all'
+                    ? 'Tidak ada layer dengan jenis ini'
+                    : 'Belum Ada Objek di Slide Ini'}
+                </p>
+                <p className="text-[10.5px] text-zinc-500 mt-1 max-w-[180px]">
+                  {layerFilter !== 'all' ? (
+                    <button
+                      type="button"
+                      onClick={() => setLayerFilter('all')}
+                      className="text-blue-500 hover:underline cursor-pointer"
+                    >
+                      Reset Filter ke Semua
+                    </button>
+                  ) : (
+                    'Tambahkan teks, gambar, atau bentuk menggunakan toolbar kanvas di sebelah kiri.'
+                  )}
+                </p>
+              </div>
+            ) : (
+              filteredElements.map((el) => {
+                const isSel = selectedElementId === el.id;
+                return (
+                  <div
+                    key={el.id}
+                    onClick={() => setSelectedElementId(el.id)}
+                    className={`group flex items-center h-9 border-b transition-colors cursor-pointer ${
+                      isSel
+                        ? workspaceDarkMode
+                          ? 'bg-[#2F405A] border-blue-400/40 text-white font-medium'
+                          : 'bg-blue-50 border-blue-200 text-blue-950 font-medium'
+                        : workspaceDarkMode
+                        ? 'bg-zinc-900/20 hover:bg-zinc-850/60 border-zinc-850 text-zinc-300'
+                        : 'bg-white hover:bg-slate-100/80 border-slate-200/80 text-slate-700'
+                    }`}
+                  >
+                    {/* A. Eye Visibility Gutter (Leftmost column) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateElement(el.id, { hidden: !el.hidden }, true);
+                      }}
+                      title={el.hidden ? 'Tampilkan Layer (Show)' : 'Sembunyikan Layer (Hide)'}
+                      className={`w-7 h-full flex items-center justify-center shrink-0 border-r transition-colors cursor-pointer ${
                         isSel
-                          ? 'bg-blue-900/10 border-blue-900/40 text-blue-900 font-semibold'
-                          : 'bg-zinc-900/75 hover:bg-zinc-900 border-zinc-800/80 text-zinc-300'
+                          ? workspaceDarkMode
+                            ? 'border-blue-400/30'
+                            : 'border-blue-200'
+                          : workspaceDarkMode
+                          ? 'border-zinc-800/80 hover:bg-zinc-800/60'
+                          : 'border-slate-200 hover:bg-slate-200/60'
                       }`}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          title={`Layer Type: ${el.type.toUpperCase()} (z${el.zIndex})`}
-                          className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                      {el.hidden ? (
+                        <EyeOff className="w-3.5 h-3.5 text-zinc-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+                      ) : (
+                        <Eye
+                          className={`w-3.5 h-3.5 transition-colors ${
                             isSel
-                              ? 'bg-blue-900/20 border-blue-900/40 text-blue-900'
-                              : 'bg-zinc-800/90 border-zinc-700/70 text-blue-900'
+                              ? 'text-white'
+                              : workspaceDarkMode
+                              ? 'text-zinc-400 group-hover:text-zinc-200'
+                              : 'text-slate-600 group-hover:text-slate-900'
                           }`}
-                        >
-                          {el.type === 'image' ? (
-                            <ImageIcon className="w-3.5 h-3.5" />
-                          ) : el.type === 'badge' ? (
-                            <BadgeCheck className="w-3.5 h-3.5" />
-                          ) : el.type === 'divider' ? (
-                            <Minus className="w-3.5 h-3.5" />
-                          ) : el.type === 'shape' ? (
-                            <Shapes className="w-3.5 h-3.5" />
+                        />
+                      )}
+                    </button>
+
+                    {/* B. Square Thumbnail Preview (22×22px) */}
+                    <div className="px-1.5 flex items-center justify-center shrink-0">
+                      <div
+                        className={`w-6 h-6 rounded-sm border shrink-0 flex items-center justify-center overflow-hidden transition-colors ${
+                          isSel
+                            ? 'border-blue-400/80 bg-zinc-900 shadow-2xs'
+                            : workspaceDarkMode
+                            ? 'border-zinc-700/80 bg-zinc-900'
+                            : 'border-slate-300 bg-slate-100'
+                        }`}
+                        style={
+                          el.type === 'image'
+                            ? {
+                                background: workspaceDarkMode
+                                  ? 'repeating-conic-gradient(#3f3f46 0% 25%, #27272a 0% 50%) 50% / 6px 6px'
+                                  : 'repeating-conic-gradient(#d4d4d8 0% 25%, #ffffff 0% 50%) 50% / 6px 6px',
+                              }
+                            : undefined
+                        }
+                      >
+                        {el.type === 'image' ? (
+                          el.src ? (
+                            <img
+                              src={el.src}
+                              alt={el.name}
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
-                            <Type className="w-3.5 h-3.5" />
-                          )}
-                        </span>
+                            <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
+                          )
+                        ) : el.type === 'text' ? (
+                          <span className="font-serif font-black text-xs text-zinc-100 select-none leading-none">
+                            T
+                          </span>
+                        ) : el.type === 'shape' ? (
+                          <div
+                            className="w-3.5 h-3.5 flex items-center justify-center shadow-2xs"
+                            style={{
+                              backgroundColor: el.fillColor || activeTheme.accent,
+                              borderRadius:
+                                el.shapeKind === 'circle' || el.shapeKind === 'pill'
+                                  ? '9999px'
+                                  : el.shapeKind === 'rounded-rect'
+                                  ? '3px'
+                                  : '1px',
+                            }}
+                          />
+                        ) : el.type === 'divider' ? (
+                          <div
+                            className="w-4 h-[2px] rounded-full"
+                            style={{ backgroundColor: el.color || activeTheme.divider }}
+                          />
+                        ) : (
+                          <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* C. Layer Name / Inline Rename Input */}
+                    <div className="flex-1 min-w-0 pr-1 flex items-center">
+                      {editingLayerId === el.id ? (
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editingLayerName}
+                          onChange={(e) => setEditingLayerName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              if (editingLayerName.trim()) {
+                                updateElement(el.id, { name: editingLayerName.trim() }, true);
+                              }
+                              setEditingLayerId(null);
+                            } else if (e.key === 'Escape') {
+                              setEditingLayerId(null);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (editingLayerName.trim()) {
+                              updateElement(el.id, { name: editingLayerName.trim() }, true);
+                            }
+                            setEditingLayerId(null);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`w-full text-xs px-1.5 py-0.5 rounded border font-sans focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                            workspaceDarkMode
+                              ? 'bg-zinc-950 border-zinc-700 text-white'
+                              : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      ) : (
                         <span
-                          className={`truncate ${
-                            el.hidden ? 'line-through opacity-45' : ''
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setEditingLayerId(el.id);
+                            setEditingLayerName(el.name);
+                          }}
+                          title={`${el.name} (Double-click untuk ganti nama)`}
+                          className={`text-xs truncate select-none ${
+                            el.hidden ? 'opacity-40 line-through' : ''
+                          } ${
+                            isSel
+                              ? workspaceDarkMode
+                                ? 'text-white'
+                                : 'text-blue-950'
+                              : workspaceDarkMode
+                              ? 'text-zinc-300'
+                              : 'text-slate-700'
                           }`}
                         >
                           {el.name}
                         </span>
-                      </div>
-
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            adjustElementZIndex(el.id, 'front');
-                          }}
-                          title="Bring to Front"
-                          className="p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-                        >
-                          <ArrowUpToLine className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            adjustElementZIndex(el.id, 'forward');
-                          }}
-                          title="Bring Forward (z+1)"
-                          className="p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-                        >
-                          <ArrowUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            adjustElementZIndex(el.id, 'backward');
-                          }}
-                          title="Send Backward (z-1)"
-                          className="p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-                        >
-                          <ArrowDown className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            adjustElementZIndex(el.id, 'back');
-                          }}
-                          title="Send to Back"
-                          className="p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
-                        >
-                          <ArrowDownToLine className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateElement(el.id, { locked: !el.locked }, true);
-                          }}
-                          title={el.locked ? 'Unlock Layer' : 'Lock Layer'}
-                          className={`p-0.5 rounded hover:bg-zinc-800 ${
-                            el.locked ? 'text-blue-900' : 'text-zinc-400'
-                          }`}
-                        >
-                          {el.locked ? (
-                            <Lock className="w-3 h-3" />
-                          ) : (
-                            <Unlock className="w-3 h-3" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateElement(el.id, { hidden: !el.hidden }, true);
-                          }}
-                          title={el.hidden ? 'Show Layer' : 'Hide Layer'}
-                          className={`p-0.5 rounded hover:bg-zinc-800 ${
-                            el.hidden ? 'text-red-400' : 'text-zinc-400'
-                          }`}
-                        >
-                          {el.hidden ? (
-                            <EyeOff className="w-3 h-3" />
-                          ) : (
-                            <Eye className="w-3 h-3" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteElement(el.id);
-                          }}
-                          title="Delete Element"
-                          className="p-0.5 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-300"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
+
+                    {/* D. Right Status Badges: fx & Lock */}
+                    <div className="flex items-center gap-1 pr-2.5 shrink-0">
+                      {/* fx badge if layer has styling */}
+                      {Boolean(el.borderWidth || el.opacity < 1 || ('borderRadius' in el && (el as { borderRadius?: number }).borderRadius)) && (
+                        <span
+                          title="Layer Effects (fx)"
+                          className={`text-[9.5px] font-mono italic px-1 rounded select-none ${
+                            isSel
+                              ? 'text-blue-200 bg-blue-900/40'
+                              : workspaceDarkMode
+                              ? 'text-zinc-400 bg-zinc-800/80'
+                              : 'text-slate-500 bg-slate-200'
+                          }`}
+                        >
+                          fx
+                        </span>
+                      )}
+
+                      {/* Lock Icon */}
+                      {el.locked && (
+                        <span
+                          title="Layer terkunci (Locked)"
+                          className="p-0.5 text-amber-400 select-none"
+                        >
+                          <Lock className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* 3. Photoshop Style Footer Bar (Z-Index, Lock, Duplicate, Delete) */}
+          <div
+            className={`px-2.5 py-1.5 border-t flex items-center justify-between shrink-0 select-none ${
+              workspaceDarkMode
+                ? 'border-zinc-800/80 bg-zinc-950/95'
+                : 'border-slate-200 bg-slate-50/95'
+            }`}
+          >
+            {/* Left: Reorder Z-Index */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                disabled={!selectedElementId}
+                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'front')}
+                title="Geser ke Paling Depan (Top)"
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <ArrowUpToLine className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!selectedElementId}
+                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'forward')}
+                title="Maju Satu Lapisan (+1)"
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!selectedElementId}
+                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'backward')}
+                title="Mundur Satu Lapisan (-1)"
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!selectedElementId}
+                onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'back')}
+                title="Geser ke Paling Belakang (Bottom)"
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <ArrowDownToLine className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div
+              className={`w-px h-4 mx-1 ${
+                workspaceDarkMode ? 'bg-zinc-800' : 'bg-slate-300'
+              }`}
+            />
+
+            {/* Right: Lock, Duplicate, Delete */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                disabled={!selectedElement}
+                onClick={() => {
+                  if (selectedElement) {
+                    updateElement(selectedElement.id, { locked: !selectedElement.locked }, true);
+                  }
+                }}
+                title={selectedElement?.locked ? 'Buka Kunci Layer' : 'Kunci Layer (Lock)'}
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  selectedElement?.locked
+                    ? 'text-amber-400'
+                    : workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {selectedElement?.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                type="button"
+                disabled={!selectedElementId}
+                onClick={() => selectedElementId && duplicateElement(selectedElementId)}
+                title="Duplikat Layer (Ctrl+D)"
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!selectedElementId}
+                onClick={() => selectedElementId && deleteElement(selectedElementId)}
+                title="Hapus Layer (Delete)"
+                className="p-1 rounded hover:bg-red-500/20 text-zinc-400 hover:text-red-400 disabled:opacity-20 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
