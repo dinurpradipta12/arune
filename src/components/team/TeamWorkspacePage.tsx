@@ -327,7 +327,13 @@ export const TeamWorkspacePage: React.FC = () => {
   const handleLoadTeamProject = (record: TeamProjectRecord) => {
     try {
       const parsed = JSON.parse(record.projectJson);
-      loadProjectSnapshot(parsed);
+      loadProjectSnapshot(
+        {
+          ...parsed,
+          id: record.id,
+        },
+        false
+      );
       setActiveView('editor');
     } catch {
       setDialogModal({

@@ -36,6 +36,7 @@ import {
   type RemotePeer,
 } from '../../services/multiplayerService';
 import { getAvatarPresetById } from '../../constants/avatarPresets';
+import { getActiveTeamId, getTeamProjects } from '../../services/teamWorkspaceService';
 
 export const CenterWorkspace: React.FC = () => {
   const {
@@ -75,14 +76,21 @@ export const CenterWorkspace: React.FC = () => {
     openBlankDocumentTab,
     settings,
     updateSlideElementRemote,
+    syncRemoteCanvasSnapshot,
+    loadProjectSnapshot,
   } = useStudioStore();
 
   const [multiplayerPeers, setMultiplayerPeers] = useState<RemotePeer[]>([]);
 
+  // Harmonize multiplayer collaboration room ID across team members
+  const activeTeamId = getActiveTeamId();
+  const collabRoomId = activeTeamId
+    ? `team_${activeTeamId}`
+    : (activeDocumentId || 'global_collab_room');
+
   // Connect to multiplayer collaboration room
   useEffect(() => {
-    const roomId = activeDocumentId || 'global_collab_room';
-    multiplayerService.connectToRoom(roomId);
+    multiplayerService.connectToRoom(collabRoomId);
     multiplayerService.updatePresence(activeSlideIndex, selectedElementId);
 
     const unsubState = multiplayerService.subscribeToState((s) => {
@@ -93,11 +101,77 @@ export const CenterWorkspace: React.FC = () => {
       updateSlideElementRemote(payload.slideIndex, payload.elementId, payload.updates);
     });
 
+    // 1. When a new peer joins and requests current live canvas state
+    const unsubCanvasReq = multiplayerService.onCanvasStateRequest(() => {
+      const currentStore = useStudioStore.getState();
+      if (currentStore.slides && currentStore.slides.length > 0) {
+        multiplayerService.broadcastCanvasState({
+          projectId: currentStore.projectId,
+          projectTitle: currentStore.projectTitle || 'Untitled Carousel Project',
+          aspectRatio: currentStore.aspectRatio,
+          activeThemeId: currentStore.activeThemeId,
+          themeOverride: currentStore.themeOverride,
+          branding: currentStore.branding,
+          scriptText: currentStore.scriptText,
+          slides: currentStore.slides,
+          activeSlideIndex: currentStore.activeSlideIndex,
+        });
+      }
+    });
+
+    // 2. When receiving live canvas updates/sync from team collaborators
+    const unsubCanvasSync = multiplayerService.onRemoteCanvasState((payload) => {
+      if (!payload.slides || payload.slides.length === 0) return;
+      syncRemoteCanvasSnapshot({
+        id: payload.projectId,
+        projectTitle: payload.projectTitle,
+        aspectRatio: payload.aspectRatio as AspectRatioKey,
+        activeThemeId: payload.activeThemeId,
+        themeOverride: payload.themeOverride,
+        branding: payload.branding,
+        scriptText: payload.scriptText,
+        slides: payload.slides,
+        activeSlideIndex: payload.activeSlideIndex,
+      });
+    });
+
     return () => {
       unsubState();
       unsubRemoteUpdate();
+      unsubCanvasReq();
+      unsubCanvasSync();
     };
-  }, [activeDocumentId, updateSlideElementRemote]);
+  }, [collabRoomId, updateSlideElementRemote, syncRemoteCanvasSnapshot]);
+
+  // If user opens editor with empty canvas (e.g. newcomer Allisha joining the active room)
+  useEffect(() => {
+    if (slides.length === 0) {
+      // 1. Immediately request live canvas state from connected peers
+      multiplayerService.sendCanvasStateRequest();
+
+      // 2. If no peer responded within 500ms, fallback to loading team project or blank slide
+      const timer = setTimeout(() => {
+        const currentSlides = useStudioStore.getState().slides;
+        if (currentSlides.length === 0) {
+          if (activeTeamId) {
+            const teamProjects = getTeamProjects(activeTeamId);
+            if (teamProjects.length > 0 && teamProjects[0].projectJson) {
+              try {
+                const parsed = JSON.parse(teamProjects[0].projectJson);
+                loadProjectSnapshot(parsed, false);
+                return;
+              } catch {
+                // ignore
+              }
+            }
+          }
+          openBlankDocumentTab(aspectRatio || '4:5');
+        }
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [slides.length, activeTeamId, openBlankDocumentTab, aspectRatio, loadProjectSnapshot]);
 
   // Sync presence when slide or element selection changes
   useEffect(() => {

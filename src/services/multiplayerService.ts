@@ -32,6 +32,21 @@ export interface RemoteElementUpdatePayload {
   timestamp: number;
 }
 
+export interface CanvasStateSyncPayload {
+  userId: string;
+  senderName: string;
+  projectId?: string;
+  projectTitle: string;
+  aspectRatio: string;
+  activeThemeId: string;
+  themeOverride?: any;
+  branding: any;
+  scriptText: string;
+  slides: any[];
+  activeSlideIndex: number;
+  timestamp: number;
+}
+
 const GUEST_STORAGE_KEY = 'arune_collab_guest_v1';
 
 function getOrCreateGuestIdentity(): { id: string; name: string; avatarId: string; avatarColor: string } {
@@ -68,6 +83,8 @@ class MultiplayerService {
   private peersMap = new Map<string, RemotePeer>();
   private listeners: Array<(state: MultiplayerState) => void> = [];
   private elementUpdateListeners: Array<(event: RemoteElementUpdatePayload) => void> = [];
+  private canvasStateListeners: Array<(event: CanvasStateSyncPayload) => void> = [];
+  private canvasStateRequestListeners: Array<(requestorUserId: string) => void> = [];
 
   private isConnected = false;
   private myUserId = '';
@@ -204,6 +221,12 @@ class MultiplayerService {
         })
         .on('broadcast', { event: 'element_update' }, ({ payload }) => {
           this.handleElementUpdate(payload);
+        })
+        .on('broadcast', { event: 'canvas_state_request' }, ({ payload }) => {
+          this.handleCanvasStateRequest(payload);
+        })
+        .on('broadcast', { event: 'canvas_state_sync' }, ({ payload }) => {
+          this.handleCanvasStateSync(payload);
         })
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
@@ -433,6 +456,28 @@ class MultiplayerService {
     });
   }
 
+  private handleCanvasStateRequest(payload: any) {
+    if (!payload || payload.userId === this.myUserId) return;
+    this.canvasStateRequestListeners.forEach((fn) => {
+      try {
+        fn(payload.userId);
+      } catch (err) {
+        console.error('Error in canvas state request listener:', err);
+      }
+    });
+  }
+
+  private handleCanvasStateSync(payload: CanvasStateSyncPayload) {
+    if (!payload || payload.userId === this.myUserId) return;
+    this.canvasStateListeners.forEach((fn) => {
+      try {
+        fn(payload);
+      } catch (err) {
+        console.error('Error in canvas state sync listener:', err);
+      }
+    });
+  }
+
   private broadcastToLocalBus(msg: { type: string; payload: any }) {
     if (!this.localBroadcastBus) return;
     try {
@@ -459,6 +504,12 @@ class MultiplayerService {
         break;
       case 'element_update':
         this.handleElementUpdate(payload);
+        break;
+      case 'canvas_state_request':
+        this.handleCanvasStateRequest(payload);
+        break;
+      case 'canvas_state_sync':
+        this.handleCanvasStateSync(payload);
         break;
       case 'presence_join':
       case 'presence_sync':
@@ -566,6 +617,66 @@ class MultiplayerService {
     return () => {
       const idx = this.elementUpdateListeners.indexOf(callback);
       if (idx !== -1) this.elementUpdateListeners.splice(idx, 1);
+    };
+  }
+
+  public sendCanvasStateRequest() {
+    const payload = { userId: this.myUserId };
+    if (this.channel && this.isConnected) {
+      try {
+        this.channel.send({
+          type: 'broadcast',
+          event: 'canvas_state_request',
+          payload,
+        });
+      } catch (err) {
+        console.warn('Failed to send canvas_state_request via Supabase:', err);
+      }
+    }
+    this.broadcastToLocalBus({
+      type: 'canvas_state_request',
+      payload,
+    });
+  }
+
+  public broadcastCanvasState(snapshot: Omit<CanvasStateSyncPayload, 'userId' | 'senderName' | 'timestamp'>) {
+    const payload: CanvasStateSyncPayload = {
+      ...snapshot,
+      userId: this.myUserId,
+      senderName: this.myName,
+      timestamp: Date.now(),
+    };
+
+    if (this.channel && this.isConnected) {
+      try {
+        this.channel.send({
+          type: 'broadcast',
+          event: 'canvas_state_sync',
+          payload,
+        });
+      } catch (err) {
+        console.warn('Failed to broadcast canvas_state_sync via Supabase:', err);
+      }
+    }
+    this.broadcastToLocalBus({
+      type: 'canvas_state_sync',
+      payload,
+    });
+  }
+
+  public onRemoteCanvasState(callback: (payload: CanvasStateSyncPayload) => void): () => void {
+    this.canvasStateListeners.push(callback);
+    return () => {
+      const idx = this.canvasStateListeners.indexOf(callback);
+      if (idx !== -1) this.canvasStateListeners.splice(idx, 1);
+    };
+  }
+
+  public onCanvasStateRequest(callback: (requestorUserId: string) => void): () => void {
+    this.canvasStateRequestListeners.push(callback);
+    return () => {
+      const idx = this.canvasStateRequestListeners.indexOf(callback);
+      if (idx !== -1) this.canvasStateRequestListeners.splice(idx, 1);
     };
   }
 }

@@ -40,6 +40,7 @@ import {
   extractParsedScriptFromSlide,
   parseScriptToStructuredSlides,
 } from '../utils/scriptParser';
+import { multiplayerService } from '../services/multiplayerService';
 
 export interface HistorySnapshot {
   slides: Slide[];
@@ -371,6 +372,17 @@ interface StudioState {
     },
     openInNewTab?: boolean
   ) => void;
+  syncRemoteCanvasSnapshot: (snapshot: {
+    id?: string;
+    projectTitle?: string;
+    aspectRatio?: AspectRatioKey;
+    activeThemeId?: string;
+    themeOverride?: any;
+    branding?: GlobalBranding;
+    scriptText?: string;
+    slides?: Slide[];
+    activeSlideIndex?: number;
+  }) => void;
 
   // UI controls
   setActiveView: (view: StudioViewMode) => void;
@@ -439,6 +451,25 @@ function upsertOpenDocumentList(
   return syncedList.map((d) =>
     d.id === state.activeDocumentId ? nextDoc : d
   );
+}
+
+let broadcastCanvasTimer: any = null;
+function broadcastCurrentCanvasStateDebounced(state: StudioState) {
+  if (broadcastCanvasTimer) clearTimeout(broadcastCanvasTimer);
+  broadcastCanvasTimer = setTimeout(() => {
+    if (!state.slides || state.slides.length === 0) return;
+    multiplayerService.broadcastCanvasState({
+      projectId: state.projectId,
+      projectTitle: state.projectTitle || 'Untitled Carousel Project',
+      aspectRatio: state.aspectRatio,
+      activeThemeId: state.activeThemeId,
+      themeOverride: state.themeOverride,
+      branding: state.branding,
+      scriptText: state.scriptText,
+      slides: state.slides,
+      activeSlideIndex: state.activeSlideIndex,
+    });
+  }, 40);
 }
 
 export const useStudioStore = create<StudioState>((set, get) => ({
@@ -639,6 +670,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       future: [],
       activeView: 'editor',
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   addCustomFont: (font) => {
@@ -809,6 +841,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeView: 'editor',
     });
     saveActiveView('editor');
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   createNewProject: async (options) => {
@@ -963,6 +996,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeView: 'editor',
     });
     saveActiveView('editor');
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   pushHistory: () => {
@@ -1121,6 +1155,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
           : doc
       ),
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   setActiveTheme: (themeId) => {
@@ -1259,6 +1294,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     set((state) => ({
       branding: { ...state.branding, ...partial },
     }));
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   setScriptText: (scriptText) => set({ scriptText }),
@@ -1355,6 +1391,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeSlideIndex: nextSlides.length - 1,
       selectedElementId: null,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   duplicateSlide: (index) => {
@@ -1380,6 +1417,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeSlideIndex: index + 1,
       selectedElementId: null,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   deleteSlide: (index) => {
@@ -1395,6 +1433,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       ),
       selectedElementId: null,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   reorderSlide: (fromIndex, direction) => {
@@ -1410,6 +1449,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       slides: nextSlides,
       activeSlideIndex: toIndex,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   applyLayoutToSlide: (slideIndex, layout) => {
@@ -1488,6 +1528,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       idx === slideIndex ? { ...s, backgroundColor: color } : s
     );
     set({ slides: nextSlides });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   applyFontCombination: (preset, mode = 'insert') => {
@@ -1771,6 +1812,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       slides: nextSlides,
       selectedElementId: newElement.id,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   updateElement: (elementId, updater, recordHistory = false) => {
@@ -1835,6 +1877,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       selectedElementId:
         state.selectedElementId === targetId ? null : state.selectedElementId,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   duplicateElement: (elementId) => {
@@ -1867,6 +1910,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       slides: nextSlides,
       selectedElementId: copyId,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   adjustElementZIndex: (elementId, direction) => {
@@ -1995,6 +2039,58 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeView: 'editor',
     });
     saveActiveView('editor');
+    broadcastCurrentCanvasStateDebounced(get());
+  },
+
+  syncRemoteCanvasSnapshot: (payload) => {
+    const state = get();
+    if (!payload.slides || payload.slides.length === 0) return;
+    const nextRatio = (payload.aspectRatio as AspectRatioKey) || state.aspectRatio;
+    const nextThemeId = payload.activeThemeId || state.activeThemeId;
+    const nextBranding = payload.branding || state.branding;
+    const nextScript = payload.scriptText ?? state.scriptText;
+    const nextSlides = cloneSlides(payload.slides);
+    const nextTitle = payload.projectTitle || state.projectTitle || 'Untitled Carousel Project';
+    const nextId = payload.id || state.activeDocumentId || `doc-team-${state.aspectRatio}`;
+
+    const suggestedZoom =
+      nextRatio === '9:16' ? 0.7 : nextRatio === '4:5' ? 0.9 : 0.95;
+
+    const newDocTab: OpenDocumentTab = {
+      id: nextId,
+      projectTitle: nextTitle,
+      aspectRatio: nextRatio,
+      activeThemeId: nextThemeId,
+      themeOverride: payload.themeOverride || {},
+      branding: { ...nextBranding },
+      scriptText: nextScript,
+      slides: cloneSlides(nextSlides),
+      activeSlideIndex: typeof payload.activeSlideIndex === 'number'
+        ? Math.min(payload.activeSlideIndex, Math.max(0, nextSlides.length - 1))
+        : Math.min(state.activeSlideIndex, Math.max(0, nextSlides.length - 1)),
+      canvasZoom: suggestedZoom,
+      lastSavedAt: null,
+      past: [],
+      future: [],
+    };
+
+    const nextOpenDocs = upsertOpenDocumentList(state, newDocTab, false);
+
+    set({
+      openDocuments: nextOpenDocs,
+      activeDocumentId: nextId,
+      projectId: nextId,
+      projectTitle: nextTitle,
+      aspectRatio: nextRatio,
+      activeThemeId: nextThemeId,
+      themeOverride: payload.themeOverride || {},
+      branding: nextBranding,
+      scriptText: nextScript,
+      slides: nextSlides,
+      activeSlideIndex: typeof payload.activeSlideIndex === 'number'
+        ? Math.min(payload.activeSlideIndex, Math.max(0, nextSlides.length - 1))
+        : Math.min(state.activeSlideIndex, Math.max(0, nextSlides.length - 1)),
+    });
   },
 
   setActiveView: (activeView) => {
