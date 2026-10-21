@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
+  BookOpen,
   Check,
   ChevronRight,
   Clock,
@@ -61,6 +62,7 @@ import {
 import { SlideStage } from '../canvas/SlideStage';
 import { DownloadStandaloneModal } from '../modals/DownloadStandaloneModal';
 import { MoveToFolderModal } from '../folders/MoveToFolderModal';
+import { UserGuidePdfModal } from '../modals/UserGuidePdfModal';
 import {
   type ProjectFolder,
   getProjectFolders,
@@ -107,6 +109,9 @@ export const TemplateGalleryPage: React.FC = () => {
   // Project Folders State
   const [allFolders, setAllFolders] = useState<ProjectFolder[]>(() => getProjectFolders());
   const [projectForFolderModal, setProjectForFolderModal] = useState<CloudTemplateRecord | null>(null);
+
+  // User Guide PDF Modal State
+  const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToProjectFolders((updated) => {
@@ -609,6 +614,20 @@ export const TemplateGalleryPage: React.FC = () => {
             }`}
           >
             <Settings className="w-3.5 h-3.5 text-zinc-400" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsGuideModalOpen(true)}
+            title="Buka Buku Panduan Pengguna & Tutorial PDF"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-2xs group ${
+              workspaceDarkMode
+                ? 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline">Panduan PDF</span>
           </button>
 
           <div
@@ -1736,6 +1755,30 @@ export const TemplateGalleryPage: React.FC = () => {
           }}
         />
       )}
+
+      {/* FLOATING ACTION BUTTON: TUTORIAL & PANDUAN PENGGUNA (BOTTOM RIGHT) */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          type="button"
+          onClick={() => setIsGuideModalOpen(true)}
+          className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-white/20 backdrop-blur-md group"
+          title="Buka Buku Panduan Lengkap PDF Arune Studio (10 Halaman)"
+        >
+          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:rotate-12 transition-transform">
+            <BookOpen className="w-3.5 h-3.5 text-white" />
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="leading-tight text-white font-bold">Panduan Pengguna</span>
+            <span className="text-[9px] text-blue-100 font-medium leading-none">Ebook PDF 10 Halaman</span>
+          </div>
+        </button>
+      </div>
+
+      {/* User Guide PDF Modal Viewer */}
+      <UserGuidePdfModal
+        isOpen={isGuideModalOpen}
+        onClose={() => setIsGuideModalOpen(false)}
+      />
     </div>
   );
 };
