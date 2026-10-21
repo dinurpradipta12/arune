@@ -505,7 +505,27 @@ export const CenterWorkspace: React.FC = () => {
     return () => window.removeEventListener('paste', handlePaste);
   }, [dim.stageWidth, dim.stageHeight]);
 
-  // Canvas zoom on Wheel: Option + Scroll (Mac), Cmd + Scroll, or Trackpad Pinch
+  const targetZoomRef = useRef<number>(canvasZoom);
+  const rafZoomRef = useRef<number | null>(null);
+
+  // Sync targetZoom when external controls (slider, Fit button) change zoom
+  useEffect(() => {
+    if (!rafZoomRef.current) {
+      targetZoomRef.current = canvasZoom;
+    }
+  }, [canvasZoom]);
+
+  // Cleanup active animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (rafZoomRef.current) {
+        cancelAnimationFrame(rafZoomRef.current);
+        rafZoomRef.current = null;
+      }
+    };
+  }, []);
+
+  // Smooth Canvas zoom on Wheel: Option + Scroll (Mac), Cmd + Scroll, or Trackpad Pinch
   useEffect(() => {
     const el = canvasContainerRef.current;
     if (!el) return;
@@ -517,12 +537,34 @@ export const CenterWorkspace: React.FC = () => {
         e.stopPropagation();
 
         const isPinch = e.ctrlKey && !e.altKey && !e.metaKey;
-        const zoomRate = isPinch ? 0.008 : 0.0018;
-        const delta = -e.deltaY * zoomRate;
+        // Natural exponential scaling rates
+        const zoomRate = isPinch ? 0.0075 : 0.0016;
+        const factor = Math.exp(-e.deltaY * zoomRate);
 
-        const currentZoom = useStudioStore.getState().canvasZoom;
-        const nextZoom = Math.max(0.2, Math.min(2.5, Number((currentZoom + delta).toFixed(2))));
-        setCanvasZoom(nextZoom);
+        const currentTarget = targetZoomRef.current;
+        const nextTarget = Math.max(0.2, Math.min(2.5, currentTarget * factor));
+        targetZoomRef.current = nextTarget;
+
+        if (!rafZoomRef.current) {
+          const animateZoom = () => {
+            const current = useStudioStore.getState().canvasZoom;
+            const target = targetZoomRef.current;
+            const diff = target - current;
+
+            // When close enough, snap to target and finish
+            if (Math.abs(diff) < 0.001) {
+              setCanvasZoom(Number(target.toFixed(3)));
+              rafZoomRef.current = null;
+              return;
+            }
+
+            // Exponential easing lerp: 0.22 per frame gives silky-smooth momentum at 60/120fps
+            const nextVal = current + diff * 0.22;
+            setCanvasZoom(Number(nextVal.toFixed(4)));
+            rafZoomRef.current = requestAnimationFrame(animateZoom);
+          };
+          rafZoomRef.current = requestAnimationFrame(animateZoom);
+        }
       }
     };
 
@@ -1704,7 +1746,7 @@ export const CenterWorkspace: React.FC = () => {
         {/* Scaled Wrapper around SlideStage */}
         {activeSlide && (
           <div
-            className="relative shadow-[0_24px_70px_-15px_rgba(0,0,0,0.55)] ring-1 ring-black/15 transition-[width,height] duration-150 my-auto"
+            className="relative shadow-[0_24px_70px_-15px_rgba(0,0,0,0.55)] ring-1 ring-black/15 my-auto will-change-[width,height] select-none"
             style={{
               width: `${scaledW}px`,
               height: `${scaledH}px`,

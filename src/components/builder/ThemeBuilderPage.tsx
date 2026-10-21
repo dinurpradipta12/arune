@@ -365,7 +365,25 @@ const ThemeBuilderContent: React.FC = () => {
     return () => clearTimeout(timer);
   }, [aspectRatio]);
 
-  // Option + Scroll Wheel or Trackpad Pinch to Zoom
+  // Option + Scroll Wheel or Trackpad Pinch to Zoom smoothly
+  const targetZoomRef = useRef<number>(canvasZoom);
+  const rafZoomRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!rafZoomRef.current) {
+      targetZoomRef.current = canvasZoom;
+    }
+  }, [canvasZoom]);
+
+  useEffect(() => {
+    return () => {
+      if (rafZoomRef.current) {
+        cancelAnimationFrame(rafZoomRef.current);
+        rafZoomRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const el = previewContainerRef.current;
     if (!el) return;
@@ -376,12 +394,31 @@ const ThemeBuilderContent: React.FC = () => {
         e.stopPropagation();
 
         const isPinch = e.ctrlKey && !e.altKey && !e.metaKey;
-        const zoomRate = isPinch ? 0.008 : 0.0018;
-        const delta = -e.deltaY * zoomRate;
+        const zoomRate = isPinch ? 0.0075 : 0.0016;
+        const factor = Math.exp(-e.deltaY * zoomRate);
 
-        setCanvasZoom((prev) =>
-          Math.max(0.18, Math.min(2.0, Number((prev + delta).toFixed(2))))
-        );
+        const currentTarget = targetZoomRef.current;
+        const nextTarget = Math.max(0.18, Math.min(2.0, currentTarget * factor));
+        targetZoomRef.current = nextTarget;
+
+        if (!rafZoomRef.current) {
+          const animateZoom = () => {
+            setCanvasZoom((current) => {
+              const target = targetZoomRef.current;
+              const diff = target - current;
+
+              if (Math.abs(diff) < 0.001) {
+                rafZoomRef.current = null;
+                return Number(target.toFixed(3));
+              }
+
+              const nextVal = current + diff * 0.22;
+              rafZoomRef.current = requestAnimationFrame(animateZoom);
+              return Number(nextVal.toFixed(4));
+            });
+          };
+          rafZoomRef.current = requestAnimationFrame(animateZoom);
+        }
       }
     };
 
