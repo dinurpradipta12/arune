@@ -2338,9 +2338,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       branding: nextBranding,
       scriptText: nextScript,
       slides: nextSlides,
-      activeSlideIndex: typeof payload.activeSlideIndex === 'number'
-        ? Math.min(payload.activeSlideIndex, Math.max(0, nextSlides.length - 1))
-        : Math.min(state.activeSlideIndex, Math.max(0, nextSlides.length - 1)),
+      activeSlideIndex: Math.min(state.activeSlideIndex, Math.max(0, nextSlides.length - 1)),
     });
     autoSaveWorkingProjectDebounced(get());
   },

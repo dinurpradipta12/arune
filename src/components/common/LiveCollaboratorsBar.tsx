@@ -88,7 +88,7 @@ export const LiveCollaboratorsBar: React.FC<LiveCollaboratorsBarProps> = ({
               const preset = getAvatarPresetById(peer.avatarId);
               return (
                 <img
-                  key={peer.userId}
+                  key={peer.sessionId || peer.userId}
                   src={preset.svgDataUri}
                   alt={peer.name}
                   title={`${peer.name} (Slide ${peer.activeSlideIndex + 1})`}
@@ -199,7 +199,7 @@ export const LiveCollaboratorsBar: React.FC<LiveCollaboratorsBarProps> = ({
                 const preset = getAvatarPresetById(peer.avatarId);
                 return (
                   <div
-                    key={peer.userId}
+                    key={peer.sessionId || peer.userId}
                     className="flex items-center justify-between p-1.5 rounded-lg bg-zinc-900/30 dark:bg-zinc-900/30 bg-zinc-50 border border-zinc-800/30 dark:border-zinc-800/30 border-zinc-200"
                   >
                     <div className="flex items-center gap-2 min-w-0">

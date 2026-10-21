@@ -65,7 +65,7 @@ export const MultiplayerCursorsLayer: React.FC<MultiplayerCursorsLayerProps> = (
 
         return (
           <div
-            key={`sel-${peer.userId}-${element.id}`}
+            key={`sel-${peer.sessionId || peer.userId}-${element.id}`}
             className="absolute rounded transition-all duration-150 ease-out pointer-events-none"
             style={{
               left: `${leftPercent}%`,
@@ -99,7 +99,7 @@ export const MultiplayerCursorsLayer: React.FC<MultiplayerCursorsLayerProps> = (
 
         return (
           <div
-            key={peer.userId}
+            key={peer.sessionId || peer.userId}
             className="absolute pointer-events-none transition-[left,top] duration-[40ms] ease-linear z-40 select-none will-change-[left,top]"
             style={{
               left: `${peer.cursorXPercent}%`,

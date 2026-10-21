@@ -5,6 +5,7 @@ import { getRandomAvatarPreset } from '../constants/avatarPresets';
 import type { CanvasComment, CanvasElement } from '../types/studio';
 
 export interface RemotePeer {
+  sessionId?: string;
   userId: string;
   name: string;
   avatarId: string;
@@ -25,6 +26,7 @@ export interface MultiplayerState {
 }
 
 export interface RemoteElementUpdatePayload {
+  sessionId?: string;
   userId: string;
   slideIndex: number;
   elementId: string;
@@ -33,6 +35,7 @@ export interface RemoteElementUpdatePayload {
 }
 
 export interface CanvasStateSyncPayload {
+  sessionId?: string;
   userId: string;
   senderName: string;
   projectId?: string;
@@ -51,7 +54,7 @@ const GUEST_STORAGE_KEY = 'arune_collab_guest_v1';
 
 function getOrCreateGuestIdentity(): { id: string; name: string; avatarId: string; avatarColor: string } {
   try {
-    const raw = sessionStorage.getItem(GUEST_STORAGE_KEY) || localStorage.getItem(GUEST_STORAGE_KEY);
+    const raw = sessionStorage.getItem(GUEST_STORAGE_KEY);
     if (raw) {
       return JSON.parse(raw);
     }
@@ -89,6 +92,7 @@ class MultiplayerService {
   private commentsListeners: Array<(comments: CanvasComment[]) => void> = [];
 
   private isConnected = false;
+  private mySessionId = `sess_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
   private myUserId = '';
   private myName = '';
   private myAvatarId = 'avatar-sage';
@@ -102,7 +106,9 @@ class MultiplayerService {
   private heartbeatTimer: any = null;
   private reconnectTimer: any = null;
   private lastCanvasBroadcastTime = 0;
+  private pendingCanvasBroadcastTimer: any = null;
   private lastElementUpdateTimes = new Map<string, number>();
+  private pendingElementUpdateTimers = new Map<string, any>();
 
   constructor() {
     this.refreshUserIdentity();
@@ -189,7 +195,7 @@ class MultiplayerService {
       const channelName = `collab_room_${roomId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
       this.channel = client.channel(channelName, {
         config: {
-          presence: { key: this.myUserId },
+          presence: { key: this.mySessionId },
           broadcast: { ack: false, self: false },
         },
       });
@@ -202,14 +208,18 @@ class MultiplayerService {
         })
         .on('presence', { event: 'join' }, ({ newPresences }) => {
           newPresences.forEach((p: any) => {
-            if (p.userId && p.userId !== this.myUserId) {
-              this.upsertPeer(p.userId, {
+            const peerKey = p.sessionId || p.userId;
+            if (peerKey && p.sessionId !== this.mySessionId) {
+              this.upsertPeer(peerKey, {
+                sessionId: p.sessionId,
+                userId: p.userId,
                 name: p.name || 'Member',
                 avatarId: p.avatarId || 'avatar-sage',
                 avatarColor: p.avatarColor || '#5E887E',
                 activeSlideIndex: p.activeSlideIndex ?? 0,
                 selectedElementId: p.selectedElementId ?? null,
                 onlineAt: p.onlineAt || new Date().toISOString(),
+                lastActive: Date.now(),
               });
             }
           });
@@ -217,8 +227,9 @@ class MultiplayerService {
         })
         .on('presence', { event: 'leave' }, ({ leftPresences }) => {
           leftPresences.forEach((p: any) => {
-            if (p.userId && p.userId !== this.myUserId) {
-              this.peersMap.delete(p.userId);
+            const peerKey = p.sessionId || p.userId;
+            if (peerKey && p.sessionId !== this.mySessionId) {
+              this.peersMap.delete(peerKey);
             }
           });
           this.notifyState();
@@ -270,6 +281,7 @@ class MultiplayerService {
     this.broadcastToLocalBus({
       type: 'presence_join',
       payload: {
+        sessionId: this.mySessionId,
         userId: this.myUserId,
         name: this.myName,
         avatarId: this.myAvatarId,
@@ -333,6 +345,7 @@ class MultiplayerService {
     if (selectedElementId !== undefined) this.mySelectedElementId = selectedElementId;
 
     const payload = {
+      sessionId: this.mySessionId,
       userId: this.myUserId,
       name: this.myName,
       avatarId: this.myAvatarId,
@@ -365,6 +378,7 @@ class MultiplayerService {
     this.mySlideIndex = slideIndex;
 
     const payload = {
+      sessionId: this.mySessionId,
       userId: this.myUserId,
       name: this.myName,
       avatarId: this.myAvatarId,
@@ -390,7 +404,10 @@ class MultiplayerService {
   }
 
   public sendCursorLeave() {
-    const payload = { userId: this.myUserId };
+    const payload = {
+      sessionId: this.mySessionId,
+      userId: this.myUserId,
+    };
     if (this.channel && this.isConnected) {
       this.channel.send({
         type: 'broadcast',
@@ -409,6 +426,7 @@ class MultiplayerService {
     this.mySlideIndex = slideIndex;
 
     const payload = {
+      sessionId: this.mySessionId,
       userId: this.myUserId,
       slideIndex,
       selectedElementId,
@@ -430,6 +448,7 @@ class MultiplayerService {
 
   public sendElementUpdate(slideIndex: number, elementId: string, updates: Partial<CanvasElement>) {
     const payload: RemoteElementUpdatePayload = {
+      sessionId: this.mySessionId,
       userId: this.myUserId,
       slideIndex,
       elementId,
@@ -443,31 +462,57 @@ class MultiplayerService {
       payload,
     });
 
-    // Throttle per element over Supabase Realtime to 35ms to prevent socket flooding
+    // Throttle per element over Supabase Realtime to 30ms, with trailing timer to ensure final drop position is sent
     const now = performance.now();
     const lastTime = this.lastElementUpdateTimes.get(elementId) || 0;
-    if (now - lastTime < 35) {
-      return;
-    }
-    this.lastElementUpdateTimes.set(elementId, now);
+    const timeSinceLast = now - lastTime;
 
-    if (this.channel && this.isConnected) {
-      try {
-        this.channel.send({
-          type: 'broadcast',
-          event: 'element_update',
-          payload,
-        });
-      } catch (err) {
-        console.warn('Failed to send element_update via Supabase:', err);
+    const existingTimer = this.pendingElementUpdateTimers.get(elementId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      this.pendingElementUpdateTimers.delete(elementId);
+    }
+
+    if (timeSinceLast >= 30) {
+      this.lastElementUpdateTimes.set(elementId, now);
+      if (this.channel && this.isConnected) {
+        try {
+          this.channel.send({
+            type: 'broadcast',
+            event: 'element_update',
+            payload,
+          });
+        } catch (err) {
+          console.warn('Failed to send element_update via Supabase:', err);
+        }
       }
+    } else {
+      const timer = setTimeout(() => {
+        this.pendingElementUpdateTimers.delete(elementId);
+        this.lastElementUpdateTimes.set(elementId, performance.now());
+        if (this.channel && this.isConnected) {
+          try {
+            this.channel.send({
+              type: 'broadcast',
+              event: 'element_update',
+              payload,
+            });
+          } catch (err) {
+            console.warn('Failed to send trailing element_update via Supabase:', err);
+          }
+        }
+      }, 30 - timeSinceLast);
+      this.pendingElementUpdateTimers.set(elementId, timer);
     }
   }
 
   private handleCursorMove(payload: any) {
-    if (!payload || payload.userId === this.myUserId) return;
+    if (!payload || payload.sessionId === this.mySessionId) return;
+    const peerKey = payload.sessionId || payload.userId;
 
-    this.upsertPeer(payload.userId, {
+    this.upsertPeer(peerKey, {
+      sessionId: payload.sessionId,
+      userId: payload.userId,
       name: payload.name,
       avatarId: payload.avatarId,
       avatarColor: payload.avatarColor,
@@ -487,8 +532,9 @@ class MultiplayerService {
   }
 
   private handleCursorLeave(payload: any) {
-    if (!payload || payload.userId === this.myUserId) return;
-    const peer = this.peersMap.get(payload.userId);
+    if (!payload || payload.sessionId === this.mySessionId) return;
+    const peerKey = payload.sessionId || payload.userId;
+    const peer = this.peersMap.get(peerKey);
     if (peer) {
       peer.cursorXPercent = -1;
       peer.cursorYPercent = -1;
@@ -497,8 +543,11 @@ class MultiplayerService {
   }
 
   private handleSelectionChange(payload: any) {
-    if (!payload || payload.userId === this.myUserId) return;
-    this.upsertPeer(payload.userId, {
+    if (!payload || payload.sessionId === this.mySessionId) return;
+    const peerKey = payload.sessionId || payload.userId;
+    this.upsertPeer(peerKey, {
+      sessionId: payload.sessionId,
+      userId: payload.userId,
       selectedElementId: payload.selectedElementId,
       activeSlideIndex: payload.slideIndex,
       lastActive: Date.now(),
@@ -507,7 +556,7 @@ class MultiplayerService {
   }
 
   private handleElementUpdate(payload: RemoteElementUpdatePayload) {
-    if (!payload || payload.userId === this.myUserId) return;
+    if (!payload || payload.sessionId === this.mySessionId) return;
     this.elementUpdateListeners.forEach((fn) => {
       try {
         fn(payload);
@@ -518,7 +567,7 @@ class MultiplayerService {
   }
 
   private handleCanvasStateRequest(payload: any) {
-    if (!payload || payload.userId === this.myUserId) return;
+    if (!payload || payload.sessionId === this.mySessionId) return;
     this.canvasStateRequestListeners.forEach((fn) => {
       try {
         fn(payload.userId);
@@ -529,7 +578,7 @@ class MultiplayerService {
   }
 
   private handleCanvasStateSync(payload: CanvasStateSyncPayload) {
-    if (!payload || payload.userId === this.myUserId) return;
+    if (!payload || payload.sessionId === this.mySessionId) return;
     this.canvasStateListeners.forEach((fn) => {
       try {
         fn(payload);
@@ -540,7 +589,7 @@ class MultiplayerService {
   }
 
   private handleCommentsSync(payload: any) {
-    if (!payload || payload.userId === this.myUserId || !Array.isArray(payload.comments)) return;
+    if (!payload || payload.sessionId === this.mySessionId || !Array.isArray(payload.comments)) return;
     this.commentsListeners.forEach((fn) => {
       try {
         fn(payload.comments);
@@ -562,7 +611,7 @@ class MultiplayerService {
   private handleIncomingMessage(msg: any) {
     if (!msg || !msg.type || !msg.payload) return;
     const { type, payload } = msg;
-    if (payload.userId === this.myUserId) return;
+    if (payload.sessionId === this.mySessionId) return;
 
     switch (type) {
       case 'cursor_move':
@@ -586,8 +635,11 @@ class MultiplayerService {
       case 'comments_sync':
         this.handleCommentsSync(payload);
         break;
-      case 'presence_join':
-        this.upsertPeer(payload.userId, {
+      case 'presence_join': {
+        const peerKey = payload.sessionId || payload.userId;
+        this.upsertPeer(peerKey, {
+          sessionId: payload.sessionId,
+          userId: payload.userId,
           name: payload.name,
           avatarId: payload.avatarId,
           avatarColor: payload.avatarColor,
@@ -602,6 +654,7 @@ class MultiplayerService {
         this.broadcastToLocalBus({
           type: 'presence_sync',
           payload: {
+            sessionId: this.mySessionId,
             userId: this.myUserId,
             name: this.myName,
             avatarId: this.myAvatarId,
@@ -612,9 +665,13 @@ class MultiplayerService {
           },
         });
         break;
+      }
 
-      case 'presence_sync':
-        this.upsertPeer(payload.userId, {
+      case 'presence_sync': {
+        const peerKey = payload.sessionId || payload.userId;
+        this.upsertPeer(peerKey, {
+          sessionId: payload.sessionId,
+          userId: payload.userId,
           name: payload.name,
           avatarId: payload.avatarId,
           avatarColor: payload.avatarColor,
@@ -625,49 +682,61 @@ class MultiplayerService {
         });
         this.notifyState();
         break;
-      case 'presence_leave':
-        this.peersMap.delete(payload.userId);
+      }
+      case 'presence_leave': {
+        const peerKey = payload.sessionId || payload.userId;
+        this.peersMap.delete(peerKey);
         this.notifyState();
         break;
+      }
     }
   }
 
   private syncPresenceState(presenceState: Record<string, any[]>) {
-    const presentUserIds = new Set<string>();
+    const presentSessionIds = new Set<string>();
 
     Object.values(presenceState).forEach((presences) => {
       presences.forEach((p) => {
-        if (p.userId && p.userId !== this.myUserId) {
-          presentUserIds.add(p.userId);
-          this.upsertPeer(p.userId, {
+        const peerKey = p.sessionId || p.userId;
+        if (peerKey && p.sessionId !== this.mySessionId) {
+          presentSessionIds.add(peerKey);
+          this.upsertPeer(peerKey, {
+            sessionId: p.sessionId,
+            userId: p.userId,
             name: p.name || 'Member',
             avatarId: p.avatarId || 'avatar-sage',
             avatarColor: p.avatarColor || '#5E887E',
             activeSlideIndex: p.activeSlideIndex ?? 0,
             selectedElementId: p.selectedElementId ?? null,
             onlineAt: p.onlineAt || new Date().toISOString(),
+            lastActive: Date.now(),
           });
         }
       });
     });
 
     // Remove peers who are no longer present
-    this.peersMap.forEach((_, id) => {
-      if (!presentUserIds.has(id)) {
-        this.peersMap.delete(id);
+    let changed = false;
+    this.peersMap.forEach((_, key) => {
+      if (!presentSessionIds.has(key)) {
+        this.peersMap.delete(key);
+        changed = true;
       }
     });
 
-    this.notifyState();
+    if (changed || presentSessionIds.size > 0) {
+      this.notifyState();
+    }
   }
 
-  private upsertPeer(userId: string, partial: Partial<RemotePeer>) {
-    const existing = this.peersMap.get(userId);
+  private upsertPeer(peerKey: string, partial: Partial<RemotePeer>) {
+    const existing = this.peersMap.get(peerKey);
     if (existing) {
       Object.assign(existing, partial);
     } else {
-      this.peersMap.set(userId, {
-        userId,
+      this.peersMap.set(peerKey, {
+        sessionId: partial.sessionId || peerKey,
+        userId: partial.userId || peerKey,
         name: partial.name || 'Member',
         avatarId: partial.avatarId || 'avatar-sage',
         avatarColor: partial.avatarColor || '#5E887E',
@@ -722,7 +791,11 @@ class MultiplayerService {
   }
 
   public sendCanvasStateRequest() {
-    const payload = { userId: this.myUserId };
+    const payload = {
+      sessionId: this.mySessionId,
+      userId: this.myUserId,
+      timestamp: Date.now(),
+    };
     if (this.channel && this.isConnected) {
       try {
         this.channel.send({
@@ -743,6 +816,7 @@ class MultiplayerService {
   public broadcastCanvasState(snapshot: Omit<CanvasStateSyncPayload, 'userId' | 'senderName' | 'timestamp'>) {
     const payload: CanvasStateSyncPayload = {
       ...snapshot,
+      sessionId: this.mySessionId,
       userId: this.myUserId,
       senderName: this.myName,
       timestamp: Date.now(),
@@ -754,23 +828,45 @@ class MultiplayerService {
       payload,
     });
 
-    // Throttle heavy full-canvas broadcasts over Supabase WebSocket to avoid rate limits
+    // Send over Supabase WebSocket with trailing timer so final canvas state is NEVER dropped
     const now = performance.now();
-    if (now - this.lastCanvasBroadcastTime < 500) {
-      return;
-    }
-    this.lastCanvasBroadcastTime = now;
+    const timeSinceLast = now - this.lastCanvasBroadcastTime;
 
-    if (this.channel && this.isConnected) {
-      try {
-        this.channel.send({
-          type: 'broadcast',
-          event: 'canvas_state_sync',
-          payload,
-        });
-      } catch (err) {
-        console.warn('Failed to broadcast canvas_state_sync via Supabase:', err);
+    if (this.pendingCanvasBroadcastTimer) {
+      clearTimeout(this.pendingCanvasBroadcastTimer);
+      this.pendingCanvasBroadcastTimer = null;
+    }
+
+    if (timeSinceLast >= 200) {
+      this.lastCanvasBroadcastTime = now;
+      if (this.channel && this.isConnected) {
+        try {
+          this.channel.send({
+            type: 'broadcast',
+            event: 'canvas_state_sync',
+            payload,
+          });
+        } catch (err) {
+          console.warn('Failed to broadcast canvas_state_sync via Supabase:', err);
+        }
       }
+    } else {
+      // Schedule trailing broadcast so final update is ALWAYS delivered
+      this.pendingCanvasBroadcastTimer = setTimeout(() => {
+        this.pendingCanvasBroadcastTimer = null;
+        this.lastCanvasBroadcastTime = performance.now();
+        if (this.channel && this.isConnected) {
+          try {
+            this.channel.send({
+              type: 'broadcast',
+              event: 'canvas_state_sync',
+              payload,
+            });
+          } catch (err) {
+            console.warn('Failed to broadcast trailing canvas_state_sync via Supabase:', err);
+          }
+        }
+      }, 200 - timeSinceLast);
     }
   }
 

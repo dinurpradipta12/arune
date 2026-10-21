@@ -100,7 +100,7 @@ export const CenterWorkspace: React.FC = () => {
 
   const collabRoomId = activeTeamId
     ? `team_${activeTeamId}`
-    : (activeDocumentId || 'global_collab_room');
+    : 'global_collab_room';
 
   const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
 
@@ -108,6 +108,7 @@ export const CenterWorkspace: React.FC = () => {
   useEffect(() => {
     multiplayerService.connectToRoom(collabRoomId);
     multiplayerService.updatePresence(activeSlideIndex, selectedElementId);
+    multiplayerService.sendCanvasStateRequest();
 
     const unsubState = multiplayerService.subscribeToState((s) => {
       setMultiplayerPeers(s.peers);
