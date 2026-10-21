@@ -7,6 +7,7 @@ import { CenterWorkspace } from './components/layout/CenterWorkspace';
 import { LeftSidebar } from './components/layout/LeftSidebar';
 import { RightInspector } from './components/layout/RightInspector';
 import { TopHeaderBar } from './components/layout/TopHeaderBar';
+import { StudioBottomStatusBar } from './components/layout/StudioBottomStatusBar';
 import { StudioModals } from './components/modals/StudioModals';
 import { InstagramSwipeModal } from './components/modals/InstagramSwipeModal';
 import { VersionHistoryModal } from './components/modals/VersionHistoryModal';
@@ -261,6 +262,7 @@ export function App() {
               <CenterWorkspace />
               <RightInspector />
             </div>
+            <StudioBottomStatusBar />
           </>
         )}
 
