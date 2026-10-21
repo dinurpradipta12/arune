@@ -9,6 +9,7 @@ import { RightInspector } from './components/layout/RightInspector';
 import { TopHeaderBar } from './components/layout/TopHeaderBar';
 import { StudioModals } from './components/modals/StudioModals';
 import { InstagramSwipeModal } from './components/modals/InstagramSwipeModal';
+import { VersionHistoryModal } from './components/modals/VersionHistoryModal';
 import { UpdateNotifier } from './components/modals/UpdateNotifier';
 import { DesktopUpdateModal } from './components/modals/DesktopUpdateModal';
 import { LocalFontAccessModal } from './components/modals/LocalFontAccessModal';
@@ -268,6 +269,9 @@ export function App() {
 
         {/* Instagram Swipe Simulator & Feed Preview Modal */}
         <InstagramSwipeModal />
+
+        {/* Team Version History & Snapshot Timeline Modal */}
+        <VersionHistoryModal />
 
         {/* Local Computer Fonts Access & Permission Modal (Prompt on launch) */}
         <LocalFontAccessModal />

@@ -3,6 +3,7 @@ import {
   Eye,
   FileJson,
   FilePlus2,
+  History,
   Home,
   ImageDown,
   Loader2,
@@ -272,6 +273,17 @@ export const TopHeaderBar: React.FC = () => {
             aria-label="Settings"
           >
             <Settings className="w-3.5 h-3.5 text-zinc-400" />
+          </button>
+
+          {/* Team Version History & Milestone Snapshots */}
+          <button
+            type="button"
+            onClick={() => setActiveModal('version-history')}
+            className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-400 transition-colors cursor-pointer"
+            title="Riwayat Versi Tim & Milestone Snapshots (Version History)"
+            aria-label="Version History"
+          >
+            <History className="w-3.5 h-3.5 text-zinc-400" />
           </button>
 
           {/* Instagram Feed & Mobile Swipe Simulator */}

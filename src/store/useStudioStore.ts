@@ -31,6 +31,7 @@ import type {
   GlobalBranding,
   ImageCanvasElement,
   LayoutPresetId,
+  ProjectVersionSnapshot,
   ShapeCanvasElement,
   ShapeKind,
   Slide,
@@ -43,6 +44,7 @@ import {
   parseScriptToStructuredSlides,
 } from '../utils/scriptParser';
 import { multiplayerService } from '../services/multiplayerService';
+import { saveProjectVersionSnapshot } from '../services/versionHistoryService';
 
 export interface HistorySnapshot {
   slides: Slide[];
@@ -324,6 +326,7 @@ interface StudioState {
     customTitle?: string;
     description?: string;
   }) => Promise<{ mode: 'supabase' | 'local'; warning?: string }>;
+  restoreVersionSnapshot: (snapshot: ProjectVersionSnapshot) => void;
   applyCuratedGalleryTemplate: (
     template: CuratedGalleryTemplate,
     saveCurrentFirst?: boolean,
@@ -944,7 +947,59 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       openDocuments: updatedDocs,
     });
 
+    // Save snapshot revision in Team Version History
+    try {
+      const myIdentity = multiplayerService.getMyIdentity();
+      saveProjectVersionSnapshot({
+        projectId: idToUse,
+        projectTitle: titleToUse,
+        versionName: options?.customTitle || `Simpan ${savedTime}`,
+        authorId: myIdentity.userId,
+        authorName: myIdentity.name,
+        authorAvatarColor: myIdentity.avatarColor,
+        slideCount: state.slides.length,
+        slides: cloneSlides(state.slides),
+        aspectRatio: state.aspectRatio,
+        activeThemeId: state.activeThemeId,
+        branding: { ...state.branding },
+        scriptText: state.scriptText,
+      });
+    } catch {
+      // ignore
+    }
+
     return { mode: res.mode, warning: res.warning };
+  },
+
+  restoreVersionSnapshot: (snapshot) => {
+    set({
+      slides: cloneSlides(snapshot.slides),
+      aspectRatio: snapshot.aspectRatio,
+      activeThemeId: snapshot.activeThemeId,
+      branding: { ...snapshot.branding },
+      scriptText: snapshot.scriptText || '',
+      projectTitle: snapshot.projectTitle || get().projectTitle,
+      activeSlideIndex: 0,
+      selectedElementId: null,
+      past: [],
+      future: [],
+    });
+
+    // Auto-save working project
+    autoSaveWorkingProjectDebounced(get());
+
+    // Broadcast restored state to all peers in the collaboration room
+    multiplayerService.broadcastCanvasState({
+      projectId: snapshot.projectId,
+      projectTitle: snapshot.projectTitle || get().projectTitle,
+      aspectRatio: snapshot.aspectRatio,
+      activeThemeId: snapshot.activeThemeId,
+      themeOverride: get().themeOverride,
+      branding: snapshot.branding,
+      scriptText: snapshot.scriptText || '',
+      slides: snapshot.slides,
+      activeSlideIndex: 0,
+    });
   },
 
   applyCuratedGalleryTemplate: async (

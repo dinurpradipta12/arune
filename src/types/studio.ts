@@ -315,3 +315,20 @@ export interface CanvasComment {
   isResolved: boolean;
   replies: CanvasCommentReply[];
 }
+
+export interface ProjectVersionSnapshot {
+  id: string;
+  projectId: string;
+  versionName: string;
+  createdAt: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarColor: string;
+  slideCount: number;
+  slides: Slide[];
+  aspectRatio: AspectRatioKey;
+  activeThemeId: string;
+  branding: GlobalBranding;
+  scriptText: string;
+  projectTitle: string;
+}
