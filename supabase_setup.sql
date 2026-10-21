@@ -1,10 +1,7 @@
 -- ============================================================================
--- ARUNE CAROUSEL STUDIO: SUPABASE DATABASE & REALTIME SETUP
--- Skrip SQL lengkap untuk mengaktifkan:
--- 1. Tabel Profil Akun & Avatar Ilustrasi Ringan
--- 2. Kolaborasi Tim & Folder Proyek Bersama
--- 3. Shared Brand Kit Tim
--- 4. Supabase Realtime (Multiplayer Cursors & Live Editing)
+-- ARUNE CAROUSEL STUDIO: SUPABASE DATABASE & REALTIME SETUP (UPDATE TERBARU)
+-- Jalankan skrip ini di SQL Editor dashboard Supabase Anda.
+-- Skrip ini sepenuhnya IDEMPOTEN (aman dijalankan berulang kali).
 -- ============================================================================
 
 -- 1. EKSTENSI UUID
@@ -12,8 +9,6 @@ create extension if not exists "uuid-ossp";
 
 -- ============================================================================
 -- 2. TABEL PROFIL PENGGUNA (PROFILES)
--- Hanya menyimpan avatar_id (teks ringan seperti 'avatar-sage')
--- sehingga TIDAK membebani database dengan file gambar besar.
 -- ============================================================================
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
@@ -24,6 +19,9 @@ create table if not exists public.profiles (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Index pencarian profil berdasarkan email untuk invite member
+create index if not exists idx_profiles_email on public.profiles(lower(email));
 
 -- ============================================================================
 -- 3. TABEL TIM (TEAMS)
@@ -50,6 +48,9 @@ create table if not exists public.team_members (
   unique (team_id, user_id)
 );
 
+create index if not exists idx_team_members_team on public.team_members(team_id);
+create index if not exists idx_team_members_user on public.team_members(user_id);
+
 -- ============================================================================
 -- 5. TABEL PROYEK CAROUSEL BERSAMA TIM (TEAM_PROJECTS)
 -- ============================================================================
@@ -63,6 +64,8 @@ create table if not exists public.team_projects (
   last_edited_by text not null default 'Member',
   last_edited_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+create index if not exists idx_team_projects_team on public.team_projects(team_id);
 
 -- ============================================================================
 -- 6. TABEL BRAND KIT RESMI TIM (TEAM_BRAND_KITS)
@@ -100,8 +103,9 @@ begin
     '#5E887E'
   )
   on conflict (id) do update set
-    name = excluded.name,
-    avatar_id = excluded.avatar_id;
+    name = coalesce(excluded.name, profiles.name),
+    email = excluded.email,
+    avatar_id = coalesce(excluded.avatar_id, profiles.avatar_id);
   return new;
 end;
 $$ language plpgsql security definer;
@@ -120,64 +124,122 @@ alter table public.team_members enable row level security;
 alter table public.team_projects enable row level security;
 alter table public.team_brand_kits enable row level security;
 
--- Policies untuk Profiles
+-- 8.1 PROFILES POLICIES
+drop policy if exists "Profil dapat dibaca oleh semua user login" on public.profiles;
 create policy "Profil dapat dibaca oleh semua user login"
   on public.profiles for select
   to authenticated
   using (true);
 
+drop policy if exists "User dapat mengupdate profil miliknya sendiri" on public.profiles;
 create policy "User dapat mengupdate profil miliknya sendiri"
   on public.profiles for update
   to authenticated
   using (auth.uid() = id);
 
--- Policies untuk Teams
+drop policy if exists "User dapat membuat profil miliknya sendiri" on public.profiles;
+create policy "User dapat membuat profil miliknya sendiri"
+  on public.profiles for insert
+  to authenticated
+  with check (auth.uid() = id);
+
+-- 8.2 TEAMS POLICIES
+drop policy if exists "Anggota tim dapat melihat tim miliknya" on public.teams;
 create policy "Anggota tim dapat melihat tim miliknya"
   on public.teams for select
   to authenticated
   using (
-    exists (
+    created_by = auth.uid() or exists (
       select 1 from public.team_members
       where team_members.team_id = teams.id
       and team_members.user_id = auth.uid()
-    ) or created_by = auth.uid()
+    )
   );
 
+drop policy if exists "User login dapat membuat tim baru" on public.teams;
 create policy "User login dapat membuat tim baru"
   on public.teams for insert
   to authenticated
   with check (auth.uid() = created_by);
 
+drop policy if exists "Owner/Editor dapat mengupdate tim" on public.teams;
 create policy "Owner/Editor dapat mengupdate tim"
   on public.teams for update
   to authenticated
   using (
-    exists (
+    created_by = auth.uid() or exists (
       select 1 from public.team_members
       where team_members.team_id = teams.id
       and team_members.user_id = auth.uid()
       and team_members.role in ('owner', 'editor')
-    ) or created_by = auth.uid()
+    )
   );
 
--- Policies untuk Team Members
+drop policy if exists "Owner dapat menghapus tim" on public.teams;
+create policy "Owner dapat menghapus tim"
+  on public.teams for delete
+  to authenticated
+  using (created_by = auth.uid());
+
+-- 8.3 TEAM MEMBERS POLICIES
+drop policy if exists "Anggota dapat melihat member di tim yang sama" on public.team_members;
 create policy "Anggota dapat melihat member di tim yang sama"
   on public.team_members for select
   to authenticated
   using (
-    exists (
+    user_id = auth.uid() or exists (
       select 1 from public.team_members tm
       where tm.team_id = team_members.team_id
       and tm.user_id = auth.uid()
+    ) or exists (
+      select 1 from public.teams t
+      where t.id = team_members.team_id
+      and t.created_by = auth.uid()
     )
   );
 
+drop policy if exists "Owner tim dapat menambahkan member" on public.team_members;
 create policy "Owner tim dapat menambahkan member"
   on public.team_members for insert
   to authenticated
   with check (true);
 
--- Policies untuk Team Projects
+drop policy if exists "Owner tim dapat mengupdate role member" on public.team_members;
+create policy "Owner tim dapat mengupdate role member"
+  on public.team_members for update
+  to authenticated
+  using (
+    exists (
+      select 1 from public.teams t
+      where t.id = team_members.team_id
+      and t.created_by = auth.uid()
+    ) or exists (
+      select 1 from public.team_members tm
+      where tm.team_id = team_members.team_id
+      and tm.user_id = auth.uid()
+      and tm.role = 'owner'
+    )
+  );
+
+drop policy if exists "Owner tim dapat menghapus member" on public.team_members;
+create policy "Owner tim dapat menghapus member"
+  on public.team_members for delete
+  to authenticated
+  using (
+    user_id = auth.uid() or exists (
+      select 1 from public.teams t
+      where t.id = team_members.team_id
+      and t.created_by = auth.uid()
+    ) or exists (
+      select 1 from public.team_members tm
+      where tm.team_id = team_members.team_id
+      and tm.user_id = auth.uid()
+      and tm.role = 'owner'
+    )
+  );
+
+-- 8.4 TEAM PROJECTS POLICIES
+drop policy if exists "Anggota tim dapat melihat proyek tim" on public.team_projects;
 create policy "Anggota tim dapat melihat proyek tim"
   on public.team_projects for select
   to authenticated
@@ -186,9 +248,14 @@ create policy "Anggota tim dapat melihat proyek tim"
       select 1 from public.team_members
       where team_members.team_id = team_projects.team_id
       and team_members.user_id = auth.uid()
+    ) or exists (
+      select 1 from public.teams
+      where teams.id = team_projects.team_id
+      and teams.created_by = auth.uid()
     )
   );
 
+drop policy if exists "Anggota tim dapat menyimpan atau mengupdate proyek" on public.team_projects;
 create policy "Anggota tim dapat menyimpan atau mengupdate proyek"
   on public.team_projects for all
   to authenticated
@@ -198,10 +265,15 @@ create policy "Anggota tim dapat menyimpan atau mengupdate proyek"
       where team_members.team_id = team_projects.team_id
       and team_members.user_id = auth.uid()
       and team_members.role in ('owner', 'editor')
+    ) or exists (
+      select 1 from public.teams
+      where teams.id = team_projects.team_id
+      and teams.created_by = auth.uid()
     )
   );
 
--- Policies untuk Brand Kit
+-- 8.5 BRAND KIT POLICIES
+drop policy if exists "Anggota tim dapat melihat Brand Kit" on public.team_brand_kits;
 create policy "Anggota tim dapat melihat Brand Kit"
   on public.team_brand_kits for select
   to authenticated
@@ -210,9 +282,14 @@ create policy "Anggota tim dapat melihat Brand Kit"
       select 1 from public.team_members
       where team_members.team_id = team_brand_kits.team_id
       and team_members.user_id = auth.uid()
+    ) or exists (
+      select 1 from public.teams
+      where teams.id = team_brand_kits.team_id
+      and teams.created_by = auth.uid()
     )
   );
 
+drop policy if exists "Owner/Editor dapat menyimpan Brand Kit" on public.team_brand_kits;
 create policy "Owner/Editor dapat menyimpan Brand Kit"
   on public.team_brand_kits for all
   to authenticated
@@ -222,11 +299,15 @@ create policy "Owner/Editor dapat menyimpan Brand Kit"
       where team_members.team_id = team_brand_kits.team_id
       and team_members.user_id = auth.uid()
       and team_members.role in ('owner', 'editor')
+    ) or exists (
+      select 1 from public.teams
+      where teams.id = team_brand_kits.team_id
+      and teams.created_by = auth.uid()
     )
   );
 
 -- ============================================================================
--- 9. AKTIFKAN SUPABASE REALTIME MULTIPLAYER
+-- 9. AKTIFKAN SUPABASE REALTIME WEBSOCKET UNTUK SELURUH TABEL
 -- Memungkinkan perubahan proyek, kursor, dan member tersiar langsung secara real-time
 -- ============================================================================
 do $$
@@ -236,6 +317,20 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'profiles'
   ) then
     alter publication supabase_realtime add table public.profiles;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'teams'
+  ) then
+    alter publication supabase_realtime add table public.teams;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'team_members'
+  ) then
+    alter publication supabase_realtime add table public.team_members;
   end if;
 
   if not exists (
@@ -253,4 +348,4 @@ begin
   end if;
 end $$;
 
--- Selesai! Semua tabel, trigger, dan realtime websocket siap digunakan.
+-- Selesai! Semua tabel, trigger, RLS, dan Realtime WebSocket siap digunakan.
