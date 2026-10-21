@@ -23,24 +23,28 @@ import {
   Type,
   Sparkles,
   Download,
+  Loader2,
 } from 'lucide-react';
 import {
   getTeams,
   getActiveTeamId,
   setActiveTeamId,
-  createTeam,
-  addTeamMember,
+  createTeamCloud,
+  addTeamMemberCloud,
   updateMemberRole,
   removeTeamMember,
   getTeamProjects,
-  saveTeamProject,
+  saveTeamProjectCloud,
   deleteTeamProject,
   getCurrentUserProfile,
   saveCurrentUserProfile,
   getTeamBrandKit,
   updateTeamBrandKit,
+  syncTeamsFromCloud,
+  syncProjectsFromCloud,
   type UserProfile,
 } from '../../services/teamWorkspaceService';
+import { getSupabaseClient, isSupabaseConfigured } from '../../services/supabaseClient';
 import type { TeamWorkspace, TeamRole, TeamProjectRecord, TeamBrandKit } from '../../types/team';
 import { DEFAULT_TEAM_BRAND_KIT } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
@@ -119,13 +123,37 @@ export const TeamWorkspacePage: React.FC = () => {
   // User profile
   const [userProfile, setUserProfile] = useState<UserProfile>(getCurrentUserProfile());
   const [profileSaved, setProfileSaved] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
 
-  // Load initial data
+  // Load initial data and sync with Supabase Cloud
   useEffect(() => {
     refreshData();
+
+    // Subscribe to realtime changes so teammates see updates instantly
+    const client = getSupabaseClient();
+    if (client && isSupabaseConfigured()) {
+      const channel = client
+        .channel('arune_team_workspace_live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_projects' }, () => {
+          refreshData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+          refreshData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
+          refreshData();
+        })
+        .subscribe();
+
+      return () => {
+        channel.unsubscribe();
+      };
+    }
   }, []);
 
-  const refreshData = () => {
+  const refreshData = async () => {
+    // 1. Immediate local cache display
     const loadedTeams = getTeams();
     setTeams(loadedTeams);
     const activeId = getActiveTeamId() || loadedTeams[0]?.id || null;
@@ -135,31 +163,52 @@ export const TeamWorkspacePage: React.FC = () => {
       setBrandKit(getTeamBrandKit(activeId));
     }
     setUserProfile(getCurrentUserProfile());
+
+    // 2. Sync with Supabase Cloud
+    setIsSyncingCloud(true);
+    try {
+      const cloudTeams = await syncTeamsFromCloud();
+      setTeams(cloudTeams);
+      const effectiveActiveId = getActiveTeamId() || cloudTeams[0]?.id || null;
+      setCurrentActiveTeamId(effectiveActiveId);
+      if (effectiveActiveId) {
+        const cloudProjects = await syncProjectsFromCloud(effectiveActiveId);
+        setTeamProjects(cloudProjects);
+        setBrandKit(getTeamBrandKit(effectiveActiveId));
+      }
+    } catch (e) {
+      console.warn('Cloud team sync finished:', e);
+    } finally {
+      setIsSyncingCloud(false);
+    }
   };
 
   const currentTeam = teams.find((t) => t.id === activeTeamId) || teams[0];
 
-  const handleSelectTeam = (teamId: string) => {
+  const handleSelectTeam = async (teamId: string) => {
     setActiveTeamId(teamId);
     setCurrentActiveTeamId(teamId);
     setTeamProjects(getTeamProjects(teamId));
     setBrandKit(getTeamBrandKit(teamId));
     setInviteError(null);
     setInviteSuccess(null);
+
+    const cloudProjects = await syncProjectsFromCloud(teamId);
+    setTeamProjects(cloudProjects);
   };
 
-  const handleCreateTeam = (e: React.FormEvent) => {
+  const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeamName.trim()) return;
-    const created = createTeam(newTeamName, newTeamDesc);
+    const created = await createTeamCloud(newTeamName, newTeamDesc);
     setNewTeamName('');
     setNewTeamDesc('');
     setIsCreatingTeam(false);
-    refreshData();
+    await refreshData();
     handleSelectTeam(created.id);
   };
 
-  const handleInviteMember = (e: React.FormEvent) => {
+  const handleInviteMember = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteError(null);
     setInviteSuccess(null);
@@ -170,22 +219,24 @@ export const TeamWorkspacePage: React.FC = () => {
       return;
     }
 
-    const res = addTeamMember(currentTeam.id, {
+    setIsInviting(true);
+    const res = await addTeamMemberCloud(currentTeam.id, {
       name: newMemberName,
       email: newMemberEmail,
       role: newMemberRole,
     });
+    setIsInviting(false);
 
-    if (!res) {
-      setInviteError('Email ini sudah terdaftar di tim ini.');
+    if (!res.success) {
+      setInviteError(res.error || 'Gagal menambahkan anggota.');
       return;
     }
 
-    setInviteSuccess(`Anggota ${newMemberName} berhasil ditambahkan!`);
+    setInviteSuccess(`Anggota ${newMemberName} (${newMemberEmail}) berhasil ditambahkan ke tim!`);
     setNewMemberName('');
     setNewMemberEmail('');
     setNewMemberRole('editor');
-    refreshData();
+    await refreshData();
   };
 
   const handleRoleChange = (memberId: string, role: TeamRole) => {
@@ -202,7 +253,7 @@ export const TeamWorkspacePage: React.FC = () => {
     }
   };
 
-  const handleShareCurrentProjectToTeam = () => {
+  const handleShareCurrentProjectToTeam = async () => {
     if (!currentTeam) return;
     const snapshot = {
       projectTitle: projectTitle || 'Untitled Carousel Project',
@@ -216,16 +267,17 @@ export const TeamWorkspacePage: React.FC = () => {
     };
     const json = JSON.stringify(snapshot);
 
-    saveTeamProject(currentTeam.id, {
-      id: projectId || `proj_${Date.now()}`,
+    await saveTeamProjectCloud(currentTeam.id, {
+      id: projectId || crypto.randomUUID(),
       title: projectTitle || 'Untitled Carousel Project',
       aspectRatio,
       slideCount: slides.length,
       projectJson: json,
     });
 
-    setTeamProjects(getTeamProjects(currentTeam.id));
-    alert(`Project "${projectTitle}" berhasil disimpan ke folder tim ${currentTeam.name}!`);
+    const updatedProjects = await syncProjectsFromCloud(currentTeam.id);
+    setTeamProjects(updatedProjects);
+    alert(`Project "${projectTitle}" berhasil disimpan ke folder tim ${currentTeam.name} dan tersinkronkan ke Supabase Cloud!`);
   };
 
   const handleLoadTeamProject = (record: TeamProjectRecord) => {
@@ -373,6 +425,12 @@ export const TeamWorkspacePage: React.FC = () => {
                 }`}>
                   Fase 2: Shared Brand Kit
                 </span>
+                {isSyncingCloud && (
+                  <span className="flex items-center gap-1 text-[10.5px] text-emerald-500 font-semibold animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Cloud Sync</span>
+                  </span>
+                )}
               </h1>
             </div>
           </div>
@@ -1415,11 +1473,13 @@ export const TeamWorkspacePage: React.FC = () => {
 
                   <button
                     type="submit"
-                    className={`px-3.5 py-1.5 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-xs ${
+                    disabled={isInviting}
+                    className={`px-3.5 py-1.5 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-60 ${
                       isDark ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#2F3E46] hover:bg-[#5E887E]'
                     }`}
                   >
-                    Tambah
+                    {isInviting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isInviting ? 'Menambahkan...' : 'Tambah'}</span>
                   </button>
                 </div>
 
