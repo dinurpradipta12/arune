@@ -21,6 +21,7 @@ import {
 import { useStudioStore } from '../../store/useStudioStore';
 import { exportSingleSlidePng } from '../../utils/exportEngine';
 import { isElectronMac } from '../../utils/platform';
+import { UserAuthButton } from '../common/UserAuthButton';
 
 export const TopHeaderBar: React.FC = () => {
   const {
@@ -200,6 +201,8 @@ export const TopHeaderBar: React.FC = () => {
         )}
 
         <div className="flex items-center gap-1.5">
+          <UserAuthButton darkMode={workspaceDarkMode} />
+
           <button
             type="button"
             onClick={() => setActiveView('team')}

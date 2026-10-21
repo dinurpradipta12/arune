@@ -49,6 +49,7 @@ import {
 } from '../../utils/scriptParser';
 import { SlideStage } from '../canvas/SlideStage';
 import { DownloadStandaloneModal } from '../modals/DownloadStandaloneModal';
+import { UserAuthButton } from '../common/UserAuthButton';
 import { studioLogo } from '../../assets/branding';
 import { isDesktopApp, isElectronMac } from '../../utils/platform';
 
@@ -802,6 +803,9 @@ export const TemplateGalleryPage: React.FC = () => {
                 <span>Unduh Standalone App</span>
               </button>
             )}
+
+            {/* Login / User Avatar Button (Right next to Standalone App download) */}
+            <UserAuthButton darkMode={workspaceDarkMode} />
           </div>
         </header>
 

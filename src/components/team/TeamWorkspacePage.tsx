@@ -45,6 +45,7 @@ import type { TeamWorkspace, TeamRole, TeamProjectRecord, TeamBrandKit } from '.
 import { DEFAULT_TEAM_BRAND_KIT } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
 import { isElectronMac } from '../../utils/platform';
+import { UserAuthButton } from '../common/UserAuthButton';
 
 const AVAILABLE_HEADING_FONTS = [
   'Plus Jakarta Sans',
@@ -378,6 +379,8 @@ export const TeamWorkspacePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 mac-no-drag">
+          <UserAuthButton darkMode={isDark} />
+
           <button
             type="button"
             onClick={() => setActiveView('editor')}
