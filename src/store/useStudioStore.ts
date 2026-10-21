@@ -2245,22 +2245,64 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   adjustElementZIndex: (elementId, direction) => {
     const state = get();
     const slide = state.getActiveSlide();
-    if (!slide) return;
-    const target = slide.elements.find((e) => e.id === elementId);
-    if (!target) return;
+    if (!slide || slide.elements.length <= 1) return;
+
+    // 1. Ambil urutan seluruh layer dari bawah (zIndex terendah) ke atas (zIndex tertinggi)
+    const sorted = [...slide.elements].sort((a, b) => {
+      if (a.zIndex !== b.zIndex) {
+        return a.zIndex - b.zIndex;
+      }
+      return slide.elements.indexOf(a) - slide.elements.indexOf(b);
+    });
+
+    const currentIndex = sorted.findIndex((e) => e.id === elementId);
+    if (currentIndex === -1) return;
+
+    if (direction === 'forward') {
+      if (currentIndex >= sorted.length - 1) return; // Sudah paling atas
+      // Tukar tepat 1 posisi dengan elemen di atasnya
+      const temp = sorted[currentIndex];
+      sorted[currentIndex] = sorted[currentIndex + 1];
+      sorted[currentIndex + 1] = temp;
+    } else if (direction === 'backward') {
+      if (currentIndex <= 0) return; // Sudah paling bawah
+      // Tukar tepat 1 posisi dengan elemen di bawahnya
+      const temp = sorted[currentIndex];
+      sorted[currentIndex] = sorted[currentIndex - 1];
+      sorted[currentIndex - 1] = temp;
+    } else if (direction === 'front') {
+      if (currentIndex >= sorted.length - 1) return; // Sudah paling atas
+      // Pindahkan ke posisi paling atas
+      const [targetEl] = sorted.splice(currentIndex, 1);
+      sorted.push(targetEl);
+    } else if (direction === 'back') {
+      if (currentIndex <= 0) return; // Sudah paling bawah
+      // Pindahkan ke posisi paling bawah
+      const [targetEl] = sorted.splice(currentIndex, 1);
+      sorted.unshift(targetEl);
+    }
 
     state.pushHistory();
-    const zValues = slide.elements.map((e) => e.zIndex);
-    const maxZ = Math.max(...zValues, 1);
-    const minZ = Math.min(...zValues, 1);
 
-    let nextZ = target.zIndex;
-    if (direction === 'front') nextZ = maxZ + 1;
-    else if (direction === 'back') nextZ = Math.max(0, minZ - 1);
-    else if (direction === 'forward') nextZ = target.zIndex + 1;
-    else if (direction === 'backward') nextZ = Math.max(0, target.zIndex - 1);
+    // 2. Normalisasi semua zIndex berurutan (1, 2, 3...) sehingga tidak ada gap atau duplikat
+    const normalizedElements = sorted.map((el, idx) => ({
+      ...el,
+      zIndex: idx + 1,
+    }));
 
-    state.updateElement(elementId, { zIndex: nextZ });
+    const nextSlides = state.slides.map((s, idx) =>
+      idx === state.activeSlideIndex
+        ? { ...s, elements: normalizedElements }
+        : s
+    );
+
+    set({
+      slides: nextSlides,
+      lastModifiedTimestamp: Date.now(),
+    });
+
+    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   alignElementOnCanvas: (elementId, alignment) => {

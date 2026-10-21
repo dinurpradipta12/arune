@@ -1359,16 +1359,18 @@ export const LeftSidebar: React.FC = () => {
 
   const allElements = activeSlide?.elements || [];
   const selectedElement = allElements.find((el) => el.id === selectedElementId);
-  const filteredElements = [...allElements]
-    .sort((a, b) => b.zIndex - a.zIndex)
-    .filter((el) => {
-      if (layerFilter === 'all') return true;
-      if (layerFilter === 'text') return el.type === 'text';
-      if (layerFilter === 'image') return el.type === 'image';
-      if (layerFilter === 'shape') return el.type === 'shape';
-      if (layerFilter === 'other') return el.type === 'badge' || el.type === 'divider';
-      return true;
-    });
+  const sortedAllElements = [...allElements].sort((a, b) => b.zIndex - a.zIndex);
+  const isTopmost = sortedAllElements.length > 0 && sortedAllElements[0]?.id === selectedElementId;
+  const isBottommost = sortedAllElements.length > 0 && sortedAllElements[sortedAllElements.length - 1]?.id === selectedElementId;
+
+  const filteredElements = sortedAllElements.filter((el) => {
+    if (layerFilter === 'all') return true;
+    if (layerFilter === 'text') return el.type === 'text';
+    if (layerFilter === 'image') return el.type === 'image';
+    if (layerFilter === 'shape') return el.type === 'shape';
+    if (layerFilter === 'other') return el.type === 'badge' || el.type === 'divider';
+    return true;
+  });
 
   return (
     <aside className="w-72 border-r border-zinc-800/80 bg-zinc-950 flex flex-col shrink-0 select-none z-20 h-full overflow-hidden">
@@ -1757,9 +1759,9 @@ export const LeftSidebar: React.FC = () => {
             <div className="flex items-center gap-0.5">
               <button
                 type="button"
-                disabled={!selectedElementId}
+                disabled={!selectedElementId || isTopmost}
                 onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'front')}
-                title="Geser ke Paling Depan (Top)"
+                title={isTopmost ? 'Sudah di paling depan' : 'Geser ke Paling Depan (Top)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
                     ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
@@ -1770,9 +1772,9 @@ export const LeftSidebar: React.FC = () => {
               </button>
               <button
                 type="button"
-                disabled={!selectedElementId}
+                disabled={!selectedElementId || isTopmost}
                 onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'forward')}
-                title="Maju Satu Lapisan (+1)"
+                title={isTopmost ? 'Sudah di paling depan' : 'Maju Satu Lapisan (+1)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
                     ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
@@ -1783,9 +1785,9 @@ export const LeftSidebar: React.FC = () => {
               </button>
               <button
                 type="button"
-                disabled={!selectedElementId}
+                disabled={!selectedElementId || isBottommost}
                 onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'backward')}
-                title="Mundur Satu Lapisan (-1)"
+                title={isBottommost ? 'Sudah di paling belakang' : 'Mundur Satu Lapisan (-1)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
                     ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
@@ -1796,9 +1798,9 @@ export const LeftSidebar: React.FC = () => {
               </button>
               <button
                 type="button"
-                disabled={!selectedElementId}
+                disabled={!selectedElementId || isBottommost}
                 onClick={() => selectedElementId && adjustElementZIndex(selectedElementId, 'back')}
-                title="Geser ke Paling Belakang (Bottom)"
+                title={isBottommost ? 'Sudah di paling belakang' : 'Geser ke Paling Belakang (Bottom)'}
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
                     ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
