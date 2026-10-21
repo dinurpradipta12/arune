@@ -568,73 +568,39 @@ export const TemplateGalleryPage: React.FC = () => {
             {/* Left Column: Greeting, Hero Draft, Quick Start, Recent Projects, Templates */}
             <div className="flex-1 min-w-0 w-full space-y-10">
 
-              {/* WARM PERSONAL GREETING CARD */}
-              <div
-                className={`p-6 sm:p-8 rounded-3xl border transition-all relative overflow-hidden ${
-                  workspaceDarkMode
-                    ? 'bg-gradient-to-br from-zinc-900/90 via-zinc-900/60 to-blue-950/30 border-zinc-800/80 shadow-lg'
-                    : 'bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-white border-slate-200/90 shadow-xs'
-                }`}
-              >
-                {/* Subtle Decorative Glow Background */}
-                <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="space-y-2 max-w-2xl">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xl select-none">{timeGreeting.icon}</span>
-                      <span
-                        className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                          workspaceDarkMode
-                            ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                            : 'bg-blue-100/70 text-blue-700 border-blue-200'
-                        }`}
-                      >
-                        {timeGreeting.text}
-                      </span>
-                      <span className="text-xs text-zinc-400 font-medium">
-                        • {todayFormatted}
-                      </span>
-                    </div>
-
-                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                      Halo,{' '}
-                      <span className="bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
-                        {firstName}
-                      </span>
-                      !
-                    </h1>
-
-                    <p
-                      className={`text-sm sm:text-base leading-relaxed ${
-                        workspaceDarkMode ? 'text-zinc-300' : 'text-slate-600'
-                      }`}
-                    >
-                      Mau mendesain cerita apa hari ini? Yuk, buat konten visual yang memikat dan berkesan untuk audiensmu.
-                    </p>
-                  </div>
-
-                  {/* Quick Stats Pill */}
-                  <div className="shrink-0 flex items-center gap-3">
-                    <div
-                      className={`px-4 py-3 rounded-2xl border flex items-center gap-3 backdrop-blur-xs ${
-                        workspaceDarkMode
-                          ? 'bg-zinc-900/80 border-zinc-800/80 text-zinc-200'
-                          : 'bg-white/80 border-slate-200 text-slate-800 shadow-2xs'
-                      }`}
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold text-sm">
-                        <Sparkles className="w-5 h-5 text-blue-500 animate-pulse" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold leading-tight">Studio Siap Pakai</div>
-                        <div className="text-[11px] text-zinc-400 mt-0.5">
-                          {savedProjects.length} proyek tersimpan
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+              {/* WARM PERSONAL GREETING (Clean & Borderless) */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xl select-none">{timeGreeting.icon}</span>
+                  <span
+                    className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                      workspaceDarkMode
+                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                        : 'bg-blue-100/70 text-blue-700 border-blue-200'
+                    }`}
+                  >
+                    {timeGreeting.text}
+                  </span>
+                  <span className="text-xs text-zinc-400 font-medium">
+                    • {todayFormatted}
+                  </span>
                 </div>
+
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                  Halo,{' '}
+                  <span className="bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
+                    {firstName}
+                  </span>
+                  !
+                </h1>
+
+                <p
+                  className={`text-sm sm:text-base leading-relaxed ${
+                    workspaceDarkMode ? 'text-zinc-300' : 'text-slate-600'
+                  }`}
+                >
+                  Mau mendesain cerita apa hari ini? Yuk, buat konten visual yang memikat dan berkesan untuk audiensmu.
+                </p>
               </div>
 
               {/* ACTIVE SESSION HERO CARD (If user currently has an open draft) */}
