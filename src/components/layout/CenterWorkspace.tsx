@@ -36,7 +36,7 @@ import {
   type RemotePeer,
 } from '../../services/multiplayerService';
 import { getAvatarPresetById } from '../../constants/avatarPresets';
-import { getActiveTeamId, getTeamProjects } from '../../services/teamWorkspaceService';
+import { getActiveTeamId, getTeamProjects, subscribeToActiveTeam } from '../../services/teamWorkspaceService';
 
 export const CenterWorkspace: React.FC = () => {
   const {
@@ -82,8 +82,16 @@ export const CenterWorkspace: React.FC = () => {
 
   const [multiplayerPeers, setMultiplayerPeers] = useState<RemotePeer[]>([]);
 
-  // Harmonize multiplayer collaboration room ID across team members
-  const activeTeamId = getActiveTeamId();
+  // Harmonize multiplayer collaboration room ID across team members (reactive state)
+  const [activeTeamId, setActiveTeamIdState] = useState<string | null>(getActiveTeamId());
+
+  useEffect(() => {
+    const unsub = subscribeToActiveTeam((teamId) => {
+      setActiveTeamIdState(teamId);
+    });
+    return () => unsub();
+  }, []);
+
   const collabRoomId = activeTeamId
     ? `team_${activeTeamId}`
     : (activeDocumentId || 'global_collab_room');

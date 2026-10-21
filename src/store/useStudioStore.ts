@@ -1086,13 +1086,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     });
   },
 
-  setProjectTitle: (projectTitle) =>
+  setProjectTitle: (projectTitle) => {
     set((state) => ({
       projectTitle,
       openDocuments: state.openDocuments.map((doc) =>
         doc.id === state.activeDocumentId ? { ...doc, projectTitle } : doc
       ),
-    })),
+    }));
+    broadcastCurrentCanvasStateDebounced(get());
+  },
 
   setAspectRatio: (newRatio) => {
     const state = get();
@@ -1365,6 +1367,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeSlideIndex: Math.min(state.activeSlideIndex, newSlides.length - 1),
       selectedElementId: null,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   setActiveSlideIndex: (index) => {
@@ -1482,6 +1485,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       slides: nextSlides,
       selectedElementId: null,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   applyLayoutToAllSlides: (layout) => {
@@ -1519,6 +1523,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       scriptText: updatedScriptText,
       selectedElementId: null,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   setSlideBackgroundColor: (slideIndex, color) => {
@@ -1605,6 +1610,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         activeSlideIndex: nextSlides.length - 1,
         selectedElementId: newElements[0]?.id || null,
       });
+      broadcastCurrentCanvasStateDebounced(get());
       return;
     }
 
@@ -1628,6 +1634,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       slides: nextSlides,
       selectedElementId: newElements[0]?.id || null,
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   addElement: (kind, initialProps) => {
@@ -1821,6 +1828,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       state.pushHistory();
     }
 
+    let updatedPartial: Partial<CanvasElement> | null = null;
+
     const nextSlides = state.slides.map((slide, idx) => {
       if (idx !== state.activeSlideIndex) return slide;
       return {
@@ -1831,12 +1840,18 @@ export const useStudioStore = create<StudioState>((set, get) => ({
             typeof updater === 'function'
               ? updater(el)
               : ({ ...el, ...updater } as CanvasElement);
+          updatedPartial = typeof updater === 'function' ? updated : updater;
           return updated;
         }),
       };
     });
 
     set({ slides: nextSlides });
+
+    if (updatedPartial) {
+      multiplayerService.sendElementUpdate(state.activeSlideIndex, elementId, updatedPartial);
+    }
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   commitElementHistory: () => {

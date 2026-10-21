@@ -121,6 +121,14 @@ export const LiveCollaboratorsBar: React.FC<LiveCollaboratorsBarProps> = ({
             </span>
           </div>
 
+          {/* Room info */}
+          <div className="py-1 px-2 mt-2 rounded bg-zinc-900/50 dark:bg-zinc-900/50 bg-stone-100 flex items-center justify-between text-[10.5px] text-zinc-400 dark:text-zinc-400 text-stone-500 font-mono">
+            <span>Room:</span>
+            <span className="truncate max-w-[140px] font-semibold text-emerald-600 dark:text-emerald-400" title={multiplayerState.roomId}>
+              {multiplayerState.roomId || 'global_collab_room'}
+            </span>
+          </div>
+
           {/* Collaborators List */}
           <div className="mt-2.5 space-y-2">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-400 text-stone-500">

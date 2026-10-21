@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { isDesktopApp } from './utils/platform';
 import { scanComputerFonts } from './services/fontManager';
 import { fetchCloudStudioData } from './services/supabaseTemplates';
+import { syncTeamsFromCloud, getActiveTeamId, setActiveTeamId } from './services/teamWorkspaceService';
 import { useStudioStore } from './store/useStudioStore';
 
 function matchesHotkey(e: KeyboardEvent, combo: string): boolean {
@@ -95,6 +96,21 @@ export function App() {
       active = false;
     };
   }, [setCloudMasterTemplates, updateSettings]);
+
+  // Sync teams from Supabase Cloud on mount so all collaborators enter the same team workspace room
+  useEffect(() => {
+    syncTeamsFromCloud()
+      .then((teams) => {
+        if (teams.length > 0) {
+          const currentActive = getActiveTeamId();
+          const hasCurrent = teams.some((t) => t.id === currentActive);
+          if (!hasCurrent) {
+            setActiveTeamId(teams[0].id);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Automatically detect installed computer fonts on mount & on first user interaction
   useEffect(() => {

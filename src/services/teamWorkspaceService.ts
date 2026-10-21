@@ -230,6 +230,25 @@ export function saveTeams(teams: TeamWorkspace[]): void {
   }
 }
 
+const activeTeamListeners: Array<(teamId: string | null) => void> = [];
+
+export function subscribeToActiveTeam(callback: (teamId: string | null) => void): () => void {
+  activeTeamListeners.push(callback);
+  callback(getActiveTeamId());
+  return () => {
+    const idx = activeTeamListeners.indexOf(callback);
+    if (idx !== -1) activeTeamListeners.splice(idx, 1);
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY_ACTIVE_TEAM) {
+      activeTeamListeners.forEach((fn) => fn(e.newValue));
+    }
+  });
+}
+
 export function getActiveTeamId(): string | null {
   try {
     const id = localStorage.getItem(STORAGE_KEY_ACTIVE_TEAM);
@@ -253,6 +272,13 @@ export function setActiveTeamId(teamId: string | null): void {
   } catch {
     // ignore
   }
+  activeTeamListeners.forEach((fn) => {
+    try {
+      fn(teamId);
+    } catch {
+      // ignore
+    }
+  });
 }
 
 // ============================================================================
