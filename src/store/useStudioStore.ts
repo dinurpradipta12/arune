@@ -328,6 +328,11 @@ interface StudioState {
     updater: Partial<CanvasElement> | ((prev: CanvasElement) => CanvasElement),
     recordHistory?: boolean
   ) => void;
+  updateSlideElementRemote: (
+    slideIndex: number,
+    elementId: string,
+    updates: Partial<CanvasElement>
+  ) => void;
   commitElementHistory: () => void;
   deleteElement: (elementId?: string) => void;
   duplicateElement: (elementId?: string) => void;
@@ -1794,6 +1799,21 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   commitElementHistory: () => {
     get().pushHistory();
+  },
+
+  updateSlideElementRemote: (slideIndex, elementId, updates) => {
+    const state = get();
+    const nextSlides = state.slides.map((slide, idx) => {
+      if (idx !== slideIndex) return slide;
+      return {
+        ...slide,
+        elements: slide.elements.map((el) => {
+          if (el.id !== elementId) return el;
+          return { ...el, ...updates } as CanvasElement;
+        }),
+      };
+    });
+    set({ slides: nextSlides });
   },
 
   deleteElement: (elementId) => {

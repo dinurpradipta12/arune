@@ -1,5 +1,5 @@
-import { getSupabaseConfig } from './supabaseTemplates';
-import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { getSupabaseClient } from './supabaseClient';
+import { type SupabaseClient, type User } from '@supabase/supabase-js';
 import { AVATAR_PRESETS, getAvatarPresetById } from '../constants/avatarPresets';
 import { saveCurrentUserProfile } from './teamWorkspaceService';
 
@@ -36,13 +36,7 @@ export function subscribeToAuthChanges(callback: (user: AuthUser | null) => void
 }
 
 function getClient(): SupabaseClient | null {
-  const { url, anonKey } = getSupabaseConfig();
-  if (!url || !anonKey) return null;
-  try {
-    return createClient(url, anonKey);
-  } catch {
-    return null;
-  }
+  return getSupabaseClient();
 }
 
 export function getCurrentAuthUser(): AuthUser | null {

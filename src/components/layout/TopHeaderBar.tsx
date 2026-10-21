@@ -22,6 +22,7 @@ import { useStudioStore } from '../../store/useStudioStore';
 import { exportSingleSlidePng } from '../../utils/exportEngine';
 import { isElectronMac } from '../../utils/platform';
 import { UserAuthButton } from '../common/UserAuthButton';
+import { LiveCollaboratorsBar } from '../common/LiveCollaboratorsBar';
 
 export const TopHeaderBar: React.FC = () => {
   const {
@@ -201,6 +202,7 @@ export const TopHeaderBar: React.FC = () => {
         )}
 
         <div className="flex items-center gap-1.5">
+          <LiveCollaboratorsBar darkMode={workspaceDarkMode} />
           <UserAuthButton darkMode={workspaceDarkMode} />
 
           <button

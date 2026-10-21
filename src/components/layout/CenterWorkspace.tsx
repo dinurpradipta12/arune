@@ -24,12 +24,18 @@ import {
   THEME_PALETTES,
 } from '../../constants/themesAndPresets';
 import { useStudioStore } from '../../store/useStudioStore';
-import type { AspectRatioKey } from '../../types/studio';
+import type { AspectRatioKey, CanvasElement } from '../../types/studio';
 import {
   removeImageBackground,
   trimTransparentImage,
 } from '../../services/backgroundRemoval';
 import { SlideStage } from '../canvas/SlideStage';
+import { MultiplayerCursorsLayer } from '../canvas/MultiplayerCursorsLayer';
+import {
+  multiplayerService,
+  type RemotePeer,
+} from '../../services/multiplayerService';
+import { getAvatarPresetById } from '../../constants/avatarPresets';
 
 export const CenterWorkspace: React.FC = () => {
   const {
@@ -68,7 +74,59 @@ export const CenterWorkspace: React.FC = () => {
     closeDocumentTab,
     openBlankDocumentTab,
     settings,
+    updateSlideElementRemote,
   } = useStudioStore();
+
+  const [multiplayerPeers, setMultiplayerPeers] = useState<RemotePeer[]>([]);
+
+  // Connect to multiplayer collaboration room
+  useEffect(() => {
+    const roomId = activeDocumentId || 'global_collab_room';
+    multiplayerService.connectToRoom(roomId);
+    multiplayerService.updatePresence(activeSlideIndex, selectedElementId);
+
+    const unsubState = multiplayerService.subscribeToState((s) => {
+      setMultiplayerPeers(s.peers);
+    });
+
+    const unsubRemoteUpdate = multiplayerService.onRemoteElementUpdate((payload) => {
+      updateSlideElementRemote(payload.slideIndex, payload.elementId, payload.updates);
+    });
+
+    return () => {
+      unsubState();
+      unsubRemoteUpdate();
+    };
+  }, [activeDocumentId, updateSlideElementRemote]);
+
+  // Sync presence when slide or element selection changes
+  useEffect(() => {
+    multiplayerService.updatePresence(activeSlideIndex, selectedElementId);
+  }, [activeSlideIndex, selectedElementId]);
+
+  // Wrap updateElement to broadcast live edits to peers
+  const handleUpdateElement = (
+    elementId: string,
+    updater: Partial<CanvasElement> | ((prev: CanvasElement) => CanvasElement),
+    recordHistory = false
+  ) => {
+    updateElement(elementId, updater, recordHistory);
+    if (typeof updater !== 'function') {
+      multiplayerService.sendElementUpdate(activeSlideIndex, elementId, updater);
+    }
+  };
+
+  const handleSlideMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
+    const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
+    multiplayerService.sendCursorPosition(xPercent, yPercent, activeSlideIndex);
+  };
+
+  const handleSlideMouseLeave = () => {
+    multiplayerService.sendCursorLeave();
+  };
 
   const [justSaved, setJustSaved] = useState(false);
   const [activePopover, setActivePopover] = useState<
@@ -1464,6 +1522,8 @@ export const CenterWorkspace: React.FC = () => {
               width: `${scaledW}px`,
               height: `${scaledH}px`,
             }}
+            onMouseMove={handleSlideMouseMove}
+            onMouseLeave={handleSlideMouseLeave}
           >
             <SlideStage
               slide={activeSlide}
@@ -1475,9 +1535,20 @@ export const CenterWorkspace: React.FC = () => {
               scale={canvasZoom}
               interactive={true}
               selectedElementId={selectedElementId}
-              onSelectElement={setSelectedElementId}
-              onUpdateElement={updateElement}
+              onSelectElement={(id) => {
+                setSelectedElementId(id);
+                multiplayerService.sendElementSelection(id, activeSlideIndex);
+              }}
+              onUpdateElement={handleUpdateElement}
               onCommitHistory={commitElementHistory}
+            />
+
+            {/* Multiplayer Remote Cursors & Peer Selections Layer */}
+            <MultiplayerCursorsLayer
+              activeSlideIndex={activeSlideIndex}
+              slide={activeSlide}
+              aspectRatio={aspectRatio}
+              scale={canvasZoom}
             />
           </div>
         )}
@@ -1520,6 +1591,31 @@ export const CenterWorkspace: React.FC = () => {
                     interactive={false}
                   />
                 </div>
+
+                {/* Remote Collaborators on this slide thumbnail */}
+                {(() => {
+                  const peersOnThumb = multiplayerPeers.filter(
+                    (p) => p.activeSlideIndex === idx
+                  );
+                  if (peersOnThumb.length === 0) return null;
+                  return (
+                    <div className="absolute top-1 right-1 flex items-center -space-x-1.5 z-10 pointer-events-none">
+                      {peersOnThumb.map((p) => {
+                        const preset = getAvatarPresetById(p.avatarId);
+                        return (
+                          <img
+                            key={p.userId}
+                            src={preset.svgDataUri}
+                            alt={p.name}
+                            title={`${p.name} sedang melihat slide ini`}
+                            className="w-3.5 h-3.5 rounded-full ring-1 ring-white shadow-xs object-cover"
+                            style={{ outline: `1.5px solid ${p.avatarColor || '#5E887E'}` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 {/* Hover Quick Actions Bar on Thumbnail */}
                 <div className="absolute inset-x-0 bottom-0 bg-zinc-950/85 backdrop-blur-xs py-0.5 px-1 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">

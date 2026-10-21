@@ -140,3 +140,8 @@ export function getAvatarPresetById(id?: string): AvatarPreset {
   const found = AVATAR_PRESETS.find((a) => a.id === id);
   return found || AVATAR_PRESETS[0];
 }
+
+export function getRandomAvatarPreset(): AvatarPreset {
+  const index = Math.floor(Math.random() * AVATAR_PRESETS.length);
+  return AVATAR_PRESETS[index];
+}

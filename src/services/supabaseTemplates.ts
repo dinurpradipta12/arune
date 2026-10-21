@@ -1,5 +1,20 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
 import type { AspectRatioKey, CloudTemplateRecord } from '../types/studio';
+import {
+  getSupabaseConfig,
+  saveSupabaseConfig,
+  isSupabaseConfigured,
+  getSupabaseClient,
+  type SupabaseRuntimeConfig,
+} from './supabaseClient';
+
+export {
+  getSupabaseConfig,
+  saveSupabaseConfig,
+  isSupabaseConfigured,
+  getSupabaseClient,
+  type SupabaseRuntimeConfig,
+};
 
 // 1. LOCAL USER PROJECTS CACHE KEY (Strictly per-device browser cache, NEVER synced to Supabase)
 const LOCAL_USER_PROJECTS_CACHE_KEY = 'arune_local_user_projects_cache_v1';
@@ -8,15 +23,9 @@ const LEGACY_LOCAL_PROJECTS_KEY = 'editorial_carousel_studio_templates_v1';
 // 2. CLOUD MASTER TEMPLATES & GLOBAL CONFIG CACHE KEYS (Synced with Supabase by Admin/Developer)
 const LOCAL_CLOUD_TEMPLATES_CACHE_KEY = 'arune_cloud_master_templates_cache_v1';
 const LOCAL_GLOBAL_CONFIG_KEY = 'arune_global_studio_config_v1';
-const LOCAL_STORAGE_SUPA_CONFIG_KEY = 'editorial_carousel_studio_supabase_cfg_v1';
 
 // Reserved row ID inside `editorial_templates` table used to store global studio config & admin credentials
 const GLOBAL_CONFIG_ROW_ID = '__arune_global_studio_config__';
-
-export interface SupabaseRuntimeConfig {
-  url: string;
-  anonKey: string;
-}
 
 export interface CloudGlobalStudioConfig {
   studioName: string;
@@ -40,48 +49,8 @@ export const DEFAULT_GLOBAL_STUDIO_CONFIG: CloudGlobalStudioConfig = {
   updatedAt: new Date().toISOString(),
 };
 
-export function getSupabaseConfig(): SupabaseRuntimeConfig {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  if (envUrl && envKey) {
-    return { url: envUrl, anonKey: envKey };
-  }
-  try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_SUPA_CONFIG_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        url: parsed.url || '',
-        anonKey: parsed.anonKey || '',
-      };
-    }
-  } catch {
-    // ignore storage errors
-  }
-  return { url: '', anonKey: '' };
-}
-
-export function saveSupabaseConfig(cfg: SupabaseRuntimeConfig): void {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_SUPA_CONFIG_KEY, JSON.stringify(cfg));
-  } catch {
-    // ignore
-  }
-}
-
 function getClient(): SupabaseClient | null {
-  const { url, anonKey } = getSupabaseConfig();
-  if (!url || !anonKey) return null;
-  try {
-    return createClient(url, anonKey);
-  } catch {
-    return null;
-  }
-}
-
-export function isSupabaseConfigured(): boolean {
-  const { url, anonKey } = getSupabaseConfig();
-  return Boolean(url.trim() && anonKey.trim());
+  return getSupabaseClient();
 }
 
 // ============================================================================
