@@ -1,5 +1,15 @@
 import React from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Layers, Sparkles, Users } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Layers,
+  Maximize2,
+  Minus,
+  Plus,
+  Sparkles,
+  Users,
+} from 'lucide-react';
 import { useStudioStore } from '../../store/useStudioStore';
 import { getActiveTeamId, getTeams } from '../../services/teamWorkspaceService';
 import { LiveCollaboratorsBar } from '../common/LiveCollaboratorsBar';
@@ -13,6 +23,8 @@ export const StudioBottomStatusBar: React.FC = () => {
     workspaceDarkMode,
     settings,
     updateSettings,
+    canvasZoom,
+    setCanvasZoom,
   } = useStudioStore();
 
   const activeTeamId = getActiveTeamId();
@@ -105,8 +117,67 @@ export const StudioBottomStatusBar: React.FC = () => {
         <span>Tersimpan otomatis</span>
       </div>
 
-      {/* Right: Live Collaborators Online Indicator (Bawah Kanan dengan Floating Popover) */}
-      <div className="flex items-center gap-2">
+      {/* Right: Zoom Controls & Live Collaborators */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        {/* Canvas Zoom Controls (Pro Tool Ergonomics like Canva / PowerPoint) */}
+        <div
+          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-zinc-700 dark:text-zinc-300 transition-colors ${
+            workspaceDarkMode
+              ? 'border-zinc-800 bg-zinc-900/90'
+              : 'border-zinc-200 bg-white/90 shadow-2xs'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(canvasZoom - 0.1)}
+            disabled={canvasZoom <= 0.5}
+            title="Zoom Out"
+            className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 disabled:opacity-25 cursor-pointer text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+          >
+            <Minus className="w-3 h-3" />
+          </button>
+
+          <input
+            type="range"
+            min={50}
+            max={150}
+            step={5}
+            value={Math.round(canvasZoom * 100)}
+            onChange={(e) => setCanvasZoom(Number(e.target.value) / 100)}
+            aria-label="Canvas Zoom Percentage"
+            className="w-16 sm:w-20 accent-blue-600 dark:accent-blue-500 cursor-pointer h-1"
+          />
+
+          <span className="text-[10.5px] font-mono w-8 text-center tabular-nums text-zinc-700 dark:text-zinc-200 font-semibold">
+            {Math.round(canvasZoom * 100)}%
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(canvasZoom + 0.1)}
+            disabled={canvasZoom >= 1.5}
+            title="Zoom In"
+            className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 disabled:opacity-25 cursor-pointer text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCanvasZoom(aspectRatio === '9:16' ? 0.68 : 0.9)}
+            title="Reset Zoom to Fit"
+            className={`p-0.5 rounded text-[10px] font-medium px-1.5 border-l cursor-pointer flex items-center gap-1 transition-colors ${
+              workspaceDarkMode
+                ? 'border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                : 'border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+            }`}
+          >
+            <Maximize2 className="w-2.5 h-2.5" />
+            <span>Fit</span>
+          </button>
+        </div>
+
+        {/* Live Collaborators Online Indicator */}
         <LiveCollaboratorsBar
           darkMode={workspaceDarkMode}
           placement="top"
