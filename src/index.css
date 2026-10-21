@@ -450,3 +450,243 @@
 .mac-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* ========================================================
+   RIGHT INSPECTOR: DISTINCT SECTION HEADERS PER MODULE
+   ======================================================== */
+.inspector-modal-card {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.inspector-section-header {
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.inspector-header-title {
+  letter-spacing: -0.01em;
+}
+
+/* --- LIGHT THEME STYLES --- */
+.studio-theme-light .inspector-modal-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05) !important;
+}
+
+.studio-theme-light .inspector-header-title {
+  color: #0f172a !important;
+}
+
+/* Light Theme: Module Header Backgrounds & Accent Stripe */
+.studio-theme-light .inspector-header-font {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+  border-bottom: 1px solid #bfdbfe !important;
+  border-left: 3.5px solid #2563eb !important;
+}
+.studio-theme-light .inspector-header-transform {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important;
+  border-bottom: 1px solid #a7f3d0 !important;
+  border-left: 3.5px solid #059669 !important;
+}
+.studio-theme-light .inspector-header-effects {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%) !important;
+  border-bottom: 1px solid #ddd6fe !important;
+  border-left: 3.5px solid #7c3aed !important;
+}
+.studio-theme-light .inspector-header-tone {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+  border-bottom: 1px solid #fde68a !important;
+  border-left: 3.5px solid #d97706 !important;
+}
+.studio-theme-light .inspector-header-crop {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+  border-bottom: 1px solid #bae6fd !important;
+  border-left: 3.5px solid #0284c7 !important;
+}
+.studio-theme-light .inspector-header-shape {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
+  border-bottom: 1px solid #fecdd3 !important;
+  border-left: 3.5px solid #e11d48 !important;
+}
+.studio-theme-light .inspector-header-divider {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  border-left: 3.5px solid #475569 !important;
+}
+.studio-theme-light .inspector-header-slide {
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%) !important;
+  border-bottom: 1px solid #c7d2fe !important;
+  border-left: 3.5px solid #4f46e5 !important;
+}
+.studio-theme-light .inspector-header-branding {
+  background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%) !important;
+  border-bottom: 1px solid #99f6e4 !important;
+  border-left: 3.5px solid #0d9488 !important;
+}
+
+/* Light Theme: Icon Boxes */
+.studio-theme-light .inspector-icon-box-font { background-color: #dbeafe !important; color: #1d4ed8 !important; }
+.studio-theme-light .inspector-icon-box-transform { background-color: #d1fae5 !important; color: #047857 !important; }
+.studio-theme-light .inspector-icon-box-effects { background-color: #ede9fe !important; color: #6d28d9 !important; }
+.studio-theme-light .inspector-icon-box-tone { background-color: #fef3c7 !important; color: #b45309 !important; }
+.studio-theme-light .inspector-icon-box-crop { background-color: #e0f2fe !important; color: #0369a1 !important; }
+.studio-theme-light .inspector-icon-box-shape { background-color: #ffe4e6 !important; color: #be123c !important; }
+.studio-theme-light .inspector-icon-box-divider { background-color: #e2e8f0 !important; color: #334155 !important; }
+.studio-theme-light .inspector-icon-box-slide { background-color: #e0e7ff !important; color: #4338ca !important; }
+.studio-theme-light .inspector-icon-box-branding { background-color: #ccfbf1 !important; color: #0f766e !important; }
+
+/* Light Theme: Subtitle Badges */
+.studio-theme-light .inspector-badge-font { background-color: #dbeafe !important; color: #1e40af !important; }
+.studio-theme-light .inspector-badge-transform { background-color: #d1fae5 !important; color: #065f46 !important; }
+.studio-theme-light .inspector-badge-effects { background-color: #ede9fe !important; color: #5b21b6 !important; }
+.studio-theme-light .inspector-badge-tone { background-color: #fef3c7 !important; color: #92400e !important; }
+.studio-theme-light .inspector-badge-crop { background-color: #e0f2fe !important; color: #075985 !important; }
+.studio-theme-light .inspector-badge-shape { background-color: #ffe4e6 !important; color: #9f1239 !important; }
+.studio-theme-light .inspector-badge-divider { background-color: #e2e8f0 !important; color: #1e293b !important; }
+.studio-theme-light .inspector-badge-slide { background-color: #e0e7ff !important; color: #3730a3 !important; }
+.studio-theme-light .inspector-badge-branding { background-color: #ccfbf1 !important; color: #115e59 !important; }
+
+/* Light Theme: Active Pills */
+.studio-theme-light .inspector-pill-font { background-color: #eff6ff !important; border-color: #93c5fd !important; color: #1d4ed8 !important; }
+.studio-theme-light .inspector-pill-transform { background-color: #ecfdf5 !important; border-color: #6ee7b7 !important; color: #047857 !important; }
+.studio-theme-light .inspector-pill-effects { background-color: #f5f3ff !important; border-color: #c4b5fd !important; color: #6d28d9 !important; }
+.studio-theme-light .inspector-pill-tone { background-color: #fffbeb !important; border-color: #fcd34d !important; color: #b45309 !important; }
+.studio-theme-light .inspector-pill-crop { background-color: #f0f9ff !important; border-color: #7dd3fc !important; color: #0369a1 !important; }
+.studio-theme-light .inspector-pill-shape { background-color: #fff1f2 !important; border-color: #fda4af !important; color: #be123c !important; }
+.studio-theme-light .inspector-pill-divider { background-color: #f8fafc !important; border-color: #cbd5e1 !important; color: #334155 !important; }
+.studio-theme-light .inspector-pill-slide { background-color: #eef2ff !important; border-color: #a5b4fc !important; color: #4338ca !important; }
+.studio-theme-light .inspector-pill-branding { background-color: #f0fdfa !important; border-color: #5eead4 !important; color: #0f766e !important; }
+
+/* --- DARK THEME STYLES --- */
+.inspector-header-title {
+  color: #f8fafc;
+}
+
+.studio-theme-dark .inspector-modal-card {
+  background-color: #0a101d !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.studio-theme-dark .inspector-header-title {
+  color: #f8fafc !important;
+}
+
+/* Dark Theme: Module Header Backgrounds & Accent Stripe */
+.inspector-header-font,
+.studio-theme-dark .inspector-header-font {
+  background: linear-gradient(135deg, #10203d 0%, #0d172c 100%) !important;
+  border-bottom: 1px solid #1e3a8a !important;
+  border-left: 3.5px solid #3b82f6 !important;
+}
+.inspector-header-transform,
+.studio-theme-dark .inspector-header-transform {
+  background: linear-gradient(135deg, #09261e 0%, #061e18 100%) !important;
+  border-bottom: 1px solid #064e3b !important;
+  border-left: 3.5px solid #10b981 !important;
+}
+.inspector-header-effects,
+.studio-theme-dark .inspector-header-effects {
+  background: linear-gradient(135deg, #1e1338 0%, #170e2b 100%) !important;
+  border-bottom: 1px solid #4c1d95 !important;
+  border-left: 3.5px solid #8b5cf6 !important;
+}
+.inspector-header-tone,
+.studio-theme-dark .inspector-header-tone {
+  background: linear-gradient(135deg, #261b0e 0%, #1c140a 100%) !important;
+  border-bottom: 1px solid #78350f !important;
+  border-left: 3.5px solid #f59e0b !important;
+}
+.inspector-header-crop,
+.studio-theme-dark .inspector-header-crop {
+  background: linear-gradient(135deg, #0c2338 0%, #081926 100%) !important;
+  border-bottom: 1px solid #0369a1 !important;
+  border-left: 3.5px solid #0284c7 !important;
+}
+.inspector-header-shape,
+.studio-theme-dark .inspector-header-shape {
+  background: linear-gradient(135deg, #2b121c 0%, #200d15 100%) !important;
+  border-bottom: 1px solid #881337 !important;
+  border-left: 3.5px solid #f43f5e !important;
+}
+.inspector-header-divider,
+.studio-theme-dark .inspector-header-divider {
+  background: linear-gradient(135deg, #151f2e 0%, #101824 100%) !important;
+  border-bottom: 1px solid #334155 !important;
+  border-left: 3.5px solid #64748b !important;
+}
+.inspector-header-slide,
+.studio-theme-dark .inspector-header-slide {
+  background: linear-gradient(135deg, #15173c 0%, #0f112b 100%) !important;
+  border-bottom: 1px solid #312e81 !important;
+  border-left: 3.5px solid #6366f1 !important;
+}
+.inspector-header-branding,
+.studio-theme-dark .inspector-header-branding {
+  background: linear-gradient(135deg, #092424 0%, #061b1b 100%) !important;
+  border-bottom: 1px solid #115e59 !important;
+  border-left: 3.5px solid #14b8a6 !important;
+}
+
+/* Dark Theme: Icon Boxes */
+.inspector-icon-box-font,
+.studio-theme-dark .inspector-icon-box-font { background-color: rgba(59, 130, 246, 0.25) !important; color: #60a5fa !important; }
+.inspector-icon-box-transform,
+.studio-theme-dark .inspector-icon-box-transform { background-color: rgba(16, 185, 129, 0.25) !important; color: #34d399 !important; }
+.inspector-icon-box-effects,
+.studio-theme-dark .inspector-icon-box-effects { background-color: rgba(139, 92, 246, 0.25) !important; color: #a78bfa !important; }
+.inspector-icon-box-tone,
+.studio-theme-dark .inspector-icon-box-tone { background-color: rgba(245, 158, 11, 0.25) !important; color: #fbbf24 !important; }
+.inspector-icon-box-crop,
+.studio-theme-dark .inspector-icon-box-crop { background-color: rgba(2, 132, 199, 0.25) !important; color: #38bdf8 !important; }
+.inspector-icon-box-shape,
+.studio-theme-dark .inspector-icon-box-shape { background-color: rgba(244, 63, 94, 0.25) !important; color: #fb7185 !important; }
+.inspector-icon-box-divider,
+.studio-theme-dark .inspector-icon-box-divider { background-color: rgba(100, 116, 139, 0.3) !important; color: #cbd5e1 !important; }
+.inspector-icon-box-slide,
+.studio-theme-dark .inspector-icon-box-slide { background-color: rgba(99, 102, 241, 0.25) !important; color: #818cf8 !important; }
+.inspector-icon-box-branding,
+.studio-theme-dark .inspector-icon-box-branding { background-color: rgba(20, 184, 166, 0.25) !important; color: #2dd4bf !important; }
+
+/* Dark Theme: Subtitle Badges */
+.inspector-badge-font,
+.studio-theme-dark .inspector-badge-font { background-color: rgba(59, 130, 246, 0.22) !important; color: #93c5fd !important; }
+.inspector-badge-transform,
+.studio-theme-dark .inspector-badge-transform { background-color: rgba(16, 185, 129, 0.22) !important; color: #6ee7b7 !important; }
+.inspector-badge-effects,
+.studio-theme-dark .inspector-badge-effects { background-color: rgba(139, 92, 246, 0.22) !important; color: #c4b5fd !important; }
+.inspector-badge-tone,
+.studio-theme-dark .inspector-badge-tone { background-color: rgba(245, 158, 11, 0.22) !important; color: #fcd34d !important; }
+.inspector-badge-crop,
+.studio-theme-dark .inspector-badge-crop { background-color: rgba(2, 132, 199, 0.22) !important; color: #7dd3fc !important; }
+.inspector-badge-shape,
+.studio-theme-dark .inspector-badge-shape { background-color: rgba(244, 63, 94, 0.22) !important; color: #fda4af !important; }
+.inspector-badge-divider,
+.studio-theme-dark .inspector-badge-divider { background-color: rgba(100, 116, 139, 0.25) !important; color: #e2e8f0 !important; }
+.inspector-badge-slide,
+.studio-theme-dark .inspector-badge-slide { background-color: rgba(99, 102, 241, 0.22) !important; color: #a5b4fc !important; }
+.inspector-badge-branding,
+.studio-theme-dark .inspector-badge-branding { background-color: rgba(20, 184, 166, 0.22) !important; color: #5eead4 !important; }
+
+/* Dark Theme: Active Pills */
+.inspector-pill-font,
+.studio-theme-dark .inspector-pill-font { background-color: rgba(30, 58, 138, 0.4) !important; border-color: #2563eb !important; color: #93c5fd !important; }
+.inspector-pill-transform,
+.studio-theme-dark .inspector-pill-transform { background-color: rgba(6, 78, 59, 0.4) !important; border-color: #059669 !important; color: #6ee7b7 !important; }
+.inspector-pill-effects,
+.studio-theme-dark .inspector-pill-effects { background-color: rgba(76, 29, 149, 0.4) !important; border-color: #7c3aed !important; color: #c4b5fd !important; }
+.inspector-pill-tone,
+.studio-theme-dark .inspector-pill-tone { background-color: rgba(120, 53, 15, 0.4) !important; border-color: #d97706 !important; color: #fcd34d !important; }
+.inspector-pill-crop,
+.studio-theme-dark .inspector-pill-crop { background-color: rgba(3, 105, 161, 0.4) !important; border-color: #0284c7 !important; color: #7dd3fc !important; }
+.inspector-pill-shape,
+.studio-theme-dark .inspector-pill-shape { background-color: rgba(136, 19, 55, 0.4) !important; border-color: #e11d48 !important; color: #fda4af !important; }
+.inspector-pill-divider,
+.studio-theme-dark .inspector-pill-divider { background-color: rgba(51, 65, 85, 0.4) !important; border-color: #64748b !important; color: #e2e8f0 !important; }
+.inspector-pill-slide,
+.studio-theme-dark .inspector-pill-slide { background-color: rgba(49, 46, 129, 0.4) !important; border-color: #4f46e5 !important; color: #a5b4fc !important; }
+.inspector-pill-branding,
+.studio-theme-dark .inspector-pill-branding { background-color: rgba(17, 94, 89, 0.4) !important; border-color: #0d9488 !important; color: #5eead4 !important; }

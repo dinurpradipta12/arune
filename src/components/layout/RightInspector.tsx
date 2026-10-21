@@ -91,6 +91,7 @@ interface ModalCardProps {
  * Users can collapse/expand or reorder each modal up/down to customize their right workspace.
  */
 const InspectorModalCard: React.FC<ModalCardProps> = ({
+  id,
   title,
   subtitle,
   icon,
@@ -104,20 +105,22 @@ const InspectorModalCard: React.FC<ModalCardProps> = ({
   children,
 }) => {
   return (
-    <div className="rounded-xl border border-zinc-800/90 bg-zinc-950 shadow-sm overflow-hidden transition-all">
+    <div className={`inspector-modal-card inspector-card-${id} rounded-xl border border-zinc-800/90 bg-zinc-950 shadow-sm overflow-hidden transition-all`}>
       {/* Modal Card Header */}
       <div
         onClick={onToggleCollapse}
-        className="px-3 py-2 bg-zinc-900/90 border-b border-zinc-800/70 flex items-center justify-between gap-1.5 cursor-pointer hover:bg-zinc-800/60 transition-colors"
+        className={`inspector-section-header inspector-header-${id} px-3 py-2.5 flex items-center justify-between gap-1.5 cursor-pointer transition-colors`}
       >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <GripVertical className="w-3 h-3 text-zinc-500 shrink-0" />
-          <span className="text-blue-900 shrink-0">{icon}</span>
-          <span className="text-[11px] font-semibold tracking-wide text-zinc-100 truncate">
+        <div className="flex items-center gap-2 min-w-0">
+          <GripVertical className="w-3.5 h-3.5 text-zinc-400/70 hover:text-zinc-600 dark:hover:text-zinc-200 shrink-0 cursor-grab active:cursor-grabbing transition-colors" />
+          <div className={`inspector-icon-box inspector-icon-box-${id} w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-xs shadow-xs`}>
+            {icon}
+          </div>
+          <span className="inspector-header-title text-[11.5px] font-bold tracking-wide truncate">
             {title}
           </span>
           {subtitle && (
-            <span className="text-[9.5px] px-1.5 py-0.2 rounded-full bg-zinc-800 text-zinc-400 font-mono shrink-0">
+            <span className={`inspector-badge inspector-badge-${id} text-[9.5px] font-semibold px-2 py-0.5 rounded-full font-mono shrink-0`}>
               {subtitle}
             </span>
           )}
@@ -133,7 +136,7 @@ const InspectorModalCard: React.FC<ModalCardProps> = ({
             onClick={onMoveUp}
             disabled={isFirst}
             title="Pindahkan Modal ke Atas"
-            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 disabled:opacity-25 disabled:pointer-events-none cursor-pointer"
+            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
           >
             <ArrowUp className="w-3 h-3" />
           </button>
@@ -142,7 +145,7 @@ const InspectorModalCard: React.FC<ModalCardProps> = ({
             onClick={onMoveDown}
             disabled={isLast}
             title="Pindahkan Modal ke Bawah"
-            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 disabled:opacity-25 disabled:pointer-events-none cursor-pointer"
+            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
           >
             <ArrowDown className="w-3 h-3" />
           </button>
@@ -150,7 +153,7 @@ const InspectorModalCard: React.FC<ModalCardProps> = ({
             type="button"
             onClick={onToggleCollapse}
             title={isCollapsed ? 'Buka Modal' : 'Lipat Modal'}
-            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 cursor-pointer"
+            className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors"
           >
             {isCollapsed ? (
               <ChevronRight className="w-3.5 h-3.5" />
@@ -163,7 +166,7 @@ const InspectorModalCard: React.FC<ModalCardProps> = ({
 
       {/* Modal Card Body */}
       {!isCollapsed && (
-        <div className="p-3 space-y-3 bg-zinc-950">{children}</div>
+        <div className="p-3 space-y-3 bg-zinc-950 border-t border-zinc-800/50">{children}</div>
       )}
     </div>
   );
@@ -2656,7 +2659,7 @@ export const RightInspector: React.FC = () => {
       </div>
 
       {/* Quick Module Toggle Pills Bar (Allows combining/toggling sub-modals quickly) */}
-      <div className="px-2.5 py-1.5 border-b border-zinc-800/60 bg-zinc-950 flex items-center gap-1 overflow-x-auto scroller-dark shrink-0">
+      <div className="px-3 py-2 border-b border-zinc-800/60 bg-zinc-950 flex items-center gap-1.5 overflow-x-auto scroller-dark shrink-0">
         {sortedModules.map((mod) => {
           const isOpen = !collapsedModules[mod.id];
           return (
@@ -2664,10 +2667,10 @@ export const RightInspector: React.FC = () => {
               key={mod.id}
               type="button"
               onClick={() => toggleCollapse(mod.id)}
-              className={`px-2 py-1 rounded-md text-[10px] font-medium flex items-center gap-1 shrink-0 border transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-[10px] font-medium flex items-center gap-1.5 shrink-0 border transition-all cursor-pointer ${
                 isOpen
-                  ? 'bg-blue-900/10 border-blue-900/30 text-blue-900 font-semibold'
-                  : 'bg-zinc-900/70 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                  ? `inspector-pill inspector-pill-${mod.id} font-semibold shadow-xs`
+                  : 'bg-zinc-900/70 border-zinc-800/80 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
               }`}
               title="Klik untuk membuka/melipat modal ini"
             >
@@ -2679,7 +2682,7 @@ export const RightInspector: React.FC = () => {
       </div>
 
       {/* Modular Stack of Floating Sub-Modals */}
-      <div className="flex-1 overflow-y-auto scroller-dark p-2.5 space-y-2.5">
+      <div className="flex-1 overflow-y-auto scroller-dark p-3 space-y-3.5">
         {sortedModules.map((mod, idx) => (
           <InspectorModalCard
             key={mod.id}
