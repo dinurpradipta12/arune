@@ -388,4 +388,53 @@ begin
   end if;
 end $$;
 
--- Selesai! Semua tabel, trigger, RLS, Storage Bucket, Realtime WebSocket, dan Project Folders siap digunakan.
+-- ============================================================================
+-- 13. TABEL TEMPLATE UTAMA & GLOBAL CONFIG (EDITORIAL_TEMPLATES)
+-- ============================================================================
+create table if not exists public.editorial_templates (
+  id text primary key,
+  name text not null,
+  description text default '',
+  aspect_ratio text default '4:5',
+  theme_id text default 'minimal-mono',
+  branding jsonb default '{}'::jsonb,
+  script_text text default '',
+  slides jsonb default '[]'::jsonb,
+  created_at timestamptz default timezone('utc'::text, now()) not null,
+  updated_at timestamptz default timezone('utc'::text, now()) not null
+);
+
+alter table public.editorial_templates enable row level security;
+
+drop policy if exists "Editorial templates are viewable by everyone" on public.editorial_templates;
+create policy "Editorial templates are viewable by everyone"
+  on public.editorial_templates for select
+  using (true);
+
+drop policy if exists "Editorial templates are insertable by everyone" on public.editorial_templates;
+create policy "Editorial templates are insertable by everyone"
+  on public.editorial_templates for insert
+  with check (true);
+
+drop policy if exists "Editorial templates are updatable by everyone" on public.editorial_templates;
+create policy "Editorial templates are updatable by everyone"
+  on public.editorial_templates for update
+  using (true);
+
+drop policy if exists "Editorial templates are deletable by everyone" on public.editorial_templates;
+create policy "Editorial templates are deletable by everyone"
+  on public.editorial_templates for delete
+  using (true);
+
+-- Realtime publication for editorial_templates
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'editorial_templates'
+  ) then
+    alter publication supabase_realtime add table public.editorial_templates;
+  end if;
+end $$;
+
+-- Selesai! Seluruh tabel, RLS, Storage Bucket, Realtime WebSocket, Project Folders, dan Editorial Templates siap digunakan.
