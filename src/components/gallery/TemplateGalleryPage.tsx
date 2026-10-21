@@ -21,6 +21,7 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  Users,
   Wand2,
   X,
 } from 'lucide-react';
@@ -512,6 +513,23 @@ export const TemplateGalleryPage: React.FC = () => {
               );
             })}
           </nav>
+
+          {/* Team Workspace Quick Access */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveModal('team')}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold bg-blue-950/30 hover:bg-blue-900/40 border border-blue-900/50 text-blue-300 transition-all cursor-pointer shadow-xs"
+            >
+              <span className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-400" />
+                <span>Team Workspace</span>
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/60 text-blue-200">
+                Tim
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Bottom Sidebar: Active Editor Session Card & Workspace Utilities */}

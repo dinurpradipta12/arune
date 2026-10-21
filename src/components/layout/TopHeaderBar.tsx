@@ -16,6 +16,7 @@ import {
   Sparkles,
   Sun,
   Undo2,
+  Users,
 } from 'lucide-react';
 import { useStudioStore } from '../../store/useStudioStore';
 import { exportSingleSlidePng } from '../../utils/exportEngine';
@@ -199,6 +200,16 @@ export const TopHeaderBar: React.FC = () => {
         )}
 
         <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveModal('team')}
+            title="Team Workspace & Kolaborasi Proyek"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-400 transition-colors cursor-pointer text-xs font-semibold"
+          >
+            <Users className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden lg:inline text-[11.5px]">Team</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveModal('branding')}

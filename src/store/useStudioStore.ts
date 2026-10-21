@@ -202,6 +202,7 @@ export type LeftSidebarTab = 'templates' | 'elements' | 'font-combinations';
 export type StudioModalType =
   | 'branding'
   | 'settings'
+  | 'team'
   | 'json'
   | 'fonts'
   | 'script'
