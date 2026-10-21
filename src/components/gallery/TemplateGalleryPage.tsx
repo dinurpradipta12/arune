@@ -4,16 +4,12 @@ import {
   Check,
   Clock,
   Copy,
-  Download,
   FileJson,
-  FilePlus2,
   FolderHeart,
   FolderOpen,
-  Home,
   LayoutGrid,
   LayoutList,
   Moon,
-  Plus,
   RefreshCw,
   Save,
   Search,
@@ -22,13 +18,11 @@ import {
   Sun,
   Trash2,
   Users,
-  Wand2,
   X,
 } from 'lucide-react';
 import {
   ASPECT_RATIOS,
   CURATED_GALLERY_TEMPLATES,
-  LAYOUT_PRESETS,
   THEME_PALETTES,
 } from '../../constants/themesAndPresets';
 import {
@@ -41,7 +35,6 @@ import type {
   AspectRatioKey,
   CloudTemplateRecord,
   CuratedGalleryTemplate,
-  LayoutPresetId,
 } from '../../types/studio';
 import {
   buildSlideFromParsedScript,
@@ -51,14 +44,11 @@ import { SlideStage } from '../canvas/SlideStage';
 import { DownloadStandaloneModal } from '../modals/DownloadStandaloneModal';
 import { UserAuthButton } from '../common/UserAuthButton';
 import { studioLogo } from '../../assets/branding';
-import { isDesktopApp, isElectronMac } from '../../utils/platform';
-
-type HomeNavTab = 'home' | 'new-project' | 'recent' | 'templates';
+import { isElectronMac } from '../../utils/platform';
 
 export const TemplateGalleryPage: React.FC = () => {
   const {
     projectTitle,
-    setProjectTitle,
     aspectRatio,
     slides,
     getActiveTheme,
@@ -72,49 +62,24 @@ export const TemplateGalleryPage: React.FC = () => {
     createNewProject,
     loadProjectSnapshot,
     openDocuments,
-    activeDocumentId,
-    switchDocumentTab,
-    closeDocumentTab,
     settings,
     cloudMasterTemplates,
     lastSavedAt,
     past,
   } = useStudioStore();
 
-  const [activeTab, setActiveTab] = useState<HomeNavTab>('home');
   const [savedProjects, setSavedProjects] = useState<CloudTemplateRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const isUnsaved = !lastSavedAt || (past && past.length > 0);
-  const [autoSaveBeforeSwitch, setAutoSaveBeforeSwitch] = useState(
-    settings.autoSaveLocalCache
-  );
-  const [openInNewTab, setOpenInNewTab] = useState(
-    settings.defaultOpenInNewTab
-  );
+  const autoSaveBeforeSwitch = settings.autoSaveLocalCache;
+  const openInNewTab = settings.defaultOpenInNewTab;
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  // Affinity / Photoshop "New Document" Builder State
-  const [newDocTitle, setNewDocTitle] = useState('Dokumen Baru');
-  const [newDocRatio, setNewDocRatio] = useState<AspectRatioKey>(
-    settings.defaultAspectRatio || '4:5'
-  );
-  const [newDocThemeId, setNewDocThemeId] = useState<string>(
-    settings.defaultThemeId || THEME_PALETTES[0].id
-  );
-  const [newDocSlideCount, setNewDocSlideCount] = useState<number>(1);
-  const [newDocLayout, setNewDocLayout] =
-    useState<LayoutPresetId>('blank');
-
-  // New Project Input Modal State (triggered on preset clicks)
-  const [newProjectModalOpen, setNewProjectModalOpen] = useState(false);
-  const [selectedPresetRatio, setSelectedPresetRatio] = useState<AspectRatioKey>('4:5');
-  const [projectNameInput, setProjectNameInput] = useState('');
-
-  // Desktop / Web Version Check State for Sidebar
+  // Desktop / Web Version Check State
   const [updateAvailable, setUpdateAvailable] = useState<{
     hasUpdate: boolean;
     version: string;
@@ -144,7 +109,6 @@ export const TemplateGalleryPage: React.FC = () => {
           }
         }
 
-        // Web / Cloudflare Pages fallback check
         const targetUrl =
           typeof window !== 'undefined' && window.location.origin.startsWith('http')
             ? `${window.location.origin}/version.json?t=${Date.now()}`
@@ -187,29 +151,6 @@ export const TemplateGalleryPage: React.FC = () => {
 
   const activeTheme = getActiveTheme();
 
-  const handleOpenNewProjectModal = (ratio: AspectRatioKey = '4:5') => {
-    setSelectedPresetRatio(ratio);
-    const count = openDocuments.length + 1;
-    setProjectNameInput(`Project ${ASPECT_RATIOS[ratio].shortLabel} #${count}`);
-    setNewProjectModalOpen(true);
-  };
-
-  const handleConfirmCreateProject = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const title = projectNameInput.trim() || `Project ${ASPECT_RATIOS[selectedPresetRatio].shortLabel}`;
-    setNewProjectModalOpen(false);
-    await createNewProject({
-      title,
-      aspectRatio: selectedPresetRatio,
-      themeId: activeTheme.id,
-      slideCount: 1,
-      initialLayout: 'blank',
-      saveCurrentFirst: autoSaveBeforeSwitch && openDocuments.length > 0,
-      openInNewTab,
-    });
-    setActiveView('editor');
-  };
-
   const refreshSavedProjects = async () => {
     setIsLoading(true);
     try {
@@ -224,19 +165,35 @@ export const TemplateGalleryPage: React.FC = () => {
     refreshSavedProjects();
   }, []);
 
+  // 1-Click Quick Create from Aspect Ratio Card
+  const handleQuickCreateProject = async (ratio: AspectRatioKey) => {
+    const label = ASPECT_RATIOS[ratio].shortLabel;
+    const count = openDocuments.length + 1;
+    await createNewProject({
+      title: `Project ${label} #${count}`,
+      aspectRatio: ratio,
+      themeId: activeTheme.id,
+      slideCount: 1,
+      initialLayout: 'blank',
+      saveCurrentFirst: autoSaveBeforeSwitch && openDocuments.length > 0,
+      openInNewTab,
+    });
+    setActiveView('editor');
+  };
+
   const handleSaveCurrent = async (asNewCopy = false) => {
     await saveCurrentProjectToVault({
       asNewCopy,
       customTitle: asNewCopy ? `${projectTitle} (Copy)` : projectTitle,
       description: `${slides.length} slides · ${aspectRatio} · ${activeTheme.name}`,
     });
-    setSaveToast('Disimpan ke Local Cache Perangkat!');
-    setTimeout(() => setSaveToast(null), 2800);
+    setSaveToast('Disimpan ke Local Cache!');
+    setTimeout(() => setSaveToast(null), 2500);
     await refreshSavedProjects();
   };
 
   const handleOpenSavedProject = async (record: CloudTemplateRecord) => {
-    if (autoSaveBeforeSwitch) {
+    if (autoSaveBeforeSwitch && openDocuments.length > 0) {
       await saveCurrentProjectToVault();
     }
     loadProjectSnapshot(
@@ -251,6 +208,7 @@ export const TemplateGalleryPage: React.FC = () => {
       },
       openInNewTab
     );
+    setActiveView('editor');
   };
 
   const handleDuplicateSavedProject = async (record: CloudTemplateRecord) => {
@@ -267,19 +225,7 @@ export const TemplateGalleryPage: React.FC = () => {
     await refreshSavedProjects();
   };
 
-  const handleCreateCustomDocument = async () => {
-    await createNewProject({
-      title: newDocTitle,
-      aspectRatio: newDocRatio,
-      themeId: newDocThemeId,
-      slideCount: newDocSlideCount,
-      initialLayout: newDocLayout,
-      saveCurrentFirst: autoSaveBeforeSwitch,
-      openInNewTab,
-    });
-  };
-
-  // Pre-build cover slides for curated + cloud master templates
+  // Pre-build curated templates previews
   const curatedPreviews = useMemo(() => {
     const builtIn = CURATED_GALLERY_TEMPLATES.map((tpl) => {
       const theme =
@@ -333,38 +279,6 @@ export const TemplateGalleryPage: React.FC = () => {
     return [...fromCloud, ...builtIn];
   }, [cloudMasterTemplates]);
 
-  // Pre-build visual thumbnail slides for each layout preset using the selected theme & ratio
-  const layoutPreviews = useMemo(() => {
-    const selectedTheme =
-      THEME_PALETTES.find((t) => t.id === newDocThemeId) || THEME_PALETTES[0];
-    const map: Record<string, ReturnType<typeof buildSlideFromParsedScript>> = {};
-
-    for (const lp of LAYOUT_PRESETS) {
-      try {
-        const slide = buildSlideFromParsedScript(
-          {
-            layout: lp.id,
-            header: 'CAROUSEL EDITION · ISSUE 01',
-            kicker: 'CHAPTER 01 · PERSPECTIVE',
-            title: lp.name.split(' ').length > 2
-              ? `${lp.name.split(' ').slice(0, 2).join(' ')} *${lp.name.split(' ').slice(2).join(' ')}*`
-              : `${lp.name} *Visuals*`,
-            lead: '*A quiet visual exploration crafted with unhurried typography and spatial balance.*',
-            body: '[W]e begin with light and structure. Every frame invites the viewer to pause and experience design with purpose.',
-            caption: '*Studio Notes · 2026 Archive.*',
-          },
-          0,
-          selectedTheme,
-          newDocRatio
-        );
-        map[lp.id] = slide;
-      } catch (e) {
-        console.warn(`Failed to build preview for layout ${lp.id}:`, e);
-      }
-    }
-    return map;
-  }, [newDocThemeId, newDocRatio]);
-
   const templateCategories = useMemo(() => {
     const cats = new Set<string>(['All']);
     curatedPreviews.forEach(({ tpl }) => cats.add(tpl.category));
@@ -394,1027 +308,610 @@ export const TemplateGalleryPage: React.FC = () => {
     });
   }, [curatedPreviews, selectedCategory, searchQuery]);
 
-  const selectedNewDocTheme =
-    THEME_PALETTES.find((t) => t.id === newDocThemeId) || THEME_PALETTES[0];
-  const selectedNewDocDim = ASPECT_RATIOS[newDocRatio];
-
   return (
-    <div className="flex-1 flex h-full w-full overflow-hidden bg-zinc-950 text-zinc-100 select-none">
+    <div
+      className={`flex-1 flex flex-col h-full w-full overflow-hidden select-none transition-colors ${
+        workspaceDarkMode
+          ? 'bg-[#0A1A2F] text-zinc-100'
+          : 'bg-[#F1F5F4] text-[#2F3E46]'
+      }`}
+    >
       {/* ================================================================== */}
-      {/* LEFT SIDEBAR RAIL (AFFINITY / PHOTOSHOP WELCOME DOCK)              */}
+      {/* 1. TOP HEADER BAR (Logo, Centered Search Bar, Utilities, Profile)  */}
       {/* ================================================================== */}
-      <aside
-        className={`w-64 border-r border-zinc-800/80 bg-zinc-900/50 flex flex-col justify-between p-4 shrink-0 ${
-          isElectronMac() ? 'pt-11' : ''
-        }`}
+      <header
+        className={`h-14 px-6 border-b flex items-center justify-between gap-4 shrink-0 mac-drag-region transition-colors ${
+          workspaceDarkMode
+            ? 'border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md'
+            : 'border-slate-200 bg-white/95 backdrop-blur-md shadow-2xs'
+        } ${isElectronMac() ? 'pl-22' : 'px-6'}`}
       >
-        <div className="space-y-5">
-          {/* Mac Electron Window Drag Handle Area */}
-          {isElectronMac() && (
-            <div
-              className="h-2 w-full mac-drag-region -mt-1 -mb-1"
-              title="Drag Window"
-            />
-          )}
-
-          {/* Studio Brand Header */}
-          <div className="flex items-center gap-3 px-1">
-            <img
-              src={studioLogo}
-              alt="Arune Carousel Studio"
-              className="w-11 h-11 object-contain shrink-0 rounded-lg shadow-sm"
-            />
-            <div className="min-w-0">
-              <div className="text-[13px] font-bold tracking-tight text-zinc-100 leading-tight truncate">
-                {settings.studioName || 'Arune Carousel Studio'}
-              </div>
-              <div className="text-[10.5px] font-mono text-blue-900 mt-0.5 truncate font-medium">
-                {settings.studioSubtitle || 'Carousel & Story Pro'}
-              </div>
-            </div>
-          </div>
-
-          {/* Primary Action Buttons: New Project & Open JSON */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => handleOpenNewProjectModal('4:5')}
-              className="w-full py-2.5 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Project Baru (New)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveModal('json')}
-              className="w-full py-2 px-3.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <FileJson className="w-3.5 h-3.5 text-blue-900" />
-              <span>Buka File (.JSON)...</span>
-            </button>
-          </div>
-
-          {/* Navigation Links (Home, New Document, Recent Projects, Templates) */}
-          <nav className="space-y-1 pt-2 border-t border-zinc-800/80">
-            {(
-              [
-                {
-                  id: 'home',
-                  label: 'Beranda (Home)',
-                  icon: Home,
-                },
-                {
-                  id: 'new-project',
-                  label: 'Preset & Dokumen Baru',
-                  icon: FilePlus2,
-                },
-                {
-                  id: 'recent',
-                  label: 'Project Tersimpan',
-                  icon: FolderHeart,
-                  badge: savedProjects.length,
-                },
-                {
-                  id: 'templates',
-                  label: 'Template Majalah',
-                  icon: LayoutGrid,
-                  badge: curatedPreviews.length,
-                },
-              ] as {
-                id: HomeNavTab;
-                label: string;
-                icon: React.ElementType;
-                badge?: number;
-              }[]
-            ).map((item) => {
-              const Icon = item.icon;
-              const active = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                    active
-                      ? 'bg-blue-900/10 text-blue-900 border border-blue-900/30 font-semibold'
-                      : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/80 border border-transparent'
-                  }`}
-                >
-                  <span className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4 text-blue-900" />
-                    <span>{item.label}</span>
-                  </span>
-                  {typeof item.badge === 'number' && (
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-zinc-800 text-zinc-300">
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Team Workspace Navigation Item */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setActiveView('team')}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/80 border border-transparent"
-            >
-              <span className="flex items-center gap-2.5">
-                <Users className="w-4 h-4 text-blue-900" />
-                <span>Team Workspace</span>
-              </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-zinc-800 text-zinc-300">
-                Folder
-              </span>
-            </button>
+        {/* Left: Studio Logo & Title */}
+        <div className="flex items-center gap-3 mac-no-drag shrink-0">
+          <img
+            src={studioLogo}
+            alt="Arune Studio Logo"
+            className="w-8 h-8 object-contain shrink-0 rounded-lg shadow-sm"
+          />
+          <div className="hidden sm:block">
+            <h1 className="text-xs font-bold leading-tight tracking-tight">
+              {settings.studioName || 'Arune Carousel Studio'}
+            </h1>
+            <p className="text-[10px] font-mono font-medium text-blue-500 leading-none mt-0.5">
+              {settings.studioSubtitle || 'Carousel & Story Pro'}
+            </p>
           </div>
         </div>
 
-        {/* Bottom Sidebar: Active Editor Session Card & Workspace Utilities */}
-        <div className="space-y-3 pt-3 border-t border-zinc-800/80">
-          {/* Open Document Tabs & Active Session Card */}
-          <div
-            className={`p-3 rounded-xl space-y-2.5 transition-all bg-zinc-900 border ${
-              isUnsaved
-                ? 'border-blue-500/50 shadow-xs'
-                : 'border-zinc-800'
+        {/* Center: Sleek Search Bar */}
+        <div className="flex-1 max-w-lg mac-no-drag">
+          <div className="relative">
+            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari project tersimpan atau template majalah..."
+              className={`w-full pl-9 pr-8 py-1.5 rounded-full text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                workspaceDarkMode
+                  ? 'bg-zinc-900/90 border border-zinc-800 text-zinc-100 placeholder:text-zinc-500'
+                  : 'bg-slate-100 border border-slate-200 text-slate-800 placeholder:text-slate-400'
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 p-0.5 rounded cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Quick Tools & Profile */}
+        <div className="flex items-center gap-2 mac-no-drag shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveModal('json')}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              workspaceDarkMode
+                ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
+            }`}
+            title="Import File .JSON Proyek"
+          >
+            <FileJson className="w-3.5 h-3.5 text-blue-500" />
+            <span className="hidden md:inline">Buka JSON</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveView('team')}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              workspaceDarkMode
+                ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
+            }`}
+            title="Team Workspace & Folder Proyek"
+          >
+            <Users className="w-3.5 h-3.5 text-blue-500" />
+            <span className="hidden md:inline">Team</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWorkspaceDarkMode(!workspaceDarkMode)}
+            title={workspaceDarkMode ? 'Beralih ke Light Mode' : 'Beralih ke Dark Mode'}
+            className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+              workspaceDarkMode
+                ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-amber-300'
+                : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-600 hover:text-amber-500 shadow-2xs'
             }`}
           >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 whitespace-nowrap">
-                  Dokumen ({openDocuments.length})
-                </span>
-                {openDocuments.length > 0 && (
-                  isUnsaved ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                      <span>Draft</span>
-                    </span>
-                  ) : (
-                    <span className="text-[9px] text-emerald-400 font-medium">✓ Saved</span>
-                  )
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleOpenNewProjectModal(aspectRatio)}
-                title="Tambah Tab Dokumen Baru"
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
-              >
-                <Plus className="w-2.5 h-2.5" />
-                <span>Tab Baru</span>
-              </button>
-            </div>
-
-            {openDocuments.length === 0 ? (
-              <div className="py-2.5 px-2 text-center space-y-1">
-                <p className="text-[11px] font-semibold text-zinc-300">
-                  Belum Ada Project Aktif
-                </p>
-                <p className="text-[10px] text-zinc-400 leading-snug">
-                  Pilih preset ukuran di atas untuk membuat dokumen baru.
-                </p>
-              </div>
+            {workspaceDarkMode ? (
+              <Sun className="w-3.5 h-3.5" />
             ) : (
-              <>
-                {/* List of Open Document Tabs */}
-                <div className="space-y-1.5 max-h-32 overflow-y-auto scroller-dark">
-                  {openDocuments.map((doc) => {
-                    const isActive = doc.id === activeDocumentId;
-                    const liveTitle = isActive ? projectTitle : doc.projectTitle;
-                    const liveRatio = isActive ? aspectRatio : doc.aspectRatio;
-                    const docUnsaved = isActive ? isUnsaved : !doc.lastSavedAt;
-                    return (
-                      <div
-                        key={doc.id}
-                        onClick={() => switchDocumentTab(doc.id)}
-                        className={`flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-[11px] cursor-pointer transition-all ${
-                          isActive
-                            ? workspaceDarkMode
-                              ? 'bg-blue-600/30 border-2 border-blue-400 text-white font-bold shadow-xs'
-                              : 'bg-[#E3EDE9] border-2 border-[#5E887E] text-[#2F3E46] font-bold shadow-xs'
-                            : workspaceDarkMode
-                              ? 'bg-zinc-950/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white'
-                              : 'bg-white hover:bg-[#F7FAF9] border border-[#DFE6E4] text-[#556B65] hover:text-[#2F3E46]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 truncate flex-1 min-w-0">
-                          {docUnsaved ? (
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                workspaceDarkMode ? 'bg-blue-400' : 'bg-[#5E887E]'
-                              }`}
-                              title="Ada perubahan draft"
-                            />
-                          ) : (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Tersimpan" />
-                          )}
-                          <span className="truncate">{liveTitle}</span>
-                        </div>
-                        <span
-                          className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded-md font-semibold shrink-0 border ${
-                            isActive
-                              ? workspaceDarkMode
-                                ? 'bg-zinc-900 border-zinc-700 text-blue-300'
-                                : 'bg-white border-[#5E887E]/30 text-[#2F3E46]'
-                              : workspaceDarkMode
-                                ? 'bg-zinc-900 border-zinc-800 text-blue-400'
-                                : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#556B65]'
-                          }`}
-                        >
-                          {liveRatio}
-                        </span>
-                        {openDocuments.length >= 2 && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              closeDocumentTab(doc.id);
-                            }}
-                            title="Tutup Tab"
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-400 cursor-pointer"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-1.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveView('editor')}
-                    className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
-                  >
-                    <span>Lanjut Desain di Editor</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveCurrent(false)}
-                    title="Simpan Sesi Aktif"
-                    className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center justify-center"
-                  >
-                    <Save className="w-3.5 h-3.5 text-zinc-300" />
-                  </button>
-                </div>
-              </>
+              <Moon className="w-3.5 h-3.5" />
             )}
-            {saveToast && (
-              <div className="text-[10px] text-emerald-400 flex items-center gap-1">
-                <Check className="w-3 h-3" />
-                <span className="truncate">{saveToast}</span>
-              </div>
-            )}
-          </div>
+          </button>
 
-          {/* New Version Available Notification Button - Green with Pulse Effect */}
-          {updateAvailable?.hasUpdate && (
-            <button
-              type="button"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
-              }}
-              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-950/40 border-2 border-emerald-300/80 ring-2 ring-emerald-400/40 flex items-center justify-between gap-2.5 cursor-pointer transition-all animate-pulse group"
+          <button
+            type="button"
+            onClick={() => setActiveModal('settings')}
+            title="Pengaturan Studio"
+            className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+              workspaceDarkMode
+                ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-white'
+                : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 shadow-2xs'
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5 text-zinc-400" />
+          </button>
+
+          <div
+            className={`w-px h-5 mx-0.5 ${
+              workspaceDarkMode ? 'bg-zinc-800' : 'bg-slate-200'
+            }`}
+          />
+
+          <UserAuthButton darkMode={workspaceDarkMode} />
+        </div>
+      </header>
+
+      {/* ================================================================== */}
+      {/* 2. MAIN SCROLLABLE CONTENT (Quick Start, Recent, Curated)          */}
+      {/* ================================================================== */}
+      <div className="flex-1 overflow-y-auto scroller-dark">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+          {/* ACTIVE SESSION HERO CARD (If user currently has an open draft) */}
+          {openDocuments.length > 0 && (
+            <div
+              className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm ${
+                isUnsaved
+                  ? workspaceDarkMode
+                    ? 'bg-blue-950/20 border-blue-500/40 ring-1 ring-blue-500/20'
+                    : 'bg-blue-50/50 border-blue-300 ring-1 ring-blue-200'
+                  : workspaceDarkMode
+                  ? 'bg-zinc-900/70 border-zinc-800'
+                  : 'bg-white border-slate-200'
+              }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-black/20 text-white flex items-center justify-center shrink-0 shadow-xs relative">
-                  <Sparkles className="w-4 h-4 text-emerald-100" />
-                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-80" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                  </span>
-                </div>
-                <div className="text-left min-w-0">
-                  <div className="text-xs font-extrabold text-white leading-tight flex items-center gap-1.5 drop-shadow-xs">
-                    <span>New Version!</span>
-                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-black/25 text-white border border-white/30">
-                      v{updateAvailable.version}
+              <div className="flex items-center gap-4 min-w-0 w-full md:w-auto">
+                {/* Mini Slide 0 Preview */}
+                {slides[0] && (
+                  <div
+                    className="relative overflow-hidden rounded-lg border border-zinc-700/60 shrink-0 shadow-md bg-zinc-950"
+                    style={{
+                      width: `${Math.round(
+                        ASPECT_RATIOS[aspectRatio].stageWidth * 0.08
+                      )}px`,
+                      height: `${Math.round(
+                        ASPECT_RATIOS[aspectRatio].stageHeight * 0.08
+                      )}px`,
+                    }}
+                  >
+                    <div className="pointer-events-none">
+                      <SlideStage
+                        slide={slides[0]}
+                        slideIndex={0}
+                        totalSlides={slides.length}
+                        aspectRatio={aspectRatio}
+                        theme={activeTheme}
+                        branding={branding}
+                        scale={0.08}
+                        interactive={false}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-500 border border-blue-500/30 uppercase">
+                      Sesi Aktif ({aspectRatio})
                     </span>
+                    {isUnsaved ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        Draft Belum Disimpan
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-emerald-500 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        ✓ Tersimpan {lastSavedAt ? `(${lastSavedAt})` : ''}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-[10.5px] font-semibold text-emerald-50 drop-shadow-xs truncate mt-0.5">
-                    Klik untuk perbarui aplikasi
-                  </div>
+                  <h3 className="text-base font-bold truncate">
+                    {projectTitle || 'Untitled Carousel'}
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    {slides.length} slide • Tema: {activeTheme.name}
+                  </p>
                 </div>
               </div>
-              <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform shrink-0 stroke-[2.5]" />
-            </button>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveCurrent(false)}
+                  className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-1.5 cursor-pointer transition-colors ${
+                    workspaceDarkMode
+                      ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-200'
+                      : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
+                  title="Simpan Proyek Sekarang"
+                >
+                  <Save className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Simpan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveView('editor')}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-2 shadow-md cursor-pointer transition-all hover:scale-[1.02]"
+                >
+                  <span>Lanjutkan Desain di Editor</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           )}
 
-          {/* Workspace Mode & Studio Settings Footer */}
-          <div className="flex items-center justify-between gap-1.5">
-            <button
-              type="button"
-              onClick={() => setWorkspaceDarkMode(!workspaceDarkMode)}
-              className="flex-1 py-1.5 px-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-300 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              {workspaceDarkMode ? (
-                <>
-                  <Sun className="w-3.5 h-3.5 text-blue-900" />
-                  <span>Light Mode</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-3.5 h-3.5 text-blue-900" />
-                  <span>Dark Navy</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveModal('settings')}
-              title="Pengaturan Studio (Settings, Hotkeys & Interface)"
-              className="py-1.5 px-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-300 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
-            >
-              <Settings className="w-3.5 h-3.5 text-blue-900" />
-              <span>Setting</span>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* ================================================================== */}
-      {/* CENTER & RIGHT WORKSPACE AREA                                      */}
-      {/* ================================================================== */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Top Hub Bar (Search, New Tab Toggle, Auto-Save Toggle, & Quick Jump to Active Editor) */}
-        <header className="h-14 px-6 border-b border-zinc-800/80 bg-zinc-900/30 flex items-center justify-between gap-4 shrink-0 mac-drag-region">
-          <div className="flex items-center gap-3 flex-1 max-w-md mac-no-drag">
-            <div className="relative flex-1">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari project tersimpan atau template majalah..."
-                className="w-full bg-zinc-900 border border-zinc-800 focus:border-blue-900 rounded-xl pl-8 pr-3 py-1.5 text-xs text-zinc-100 focus:outline-none"
-              />
+          {/* SECTION 1: MULAI DESAIN BARU (1-Click Quick Start Cards) */}
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold tracking-tight">Mulai Desain Baru</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Pilih format kanvas untuk langsung membuat carousel atau story baru dengan 1 klik.
+              </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2.5 mac-no-drag">
-            <label
-              title="Jika dicentang, membuka project/template kedua akan otomatis membuka Tab baru di atas ruler"
-              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={openInNewTab}
-                onChange={(e) => setOpenInNewTab(e.target.checked)}
-                className="rounded border-zinc-700 bg-zinc-950 text-blue-900 focus:ring-0"
-              />
-              <span>Buka sebagai Tab Baru</span>
-            </label>
-
-            <label className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoSaveBeforeSwitch}
-                onChange={(e) => setAutoSaveBeforeSwitch(e.target.checked)}
-                className="rounded border-zinc-700 bg-zinc-950 text-blue-900 focus:ring-0"
-              />
-              <span>Auto-save</span>
-            </label>
-
-            <button
-              type="button"
-              onClick={() => setActiveModal('script')}
-              className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-200 flex items-center gap-1.5 cursor-pointer"
-            >
-              <Wand2 className="w-3.5 h-3.5 text-blue-900" />
-              <span className="hidden sm:inline">Script Generator</span>
-            </button>
-
-            {!isDesktopApp() && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 1. Instagram Carousel (4:5 Portrait) */}
               <button
                 type="button"
-                onClick={() => setShowDownloadModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 hover:from-blue-600 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-blue-950/40 cursor-pointer transition-all"
-                title="Unduh Installer Standalone untuk macOS atau Windows"
+                onClick={() => handleQuickCreateProject('4:5')}
+                className={`group p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-4 shadow-sm hover:shadow-md hover:scale-[1.01] ${
+                  workspaceDarkMode
+                    ? 'bg-zinc-900/80 hover:bg-zinc-900 border-zinc-800 hover:border-blue-500/50'
+                    : 'bg-white hover:bg-slate-50/80 border-slate-200 hover:border-blue-400'
+                }`}
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Unduh Standalone App</span>
-              </button>
-            )}
-
-            {/* Login / User Avatar Button (Right next to Standalone App download) */}
-            <UserAuthButton darkMode={workspaceDarkMode} />
-          </div>
-        </header>
-
-        {/* ================================================================ */}
-        {/* TAB 2: AFFINITY / PHOTOSHOP "NEW DOCUMENT" BUILDER               */}
-        {/* ================================================================ */}
-        {activeTab === 'new-project' ? (
-          <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* Center Preset Grid */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 scroller-dark">
-              <div>
-                <h1 className="text-xl font-serif text-zinc-100">
-                  Buat Project Baru (New Document)
-                </h1>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  Pilih ukuran rasio kanvas, layout pembuka, dan palet warna editorial seperti pada Affinity / Photoshop.
-                </p>
-              </div>
-
-              {/* Step 1: Canvas Aspect Ratio Presets */}
-              <div className="space-y-2.5">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                  1. Pilih Ukuran Kanvas (Document Preset)
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {(Object.keys(ASPECT_RATIOS) as AspectRatioKey[]).map(
-                    (key) => {
-                      const cfg = ASPECT_RATIOS[key];
-                      const active = newDocRatio === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setNewDocRatio(key)}
-                          className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3.5 ${
-                            active
-                              ? 'bg-blue-900/10 border-blue-900/40 text-zinc-100 shadow-sm'
-                              : 'bg-zinc-900/75 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                          }`}
-                        >
-                          {/* Visual Ratio Frame */}
-                          <div className="w-11 h-14 flex items-center justify-center shrink-0">
-                            <div
-                              className={`border-2 rounded-xs ${
-                                active
-                                  ? 'border-blue-900 bg-blue-900/20'
-                                  : 'border-zinc-600 bg-zinc-800'
-                              }`}
-                              style={{
-                                width:
-                                  key === '1:1'
-                                    ? '34px'
-                                    : key === '4:5'
-                                    ? '32px'
-                                    : '26px',
-                                height:
-                                  key === '1:1'
-                                    ? '34px'
-                                    : key === '4:5'
-                                    ? '40px'
-                                    : '46px',
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <div className="text-xs font-semibold text-zinc-100">
-                              {cfg.shortLabel}
-                            </div>
-                            <div className="text-[11px] font-mono text-blue-900 mt-0.5 font-medium">
-                              {cfg.exportWidth} × {cfg.exportHeight} px
-                            </div>
-                            <div className="text-[10px] text-zinc-400 mt-0.5">
-                              {key === '4:5'
-                                ? 'Instagram Feed Portrait'
-                                : key === '9:16'
-                                ? 'Instagram Story / Reels'
-                                : 'Classic Square Carousel'}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    }
-                  )}
-                </div>
-              </div>
-
-              {/* Step 2: Theme Palette Selection */}
-              <div className="space-y-2.5">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                  2. Pilih Palet Warna & Tipografi Majalah
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {THEME_PALETTES.map((t) => {
-                    const active = newDocThemeId === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setNewDocThemeId(t.id)}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer space-y-2 ${
-                          active
-                            ? 'bg-blue-900/10 border-blue-900/40 text-zinc-100'
-                            : 'bg-zinc-900/75 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          {[
-                            t.background,
-                            t.darkBackground,
-                            t.accent,
-                            t.textPrimary,
-                          ].map((c, idx) => (
-                            <span
-                              key={idx}
-                              className="w-4 h-4 rounded-full border border-zinc-700"
-                              style={{ backgroundColor: c }}
-                            />
-                          ))}
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold text-zinc-100">
-                            {t.name}
-                          </div>
-                          <div className="text-[10px] text-zinc-400 line-clamp-1">
-                            {t.subtitle}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Step 3: Starting Cover Layout with Visual Design Thumbnails */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                    3. Pilih Layout Slide Pertama (Live Design Preview)
-                  </h2>
-                  <span className="text-[10px] text-zinc-400">
-                    Menampilkan {LAYOUT_PRESETS.length} layout visual dengan tema {selectedNewDocTheme.name}
+                <div className="flex items-start justify-between">
+                  {/* Miniature 4:5 Frame Illustration */}
+                  <div
+                    className={`w-12 h-14 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+                      workspaceDarkMode
+                        ? 'bg-zinc-950 border-zinc-800 group-hover:border-blue-500/50'
+                        : 'bg-slate-100 border-slate-200 group-hover:border-blue-400'
+                    }`}
+                  >
+                    <div className="w-6 h-8 rounded-xs border-2 border-blue-500 bg-blue-500/20 group-hover:bg-blue-500/30 transition-colors" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                    1080 × 1350 px
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {LAYOUT_PRESETS.map((lp) => {
-                    const active = newDocLayout === lp.id;
-                    const previewSlide = layoutPreviews[lp.id];
-                    // Dynamic scale: 4:5 ~0.24, 9:16 ~0.20, 1:1 ~0.25
-                    const thumbScale =
-                      newDocRatio === '9:16'
-                        ? 0.20
-                        : newDocRatio === '4:5'
-                        ? 0.24
-                        : 0.25;
-                    const thumbW = Math.round(selectedNewDocDim.stageWidth * thumbScale);
-                    const thumbH = Math.round(selectedNewDocDim.stageHeight * thumbScale);
-
-                    return (
-                      <button
-                        key={lp.id}
-                        type="button"
-                        onClick={() => setNewDocLayout(lp.id)}
-                        className={`group rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-sm ${
-                          active
-                            ? 'bg-blue-900/15 border-blue-900 ring-2 ring-blue-900/40 text-zinc-100 shadow-md scale-[1.01]'
-                            : 'bg-zinc-900/75 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
-                        }`}
-                      >
-                        {/* Visual Live Slide Thumbnail Canvas */}
-                        <div className="bg-zinc-950/80 p-3.5 flex items-center justify-center border-b border-zinc-800/80 min-h-[175px] relative overflow-hidden">
-                          {previewSlide ? (
-                            <div
-                              className="relative overflow-hidden rounded shadow-lg ring-1 ring-white/10 group-hover:scale-[1.03] transition-transform duration-200"
-                              style={{
-                                width: `${thumbW}px`,
-                                height: `${thumbH}px`,
-                              }}
-                            >
-                              <div className="pointer-events-none">
-                                <SlideStage
-                                  slide={previewSlide}
-                                  slideIndex={0}
-                                  totalSlides={newDocSlideCount}
-                                  aspectRatio={newDocRatio}
-                                  theme={selectedNewDocTheme}
-                                  branding={branding}
-                                  scale={thumbScale}
-                                  interactive={false}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-zinc-500">
-                              Preview...
-                            </div>
-                          )}
-
-                          {/* Active Indicator Badge Overlay */}
-                          {active && (
-                            <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-blue-900 text-white text-[9px] font-semibold shadow-md flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                              Dipilih
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Layout Info Footer */}
-                        <div className="p-3 space-y-1 bg-zinc-900/90">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-semibold text-zinc-100 truncate">
-                              {lp.name}
-                            </span>
-                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-blue-900 font-semibold shrink-0">
-                              {lp.badge}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-zinc-400 line-clamp-1 leading-snug">
-                            {lp.description}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold group-hover:text-blue-500 transition-colors">
+                      Instagram Carousel (4:5)
+                    </h3>
+                    <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                    Format portrait feed terfavorit untuk carousel bernilai edukasi, tips, dan microblog.
+                  </p>
                 </div>
+              </button>
+
+              {/* 2. Stories & Reels (9:16 Vertical) */}
+              <button
+                type="button"
+                onClick={() => handleQuickCreateProject('9:16')}
+                className={`group p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-4 shadow-sm hover:shadow-md hover:scale-[1.01] ${
+                  workspaceDarkMode
+                    ? 'bg-zinc-900/80 hover:bg-zinc-900 border-zinc-800 hover:border-purple-500/50'
+                    : 'bg-white hover:bg-slate-50/80 border-slate-200 hover:border-purple-400'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  {/* Miniature 9:16 Frame Illustration */}
+                  <div
+                    className={`w-12 h-14 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+                      workspaceDarkMode
+                        ? 'bg-zinc-950 border-zinc-800 group-hover:border-purple-500/50'
+                        : 'bg-slate-100 border-slate-200 group-hover:border-purple-400'
+                    }`}
+                  >
+                    <div className="w-5 h-9 rounded-xs border-2 border-purple-500 bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/20">
+                    1080 × 1920 px
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold group-hover:text-purple-500 transition-colors">
+                      Stories &amp; Reels (9:16)
+                    </h3>
+                    <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                    Full-bleed vertical untuk Instagram Stories, TikTok, dan kartu visual Reels.
+                  </p>
+                </div>
+              </button>
+
+              {/* 3. Square Post (1:1 Square) */}
+              <button
+                type="button"
+                onClick={() => handleQuickCreateProject('1:1')}
+                className={`group p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-4 shadow-sm hover:shadow-md hover:scale-[1.01] ${
+                  workspaceDarkMode
+                    ? 'bg-zinc-900/80 hover:bg-zinc-900 border-zinc-800 hover:border-emerald-500/50'
+                    : 'bg-white hover:bg-slate-50/80 border-slate-200 hover:border-emerald-400'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  {/* Miniature 1:1 Frame Illustration */}
+                  <div
+                    className={`w-12 h-14 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+                      workspaceDarkMode
+                        ? 'bg-zinc-950 border-zinc-800 group-hover:border-emerald-500/50'
+                        : 'bg-slate-100 border-slate-200 group-hover:border-emerald-400'
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-xs border-2 border-emerald-500 bg-emerald-500/20 group-hover:bg-emerald-500/30 transition-colors" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    1080 × 1080 px
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold group-hover:text-emerald-500 transition-colors">
+                      Square Feed Post (1:1)
+                    </h3>
+                    <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                    Format bujur sangkar serbaguna untuk postingan feed Instagram, LinkedIn &amp; Twitter.
+                  </p>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          {/* SECTION 2: PROYEK TERAKHIR (Recent Projects) */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FolderHeart className="w-4 h-4 text-blue-500" />
+                <h2 className="text-lg font-bold tracking-tight">Proyek Terakhir</h2>
+                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 font-semibold">
+                  {filteredSavedProjects.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewLayout('grid')}
+                    className={`p-1 rounded cursor-pointer ${
+                      viewLayout === 'grid'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                    title="Grid View"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewLayout('list')}
+                    className={`p-1 rounded cursor-pointer ${
+                      viewLayout === 'list'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                    title="List View"
+                  >
+                    <LayoutList className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={refreshSavedProjects}
+                  className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                    workspaceDarkMode
+                      ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-600'
+                  }`}
+                  title="Segarkan Daftar Proyek"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`}
+                  />
+                </button>
               </div>
             </div>
 
-            {/* Right-Hand Affinity/Photoshop Preset Details Inspector */}
-            <aside className="w-80 border-l border-zinc-800/80 bg-zinc-900/60 p-5 flex flex-col justify-between shrink-0">
-              <div className="space-y-4">
-                <div className="pb-3 border-b border-zinc-800">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-blue-900">
-                    Preset Details
-                  </div>
-                  <div className="text-sm font-semibold text-zinc-100 mt-0.5">
-                    Konfigurasi Dokumen
-                  </div>
+            {filteredSavedProjects.length === 0 ? (
+              <div
+                className={`rounded-2xl border border-dashed p-8 text-center space-y-3 ${
+                  workspaceDarkMode
+                    ? 'border-zinc-800 bg-zinc-900/20'
+                    : 'border-slate-300 bg-slate-50/50'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
+                  <FolderOpen className="w-5 h-5" />
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] text-zinc-400 block">
-                    Judul Project (Document Title)
-                  </label>
-                  <input
-                    type="text"
-                    value={newDocTitle}
-                    onChange={(e) => setNewDocTitle(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-900 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
-                    <span className="text-[10px] text-zinc-400 block">
-                      Width (Lebar)
-                    </span>
-                    <span className="text-xs font-mono font-semibold text-zinc-100">
-                      {selectedNewDocDim.exportWidth} px
-                    </span>
-                  </div>
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
-                    <span className="text-[10px] text-zinc-400 block">
-                      Height (Tinggi)
-                    </span>
-                    <span className="text-xs font-mono font-semibold text-zinc-100">
-                      {selectedNewDocDim.exportHeight} px
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-zinc-400">Jumlah Slide Awal</span>
-                    <span className="font-mono text-blue-900 font-semibold">
-                      {newDocSlideCount} Slides
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={10}
-                    step={1}
-                    value={newDocSlideCount}
-                    onChange={(e) =>
-                      setNewDocSlideCount(Number(e.target.value))
-                    }
-                    className="w-full accent-blue-900 cursor-pointer"
-                  />
-                </div>
-
-                <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1.5 text-[11px]">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Rasio Kanvas</span>
-                    <span className="font-mono text-zinc-200">
-                      {selectedNewDocDim.shortLabel}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Palet Tema</span>
-                    <span className="text-zinc-200">
-                      {selectedNewDocTheme.name}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Heading Font</span>
-                    <span className="text-zinc-200">
-                      {selectedNewDocTheme.headingFont}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Color Space</span>
-                    <span className="font-mono text-zinc-200">sRGB · 300 DPI</span>
-                  </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold">Belum Ada Proyek Tersimpan</h3>
+                  <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                    Mulai dengan memilih salah satu format kanvas di atas atau pilih template siap pakai di bawah untuk mulai mendesain.
+                  </p>
                 </div>
               </div>
+            ) : viewLayout === 'list' ? (
+              <div className="space-y-2">
+                {filteredSavedProjects.map((proj) => (
+                  <div
+                    key={proj.id}
+                    onClick={() => handleOpenSavedProject(proj)}
+                    className={`group p-3.5 rounded-xl border flex items-center justify-between gap-4 cursor-pointer transition-all ${
+                      workspaceDarkMode
+                        ? 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 hover:border-blue-500/50'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-blue-400 shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FolderOpen className="w-4 h-4 text-blue-500 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold truncate group-hover:text-blue-500 transition-colors">
+                          {proj.name}
+                        </div>
+                        <div className="text-[11px] text-zinc-400 truncate">
+                          {proj.description || `${proj.slides.length} slides • ${proj.aspectRatio}`}
+                        </div>
+                      </div>
+                    </div>
 
-              <button
-                type="button"
-                onClick={handleCreateCustomDocument}
-                className="w-full py-2.5 px-4 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer transition-colors"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Buat & Buka di Editor</span>
-              </button>
-            </aside>
-          </div>
-        ) : (
-          /* ================================================================ */
-          /* TABS: HOME, RECENT SAVED PROJECTS, & CURATED TEMPLATES           */
-          /* ================================================================ */
-          <div className="flex-1 overflow-y-auto p-6 space-y-8 scroller-dark">
-            {/* QUICK START FORMAT PRESETS BAR (Shown on Home Tab) */}
-            {activeTab === 'home' && (
-              <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-xl font-serif text-zinc-100">
-                      Selamat Datang di {settings.studioName || 'Arune Carousel Studio'}
-                    </h1>
-                    <p className="text-xs text-zinc-400">
-                      Mulai dokumen baru dari ukuran preset, lanjutkan sesi terakhir, atau buka template majalah.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Affinity / Photoshop Quick Preset Strip */}
-                <div
-                  className={
-                    openDocuments.length > 0
-                      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-3 pt-1'
-                      : 'grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1'
-                  }
-                >
-                  {(Object.keys(ASPECT_RATIOS) as AspectRatioKey[]).map(
-                    (key) => {
-                      const cfg = ASPECT_RATIOS[key];
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => handleOpenNewProjectModal(key)}
-                          className="group p-3.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-blue-500/50 flex items-center gap-3.5 text-left transition-all cursor-pointer shadow-xs min-w-0"
-                        >
-                          <div className="w-10 h-12 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shrink-0 group-hover:border-blue-500/40">
-                            <div
-                              className="border-2 border-blue-500 bg-blue-500/15 rounded-[2px]"
-                              style={{
-                                width:
-                                  key === '1:1'
-                                    ? '24px'
-                                    : key === '4:5'
-                                    ? '22px'
-                                    : '18px',
-                                height:
-                                  key === '1:1'
-                                    ? '24px'
-                                    : key === '4:5'
-                                    ? '28px'
-                                    : '32px',
-                              }}
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors truncate">
-                              + {cfg.shortLabel} Baru
-                            </div>
-                            <div className="text-[10.5px] font-mono text-zinc-400 truncate">
-                              {cfg.exportWidth} × {cfg.exportHeight} px
-                            </div>
-                            <div className="text-[10px] text-blue-400 font-medium mt-0.5 truncate">
-                              Klik untuk buat project →
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    }
-                  )}
-
-                  {/* Active Session Quick Card in the 4th slot (Only when a document is open) */}
-                  {openDocuments.length > 0 && (
                     <div
-                      className={`p-3.5 rounded-xl transition-all flex items-center justify-between gap-3 shadow-xs bg-zinc-900 border overflow-hidden min-w-0 ${
-                        isUnsaved
-                          ? 'border-2 border-blue-500 shadow-blue-950/20'
-                          : 'border border-zinc-800'
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-2 shrink-0"
+                    >
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 font-semibold">
+                        {proj.aspectRatio} • {proj.slides.length} slides
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSavedProject(proj)}
+                        className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs cursor-pointer shadow-xs"
+                      >
+                        Buka
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDuplicateSavedProject(proj)}
+                        title="Duplikat Proyek"
+                        className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                          workspaceDarkMode
+                            ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                            : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await deleteTemplateById(proj.id);
+                          refreshSavedProjects();
+                        }}
+                        title="Hapus Proyek"
+                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 cursor-pointer transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredSavedProjects.map((proj) => {
+                  const projTheme =
+                    THEME_PALETTES.find((t) => t.id === proj.themeId) ||
+                    THEME_PALETTES[0];
+                  const dim =
+                    ASPECT_RATIOS[proj.aspectRatio] || ASPECT_RATIOS['4:5'];
+                  const previewScale =
+                    proj.aspectRatio === '9:16' ? 0.20 : 0.26;
+                  const firstSlide = proj.slides?.[0];
+
+                  return (
+                    <div
+                      key={proj.id}
+                      onClick={() => handleOpenSavedProject(proj)}
+                      className={`group rounded-2xl border overflow-hidden flex flex-col justify-between transition-all shadow-sm hover:shadow-md hover:scale-[1.01] cursor-pointer ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900/80 hover:bg-zinc-900 border-zinc-800 hover:border-blue-500/50'
+                          : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-blue-400'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                        {slides[0] && (
+                      {/* Thumbnail Container */}
+                      <div
+                        className={`p-4 flex items-center justify-center border-b min-h-[200px] ${
+                          workspaceDarkMode
+                            ? 'bg-zinc-950/80 border-zinc-800/80'
+                            : 'bg-slate-100/70 border-slate-200'
+                        }`}
+                      >
+                        {firstSlide ? (
                           <div
-                            className="relative overflow-hidden rounded border border-zinc-700 shrink-0"
+                            className="relative overflow-hidden rounded-md shadow-md ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform"
                             style={{
                               width: `${Math.round(
-                                ASPECT_RATIOS[aspectRatio].stageWidth * 0.08
+                                dim.stageWidth * previewScale
                               )}px`,
                               height: `${Math.round(
-                                ASPECT_RATIOS[aspectRatio].stageHeight * 0.08
+                                dim.stageHeight * previewScale
                               )}px`,
                             }}
                           >
                             <div className="pointer-events-none">
                               <SlideStage
-                                slide={slides[0]}
+                                slide={firstSlide}
                                 slideIndex={0}
-                                totalSlides={slides.length}
-                                aspectRatio={aspectRatio}
-                                theme={activeTheme}
-                                branding={branding}
-                                scale={0.08}
+                                totalSlides={proj.slides.length}
+                                aspectRatio={proj.aspectRatio}
+                                theme={projTheme}
+                                branding={proj.branding}
+                                scale={previewScale}
                                 interactive={false}
                               />
                             </div>
                           </div>
+                        ) : (
+                          <div className="w-16 h-20 rounded bg-zinc-800/40 flex items-center justify-center text-zinc-500">
+                            <FolderOpen className="w-6 h-6" />
+                          </div>
                         )}
-                        <div className="min-w-0 flex-1 overflow-hidden">
-                          <div className="flex flex-wrap items-center gap-1.5 mb-1 min-w-0">
-                            {isUnsaved ? (
-                              <>
-                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-blue-400 shrink-0">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                                  Sedang Diedit
-                                </span>
-                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold shrink-0">
-                                  Belum Disimpan
-                                </span>
-                              </>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-emerald-400 truncate">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                                Tersimpan {lastSavedAt ? `(${lastSavedAt})` : ''}
-                              </span>
-                            )}
-                          </div>
-                          <input
-                            type="text"
-                            value={projectTitle}
-                            onChange={(e) => setProjectTitle(e.target.value)}
-                            aria-label="Judul Project Aktif"
-                            className="bg-transparent text-xs font-bold text-zinc-100 focus:outline-none border-b border-zinc-700/60 focus:border-blue-500 w-full truncate pb-0.5"
-                          />
-                          <div className="flex items-center gap-1.5 mt-2 min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => setActiveView('editor')}
-                              className="flex-1 min-w-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                            >
-                              <span className="truncate">Lanjutkan</span>
-                              <ArrowRight className="w-3 h-3 shrink-0" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSaveCurrent(false)}
-                              title="Simpan Sesi Project"
-                              className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer flex items-center justify-center gap-1 transition-colors shrink-0"
-                            >
-                              <Save className="w-3 h-3 text-zinc-400 shrink-0" />
-                              <span className="hidden sm:inline 2xl:inline">Simpan</span>
-                            </button>
-                          </div>
-                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
 
-            {/* SECTION: RECENT / SAVED PROJECTS (Shown on Home & Recent Tabs) */}
-            {(activeTab === 'home' || activeTab === 'recent') && (
-              <section className="space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FolderHeart className="w-4 h-4 text-blue-900" />
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-100">
-                      Recent & Saved Projects ({filteredSavedProjects.length})
-                    </h2>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSaveCurrent(false)}
-                      className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-blue-900 font-medium flex items-center gap-1 cursor-pointer"
-                    >
-                      <Save className="w-3 h-3" />
-                      <span>Simpan Sesi Saat Ini</span>
-                    </button>
-
-                    <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setViewLayout('grid')}
-                        title="Grid View"
-                        className={`p-1 rounded cursor-pointer ${
-                          viewLayout === 'grid'
-                            ? 'bg-zinc-800 text-blue-900'
-                            : 'text-zinc-400'
-                        }`}
-                      >
-                        <LayoutGrid className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setViewLayout('list')}
-                        title="List View"
-                        className={`p-1 rounded cursor-pointer ${
-                          viewLayout === 'list'
-                            ? 'bg-zinc-800 text-blue-900'
-                            : 'text-zinc-400'
-                        }`}
-                      >
-                        <LayoutList className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={refreshSavedProjects}
-                      className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 cursor-pointer"
-                      title="Segarkan Daftar Project"
-                    >
-                      <RefreshCw
-                        className={`w-3.5 h-3.5 ${
-                          isLoading ? 'animate-spin' : ''
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {filteredSavedProjects.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="space-y-1 text-center sm:text-left">
-                      <p className="text-xs font-medium text-zinc-200">
-                        Belum ada project yang tersimpan di daftar Recent Projects
-                      </p>
-                      <p className="text-[11px] text-zinc-400">
-                        Simpan sesi project yang sedang Anda kerjakan atau pilih salah satu template di bawah untuk memulai.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveCurrent(false)}
-                      className="px-3.5 py-2 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Simpan Project Aktif Sekarang</span>
-                    </button>
-                  </div>
-                ) : viewLayout === 'list' ? (
-                  <div className="space-y-2">
-                    {filteredSavedProjects.map((proj) => (
-                      <div
-                        key={proj.id}
-                        onClick={() => handleOpenSavedProject(proj)}
-                        className="group p-3 rounded-xl bg-zinc-900/75 hover:bg-zinc-900 border border-zinc-800 hover:border-blue-900/50 flex items-center justify-between gap-4 cursor-pointer transition-all"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <FolderOpen className="w-4 h-4 text-blue-900 shrink-0" />
-                          <div className="min-w-0">
-                            <div className="text-xs font-semibold text-zinc-100 truncate">
-                              {proj.name}
-                            </div>
-                            <div className="text-[11px] text-zinc-400 truncate">
-                              {proj.description}
+                      {/* Info & Action Buttons */}
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <div className="flex items-center justify-between gap-1.5 mb-1">
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 uppercase">
+                              {proj.aspectRatio} • {proj.slides.length} Slide
+                            </span>
+                            <div className="flex items-center gap-1 text-[10px] text-zinc-400">
+                              <Clock className="w-3 h-3" />
+                              <span>{new Date(proj.updatedAt).toLocaleDateString()}</span>
                             </div>
                           </div>
+                          <h4 className="text-xs font-bold truncate group-hover:text-blue-500 transition-colors">
+                            {proj.name}
+                          </h4>
+                          <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                            {proj.description || 'Proyek Carousel'}
+                          </p>
                         </div>
 
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-2 shrink-0"
+                          className="flex items-center gap-2 pt-1 border-t border-zinc-800/50"
                         >
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-blue-900 font-medium">
-                            {proj.aspectRatio} · {proj.slides.length} slides
-                          </span>
                           <button
                             type="button"
                             onClick={() => handleOpenSavedProject(proj)}
-                            className="px-3 py-1 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs cursor-pointer"
+                            className="flex-1 py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                           >
-                            Buka
+                            <span>Buka</span>
+                            <ArrowRight className="w-3 h-3" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDuplicateSavedProject(proj)}
-                            title="Duplikat"
-                            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
+                            title="Duplikat Proyek"
+                            className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                              workspaceDarkMode
+                                ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                            }`}
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
@@ -1424,376 +921,197 @@ export const TemplateGalleryPage: React.FC = () => {
                               await deleteTemplateById(proj.id);
                               refreshSavedProjects();
                             }}
-                            title="Hapus"
-                            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 cursor-pointer"
+                            title="Hapus Proyek"
+                            className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 cursor-pointer transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredSavedProjects.map((proj) => {
-                      const projTheme =
-                        THEME_PALETTES.find((t) => t.id === proj.themeId) ||
-                        THEME_PALETTES[0];
-                      const dim =
-                        ASPECT_RATIOS[proj.aspectRatio] || ASPECT_RATIOS['4:5'];
-                      const previewScale =
-                        proj.aspectRatio === '9:16' ? 0.21 : 0.28;
-                      const firstSlide = proj.slides?.[0];
-
-                      return (
-                        <div
-                          key={proj.id}
-                          onClick={() => handleOpenSavedProject(proj)}
-                          className="group rounded-xl bg-zinc-900/75 border border-zinc-800/90 hover:border-blue-900/50 overflow-hidden flex flex-col justify-between transition-all shadow-sm cursor-pointer"
-                        >
-                          <div className="bg-zinc-950/80 p-3.5 flex items-center justify-center border-b border-zinc-800/80 min-h-[210px]">
-                            {firstSlide ? (
-                              <div
-                                className="relative overflow-hidden rounded shadow-md ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform"
-                                style={{
-                                  width: `${Math.round(
-                                    dim.stageWidth * previewScale
-                                  )}px`,
-                                  height: `${Math.round(
-                                    dim.stageHeight * previewScale
-                                  )}px`,
-                                }}
-                              >
-                                <div className="pointer-events-none">
-                                  <SlideStage
-                                    slide={firstSlide}
-                                    slideIndex={0}
-                                    totalSlides={proj.slides.length}
-                                    aspectRatio={proj.aspectRatio}
-                                    theme={projTheme}
-                                    branding={proj.branding}
-                                    scale={previewScale}
-                                    interactive={false}
-                                  />
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-zinc-500">
-                                No preview
-                              </div>
-                            )}
-                          </div>
-
-                          <div
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-3.5 space-y-2.5"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between gap-2">
-                                <h3 className="text-xs font-semibold text-zinc-100 truncate">
-                                  {proj.name}
-                                </h3>
-                                <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-blue-900 font-medium shrink-0">
-                                  {proj.aspectRatio} · {proj.slides.length}s
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                                {proj.description}
-                              </p>
-                              <div className="flex items-center gap-1 text-[10px] text-zinc-500 mt-1">
-                                <Clock className="w-3 h-3" />
-                                <span>
-                                  {new Date(proj.updatedAt).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenSavedProject(proj)}
-                                className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                <FolderOpen className="w-3.5 h-3.5" />
-                                <span>Buka Project</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDuplicateSavedProject(proj)
-                                }
-                                title="Duplikat Project"
-                                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 cursor-pointer"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  await deleteTemplateById(proj.id);
-                                  refreshSavedProjects();
-                                }}
-                                title="Hapus Project"
-                                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+                    </div>
+                  );
+                })}
+              </div>
             )}
+          </section>
 
-            {/* SECTION: CURATED EDITORIAL MAGAZINE TEMPLATES (Shown on Home & Templates Tabs) */}
-            {(activeTab === 'home' || activeTab === 'templates') && (
-              <section className="space-y-3.5 pt-2 border-t border-zinc-800/80">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <LayoutGrid className="w-4 h-4 text-blue-900" />
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-100">
-                      Presets & Koleksi Template Majalah ({filteredTemplates.length})
-                    </h2>
-                  </div>
+          {/* SECTION 3: TEMPLATE MAJALAH & INSPIRASI (Curated Templates) */}
+          <section className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4 text-purple-500" />
+                <h2 className="text-lg font-bold tracking-tight">
+                  Template Majalah &amp; Desain Pilihan
+                </h2>
+                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 font-semibold">
+                  {filteredTemplates.length}
+                </span>
+              </div>
 
-                  {/* Category Filter Pills */}
-                  <div className="flex flex-wrap items-center gap-1">
-                    {templateCategories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-medium cursor-pointer transition-colors ${
-                          selectedCategory === cat
-                            ? 'bg-blue-900/10 text-blue-900 border border-blue-900/30 font-semibold'
-                            : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              {/* Category Filter Pills */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {templateCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all ${
+                      selectedCategory === cat
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : workspaceDarkMode
+                        ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                  {filteredTemplates.map(
-                    ({ tpl, theme, firstSlide, slideCount, cloudSlides }) => {
-                      const dim = ASPECT_RATIOS[tpl.aspectRatio];
-                      const previewScale =
-                        tpl.aspectRatio === '9:16' ? 0.21 : 0.28;
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {filteredTemplates.map(
+                ({ tpl, theme, firstSlide, slideCount, cloudSlides }) => {
+                  const dim = ASPECT_RATIOS[tpl.aspectRatio];
+                  const previewScale =
+                    tpl.aspectRatio === '9:16' ? 0.20 : 0.26;
 
-                      const handleUseTemplate = () => {
-                        if (cloudSlides && cloudSlides.length > 0) {
-                          loadProjectSnapshot(
-                            {
-                              id: `tpl-${tpl.id}-${Date.now()
-                                .toString(36)
-                                .slice(-4)}`,
-                              projectTitle: tpl.title,
-                              aspectRatio: tpl.aspectRatio,
-                              activeThemeId: tpl.themeId,
-                              branding: tpl.branding,
-                              scriptText: tpl.scriptText,
-                              slides: cloudSlides,
-                            },
-                            openInNewTab
-                          );
-                        } else {
-                          applyCuratedGalleryTemplate(
-                            tpl,
-                            autoSaveBeforeSwitch,
-                            openInNewTab
-                          );
-                        }
-                      };
-
-                      return (
-                        <div
-                          key={tpl.id}
-                          onClick={handleUseTemplate}
-                          className="group rounded-xl bg-zinc-900/75 border border-zinc-800/90 hover:border-blue-900/50 overflow-hidden flex flex-col justify-between transition-all shadow-sm cursor-pointer"
-                        >
-                          <div className="bg-zinc-950/90 p-3.5 flex items-center justify-center border-b border-zinc-800/80 min-h-[215px]">
-                            <div
-                              className="relative overflow-hidden rounded shadow-md ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform"
-                              style={{
-                                width: `${Math.round(
-                                    dim.stageWidth * previewScale
-                                  )}px`,
-                                height: `${Math.round(
-                                  dim.stageHeight * previewScale
-                                )}px`,
-                              }}
-                            >
-                              <div className="pointer-events-none">
-                                <SlideStage
-                                  slide={firstSlide}
-                                  slideIndex={0}
-                                  totalSlides={slideCount}
-                                  aspectRatio={tpl.aspectRatio}
-                                  theme={theme}
-                                  branding={tpl.branding}
-                                  scale={previewScale}
-                                  interactive={false}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="p-3.5 space-y-2.5">
-                            <div>
-                              <div className="flex items-center justify-between gap-1.5 mb-1">
-                                <span className="text-[9.5px] uppercase tracking-wider text-blue-900 font-semibold truncate">
-                                  {tpl.category}
-                                </span>
-                                <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 shrink-0">
-                                  {tpl.aspectRatio} · {slideCount} Slides
-                                </span>
-                              </div>
-                              <h3 className="text-xs font-semibold text-zinc-100">
-                                {tpl.title}
-                              </h3>
-                              <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-2 leading-relaxed">
-                                {tpl.subtitle}
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUseTemplate();
-                              }}
-                              className="w-full py-1.5 px-3 rounded-lg bg-zinc-800 group-hover:bg-blue-900 text-zinc-100 group-hover:text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Gunakan Template</span>
-                            </button>
-                          </div>
-                        </div>
+                  const handleUseTemplate = () => {
+                    if (cloudSlides && cloudSlides.length > 0) {
+                      loadProjectSnapshot(
+                        {
+                          id: `tpl-${tpl.id}-${Date.now().toString(36).slice(-4)}`,
+                          projectTitle: tpl.title,
+                          aspectRatio: tpl.aspectRatio,
+                          activeThemeId: tpl.themeId,
+                          branding: tpl.branding,
+                          scriptText: tpl.scriptText,
+                          slides: cloudSlides,
+                        },
+                        openInNewTab
+                      );
+                    } else {
+                      applyCuratedGalleryTemplate(
+                        tpl,
+                        autoSaveBeforeSwitch,
+                        openInNewTab
                       );
                     }
-                  )}
-                </div>
-              </section>
-            )}
-          </div>
-        )}
-      </div>
+                    setActiveView('editor');
+                  };
 
-      {/* ================================================================ */}
-      {/* MODAL: INPUT NAMA PROJECT BARU SEBELUM BUKA EDITOR                */}
-      {/* ================================================================ */}
-      {newProjectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs mac-no-drag animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5">
-            <div className="flex items-start justify-between gap-3">
+                  return (
+                    <div
+                      key={tpl.id}
+                      onClick={handleUseTemplate}
+                      className={`group rounded-2xl border overflow-hidden flex flex-col justify-between transition-all shadow-sm hover:shadow-md hover:scale-[1.01] cursor-pointer ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900/80 hover:bg-zinc-900 border-zinc-800 hover:border-purple-500/50'
+                          : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-purple-400'
+                      }`}
+                    >
+                      {/* Cover Thumbnail */}
+                      <div
+                        className={`p-4 flex items-center justify-center border-b min-h-[210px] ${
+                          workspaceDarkMode
+                            ? 'bg-zinc-950/80 border-zinc-800/80'
+                            : 'bg-slate-100/70 border-slate-200'
+                        }`}
+                      >
+                        <div
+                          className="relative overflow-hidden rounded-md shadow-md ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform"
+                          style={{
+                            width: `${Math.round(
+                              dim.stageWidth * previewScale
+                            )}px`,
+                            height: `${Math.round(
+                              dim.stageHeight * previewScale
+                            )}px`,
+                          }}
+                        >
+                          <div className="pointer-events-none">
+                            <SlideStage
+                              slide={firstSlide}
+                              slideIndex={0}
+                              totalSlides={slideCount}
+                              aspectRatio={tpl.aspectRatio}
+                              theme={theme}
+                              branding={tpl.branding}
+                              scale={previewScale}
+                              interactive={false}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Info */}
+                      <div className="p-4 space-y-2.5">
+                        <div>
+                          <div className="flex items-center justify-between gap-1.5 mb-1">
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 uppercase">
+                              {tpl.category}
+                            </span>
+                            <span className="text-[10px] font-mono text-zinc-400 font-medium">
+                              {slideCount} Slide
+                            </span>
+                          </div>
+                          <h4 className="text-xs font-bold truncate group-hover:text-purple-500 transition-colors">
+                            {tpl.title}
+                          </h4>
+                          <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                            {tpl.subtitle}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-zinc-800/50 flex items-center justify-between text-xs font-semibold text-blue-500 group-hover:text-blue-400">
+                          <span>Gunakan Template</span>
+                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+              )}
+            </div>
+          </section>
+
+          {/* New App Version Update Alert (If available) */}
+          {updateAvailable?.hasUpdate && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white shadow-lg flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shrink-0">
-                  <FilePlus2 className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-black/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-5 h-5 text-emerald-100" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-100">
-                    Buat Project Baru
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Tentukan nama dokumen untuk memulai kanvas kosong.
-                  </p>
+                  <div className="text-sm font-bold">
+                    Versi Baru Tersedia (v{updateAvailable.version})
+                  </div>
+                  <div className="text-xs text-emerald-100">
+                    Klik untuk memperbarui aplikasi ke versi terbaru dengan fitur dan performa lebih baik.
+                  </div>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setNewProjectModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
+                }}
+                className="px-4 py-2 rounded-xl bg-white text-emerald-900 font-bold text-xs hover:bg-emerald-50 transition-colors cursor-pointer shrink-0 shadow-md"
               >
-                <X className="w-4 h-4" />
+                Perbarui Sekarang
               </button>
             </div>
+          )}
 
-            <form onSubmit={handleConfirmCreateProject} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-300 block">
-                  Nama Project / File
-                </label>
-                <input
-                  type="text"
-                  autoFocus
-                  value={projectNameInput}
-                  onChange={(e) => setProjectNameInput(e.target.value)}
-                  placeholder="Contoh: Carousel Peluncuran Produk"
-                  className="w-full bg-zinc-950 border border-zinc-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none font-medium"
-                />
-              </div>
-
-              {/* Aspect Ratio Selector Pills */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-zinc-400 block">
-                  Pilih Format Ukuran Kanvas
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(Object.keys(ASPECT_RATIOS) as AspectRatioKey[]).map((rKey) => {
-                    const rCfg = ASPECT_RATIOS[rKey];
-                    const isSel = selectedPresetRatio === rKey;
-                    return (
-                      <button
-                        key={rKey}
-                        type="button"
-                        onClick={() => setSelectedPresetRatio(rKey)}
-                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                          isSel
-                            ? workspaceDarkMode
-                              ? 'bg-blue-600/25 border-blue-500 text-white font-semibold shadow-xs'
-                              : 'bg-[#E3EDE9] border-2 border-[#5E887E] text-[#2F3E46] font-semibold shadow-xs'
-                            : workspaceDarkMode
-                              ? 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                              : 'bg-white border-[#DFE6E4] text-[#556B65] hover:text-[#2F3E46] hover:border-[#5E887E]/50'
-                        }`}
-                      >
-                        <div className="text-[11px] font-bold">
-                          {rCfg.shortLabel}
-                        </div>
-                        <div className="text-[9.5px] font-mono text-zinc-400 mt-0.5">
-                          {rCfg.exportWidth}×{rCfg.exportHeight}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 text-[11px] text-zinc-400 space-y-1">
-                <div className="flex items-center gap-1.5 text-zinc-300 font-medium">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Kanvas Putih Bersih (Blank Canvas)</span>
-                </div>
-                <p className="text-[10.5px] text-zinc-400 leading-relaxed">
-                  Project akan dibuka langsung di editor dengan 1 kanvas putih kosong tanpa teks atau elemen dummy.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setNewProjectModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium cursor-pointer transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-blue-900/30 cursor-pointer transition-all"
-                >
-                  <span>Mulai Desain (Buka Editor)</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Toast Notification */}
+          {saveToast && (
+            <div className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+              <Check className="w-4 h-4" />
+              <span>{saveToast}</span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Standalone Desktop App Download Modal */}
       <DownloadStandaloneModal
@@ -1803,4 +1121,3 @@ export const TemplateGalleryPage: React.FC = () => {
     </div>
   );
 };
-
