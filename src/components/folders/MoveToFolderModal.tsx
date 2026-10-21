@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Check,
   Folder,
@@ -93,14 +94,20 @@ export function MoveToFolderModal({
     f.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className={`w-full max-w-md rounded-3xl border shadow-2xl flex flex-col max-h-[85vh] overflow-hidden transition-all ${
+        className={`w-full max-w-md my-auto rounded-3xl border shadow-2xl flex flex-col max-h-[85vh] overflow-hidden transition-all ${
           workspaceDarkMode
             ? 'bg-zinc-900 border-zinc-800 text-white'
             : 'bg-white border-slate-200 text-slate-900'
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-5 border-b border-zinc-800 flex items-center justify-between shrink-0">
@@ -292,4 +299,7 @@ export function MoveToFolderModal({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 }

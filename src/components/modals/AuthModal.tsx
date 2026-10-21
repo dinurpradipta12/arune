@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, LogIn, UserPlus, Check, Sparkles, AlertCircle, Shield } from 'lucide-react';
 import { AVATAR_PRESETS } from '../../constants/avatarPresets';
 import { loginWithEmail, registerWithEmail, updateAuthUserProfile, type AuthUser } from '../../services/authService';
@@ -33,6 +34,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Refresh form state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setTab(currentUser ? (initialTab === 'edit-profile' ? 'edit-profile' : initialTab) : initialTab);
+      setName(currentUser?.name || '');
+      setEmail(currentUser?.email || '');
+      setSelectedAvatarId(currentUser?.avatarId || 'avatar-sage');
+      setPassword('');
+      setErrorMsg(null);
+      setSuccessMsg(null);
+    }
+  }, [isOpen, currentUser, initialTab]);
 
   if (!isOpen) return null;
 
@@ -105,18 +119,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 1000);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden transition-all animate-scale-up ${
+        className={`w-full max-w-md my-auto rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[88vh] transition-all animate-scale-up ${
           darkMode
             ? 'bg-[#0A1A2F] border-zinc-800 text-slate-100'
             : 'bg-white border-[#DFE6E4] text-[#2F3E46]'
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header Modal */}
         <div
-          className={`p-5 border-b flex items-center justify-between ${
+          className={`p-5 border-b flex items-center justify-between shrink-0 ${
             darkMode ? 'bg-zinc-900/50 border-zinc-800' : 'bg-[#F7FAF9] border-[#DFE6E4]'
           }`}
         >
@@ -435,4 +455,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 };
