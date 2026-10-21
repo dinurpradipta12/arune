@@ -13,6 +13,7 @@ import {
   Plus,
   Redo2,
   Settings,
+  Smartphone,
   Sparkles,
   Sun,
   Undo2,
@@ -258,6 +259,17 @@ export const TopHeaderBar: React.FC = () => {
             aria-label="Settings"
           >
             <Settings className="w-3.5 h-3.5 text-zinc-400" />
+          </button>
+
+          {/* Instagram Feed & Mobile Swipe Simulator */}
+          <button
+            type="button"
+            onClick={() => setActiveModal('preview')}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors cursor-pointer text-xs font-medium"
+            title="Simulasi Swipe Carousel di Layar Smartphone (Instagram Feed)"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-pink-400" />
+            <span className="hidden sm:inline">Preview IG</span>
           </button>
 
           <button

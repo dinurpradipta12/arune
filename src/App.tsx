@@ -8,6 +8,7 @@ import { LeftSidebar } from './components/layout/LeftSidebar';
 import { RightInspector } from './components/layout/RightInspector';
 import { TopHeaderBar } from './components/layout/TopHeaderBar';
 import { StudioModals } from './components/modals/StudioModals';
+import { InstagramSwipeModal } from './components/modals/InstagramSwipeModal';
 import { UpdateNotifier } from './components/modals/UpdateNotifier';
 import { DesktopUpdateModal } from './components/modals/DesktopUpdateModal';
 import { LocalFontAccessModal } from './components/modals/LocalFontAccessModal';
@@ -264,6 +265,9 @@ export function App() {
 
         {/* Quick Modals (Global Branding, JSON Import/Export, Supabase Sync, Local & Custom Fonts) */}
         <StudioModals />
+
+        {/* Instagram Swipe Simulator & Feed Preview Modal */}
+        <InstagramSwipeModal />
 
         {/* Local Computer Fonts Access & Permission Modal (Prompt on launch) */}
         <LocalFontAccessModal />

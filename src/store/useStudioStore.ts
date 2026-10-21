@@ -251,6 +251,8 @@ export type StudioModalType =
   | 'fonts'
   | 'script'
   | 'export'
+  | 'preview'
+  | 'version-history'
   | null;
 export type StudioViewMode = 'editor' | 'gallery' | 'theme-builder' | 'team';
 
