@@ -61,8 +61,22 @@ import {
   ASPECT_RATIOS,
   THEME_PALETTES,
 } from '../../constants/themesAndPresets';
-import type { AspectRatioKey } from '../../types/studio';
+import type { AspectRatioKey, CloudTemplateRecord, Slide } from '../../types/studio';
 import { SlideStage } from '../canvas/SlideStage';
+import { listTemplates } from '../../services/supabaseTemplates';
+
+interface ShareableProjectCandidate {
+  id: string;
+  title: string;
+  aspectRatio: AspectRatioKey;
+  slideCount: number;
+  slides: Slide[];
+  themeId: string;
+  branding?: any;
+  scriptText?: string;
+  source: 'open-tab' | 'saved-cloud';
+  isActiveOnCanvas?: boolean;
+}
 
 const AVAILABLE_HEADING_FONTS = [
   'Plus Jakarta Sans',
@@ -102,6 +116,8 @@ export const TeamWorkspacePage: React.FC = () => {
     setWorkspaceDarkMode,
     openBlankDocumentTab,
     getActiveTheme,
+    openDocuments,
+    activeDocumentId,
   } = useStudioStore();
 
   const isDark = workspaceDarkMode;
@@ -116,6 +132,15 @@ export const TeamWorkspacePage: React.FC = () => {
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
+
+  // Share Project Selection Modal State
+  const [isShareProjectModalOpen, setIsShareProjectModalOpen] = useState(false);
+  const [shareModalTab, setShareModalTab] = useState<'open-tabs' | 'saved-projects'>('open-tabs');
+  const [shareSearchQuery, setShareSearchQuery] = useState('');
+  const [selectedProjectIdsToShare, setSelectedProjectIdsToShare] = useState<string[]>([]);
+  const [savedCloudProjects, setSavedCloudProjects] = useState<CloudTemplateRecord[]>([]);
+  const [isLoadingSavedProjects, setIsLoadingSavedProjects] = useState(false);
+  const [isSharingProject, setIsSharingProject] = useState(false);
 
   // Projects Filtering & Layout View
   const [selectedRatioFilter, setSelectedRatioFilter] = useState<'All' | '4:5' | '9:16' | '1:1'>('All');
@@ -310,43 +335,150 @@ export const TeamWorkspacePage: React.FC = () => {
     });
   };
 
-  const handleShareCurrentProjectToTeam = async () => {
-    if (!currentTeam) return;
-    const resolvedTitle = projectTitle?.trim() || 'Untitled Carousel Project';
-    const snapshot = {
-      projectTitle: resolvedTitle,
-      aspectRatio,
-      activeThemeId,
-      branding,
-      scriptText,
-      slides,
-      exportedAt: new Date().toISOString(),
-      version: '1.0.0',
-    };
-    const json = JSON.stringify(snapshot);
+  const openTabsCandidates: ShareableProjectCandidate[] = useMemo(() => {
+    if (!openDocuments || openDocuments.length === 0) {
+      return [
+        {
+          id: projectId || 'current-active-doc',
+          title: projectTitle?.trim() || 'Untitled Carousel Project',
+          aspectRatio: (aspectRatio as AspectRatioKey) || '4:5',
+          slideCount: slides.length || 1,
+          slides: slides || [],
+          themeId: activeThemeId || 'editorial-dark',
+          branding,
+          scriptText,
+          source: 'open-tab',
+          isActiveOnCanvas: true,
+        },
+      ];
+    }
 
-    await saveTeamProjectCloud(currentTeam.id, {
-      id: projectId || crypto.randomUUID(),
-      title: resolvedTitle,
-      aspectRatio,
-      slideCount: slides.length,
-      projectJson: json,
+    return openDocuments.map((doc) => {
+      const isActive = doc.id === activeDocumentId;
+      return {
+        id: doc.id,
+        title: (isActive ? projectTitle : doc.projectTitle)?.trim() || 'Untitled Carousel Project',
+        aspectRatio: (isActive ? aspectRatio : doc.aspectRatio) || '4:5',
+        slideCount: (isActive ? slides.length : doc.slides?.length) || 1,
+        slides: isActive ? slides : doc.slides || [],
+        themeId: isActive ? activeThemeId : doc.activeThemeId,
+        branding: isActive ? branding : doc.branding,
+        scriptText: isActive ? scriptText : doc.scriptText,
+        source: 'open-tab',
+        isActiveOnCanvas: isActive,
+      };
     });
+  }, [openDocuments, activeDocumentId, projectId, projectTitle, aspectRatio, slides, activeThemeId, branding, scriptText]);
 
-    const updatedProjects = await syncProjectsFromCloud(currentTeam.id);
-    setTeamProjects(updatedProjects);
-    setDialogModal({
-      isOpen: true,
-      type: 'success',
-      title: 'Proyek Berhasil Disimpan & Disinkronkan',
-      message: (
-        <span>
-          Proyek <strong className="text-emerald-700 dark:text-emerald-300 font-semibold">"{resolvedTitle}"</strong> berhasil disimpan ke folder tim <strong className="text-slate-900 dark:text-white font-semibold">"{currentTeam.name}"</strong> dan tersinkronkan otomatis ke Supabase Cloud.
-        </span>
-      ),
-      primaryButtonText: 'Tutup & Lanjutkan',
-      onPrimary: () => setDialogModal(null),
+  const savedProjectsCandidates: ShareableProjectCandidate[] = useMemo(() => {
+    return savedCloudProjects.map((rec) => ({
+      id: rec.id,
+      title: rec.name?.trim() || 'Untitled Saved Project',
+      aspectRatio: (rec.aspectRatio as AspectRatioKey) || '4:5',
+      slideCount: rec.slides?.length || 1,
+      slides: rec.slides || [],
+      themeId: rec.themeId || 'editorial-dark',
+      branding: rec.branding,
+      scriptText: rec.scriptText,
+      source: 'saved-cloud',
+      isActiveOnCanvas: false,
+    }));
+  }, [savedCloudProjects]);
+
+  const loadSavedTemplatesForShare = async () => {
+    if (savedCloudProjects.length > 0) return;
+    setIsLoadingSavedProjects(true);
+    try {
+      const res = await listTemplates();
+      if (res?.templates) {
+        setSavedCloudProjects(res.templates);
+      }
+    } catch (e) {
+      console.warn('Failed to load saved templates for share modal:', e);
+    } finally {
+      setIsLoadingSavedProjects(false);
+    }
+  };
+
+  const handleOpenShareModal = () => {
+    const defaultActiveId = activeDocumentId || projectId || 'current-active-doc';
+    setSelectedProjectIdsToShare([defaultActiveId]);
+    setShareSearchQuery('');
+    setShareModalTab('open-tabs');
+    setIsShareProjectModalOpen(true);
+    void loadSavedTemplatesForShare();
+  };
+
+  const toggleProjectSelection = (id: string) => {
+    setSelectedProjectIdsToShare((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      } else {
+        return [...prev, id];
+      }
     });
+  };
+
+  const currentCandidates = shareModalTab === 'open-tabs' ? openTabsCandidates : savedProjectsCandidates;
+
+  const filteredShareCandidates = useMemo(() => {
+    if (!shareSearchQuery.trim()) return currentCandidates;
+    const q = shareSearchQuery.toLowerCase();
+    return currentCandidates.filter((c) => c.title.toLowerCase().includes(q));
+  }, [currentCandidates, shareSearchQuery]);
+
+  const handleConfirmShareProjects = async () => {
+    if (!currentTeam || selectedProjectIdsToShare.length === 0) return;
+    setIsSharingProject(true);
+
+    try {
+      const allCandidates = [...openTabsCandidates, ...savedProjectsCandidates];
+      const selectedItems = allCandidates.filter((c) => selectedProjectIdsToShare.includes(c.id));
+
+      for (const item of selectedItems) {
+        const snapshot = {
+          projectTitle: item.title,
+          aspectRatio: item.aspectRatio,
+          activeThemeId: item.themeId,
+          branding: item.branding || DEFAULT_TEAM_BRAND_KIT,
+          scriptText: item.scriptText || '',
+          slides: item.slides,
+          exportedAt: new Date().toISOString(),
+          version: '1.0.0',
+        };
+        const json = JSON.stringify(snapshot);
+
+        await saveTeamProjectCloud(currentTeam.id, {
+          id: item.id.startsWith('current-') ? crypto.randomUUID() : ensureUuid(item.id),
+          title: item.title,
+          aspectRatio: item.aspectRatio,
+          slideCount: item.slideCount,
+          projectJson: json,
+        });
+      }
+
+      const updatedProjects = await syncProjectsFromCloud(currentTeam.id);
+      setTeamProjects(updatedProjects);
+      setIsShareProjectModalOpen(false);
+
+      setDialogModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Proyek Berhasil Dibagikan ke Tim',
+        message: (
+          <span>
+            {selectedItems.length} proyek yang Anda pilih berhasil disimpan ke folder tim{' '}
+            <strong className="text-slate-900 dark:text-white font-semibold">"{currentTeam.name}"</strong> dan tersinkronkan otomatis.
+          </span>
+        ),
+        primaryButtonText: 'Tutup & Lanjutkan',
+        onPrimary: () => setDialogModal(null),
+      });
+    } catch (err: any) {
+      console.error('Failed to share projects to team:', err);
+    } finally {
+      setIsSharingProject(false);
+    }
   };
 
   const handleLoadTeamProject = (record: TeamProjectRecord) => {
@@ -889,8 +1021,8 @@ export const TeamWorkspacePage: React.FC = () => {
                 <div className="flex items-center gap-2.5 shrink-0">
                   <button
                     type="button"
-                    onClick={handleShareCurrentProjectToTeam}
-                    title="Simpan carousel yang saat ini aktif di canvas ke folder ini"
+                    onClick={handleOpenShareModal}
+                    title="Pilih proyek yang akan dibagikan ke folder ini"
                     className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
                       isDark
                         ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700 text-emerald-400'
@@ -898,7 +1030,7 @@ export const TeamWorkspacePage: React.FC = () => {
                     }`}
                   >
                     <Share2 className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Bagikan Project Aktif ke Tim</span>
+                    <span>Bagikan Project ke Tim</span>
                   </button>
 
                   <button
@@ -937,11 +1069,11 @@ export const TeamWorkspacePage: React.FC = () => {
                   <div className="flex items-center justify-center gap-3 pt-2">
                     <button
                       type="button"
-                      onClick={handleShareCurrentProjectToTeam}
+                      onClick={handleOpenShareModal}
                       className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
                     >
                       <Share2 className="w-3.5 h-3.5" />
-                      <span>Bagikan Proyek Aktif Sekarang</span>
+                      <span>Bagikan Proyek ke Tim</span>
                     </button>
                     <button
                       type="button"
@@ -2028,6 +2160,277 @@ export const TeamWorkspacePage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: PILIH PROYEK UNTUK DIBAGIKAN KE TIM
+         ======================================================== */}
+      {isShareProjectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-2xl max-h-[88vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden transition-all transform animate-in zoom-in-95 duration-150 ${
+              isDark
+                ? 'bg-[#0A1A2F] border-zinc-800 text-slate-100'
+                : 'bg-white border-slate-200 text-[#2F3E46]'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-zinc-200/50 dark:border-zinc-800/80 flex items-start justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Pilih Proyek untuk Dibagikan ke Tim</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Folder Tujuan: <strong className={isDark ? 'text-zinc-200' : 'text-zinc-700'}>{currentTeam?.name}</strong> • Pilih proyek yang ingin Anda masukkan.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShareProjectModalOpen(false)}
+                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Tabs & Search Toolbar */}
+            <div className="p-4 sm:px-6 border-b border-zinc-200/50 dark:border-zinc-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+              {/* Tab Pills */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 self-start">
+                <button
+                  type="button"
+                  onClick={() => setShareModalTab('open-tabs')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    shareModalTab === 'open-tabs'
+                      ? isDark
+                        ? 'bg-zinc-800 text-emerald-400 shadow-xs'
+                        : 'bg-white text-emerald-700 shadow-xs'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <span>Tab Terbuka di Studio</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500">
+                    {openTabsCandidates.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShareModalTab('saved-projects')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    shareModalTab === 'saved-projects'
+                      ? isDark
+                        ? 'bg-zinc-800 text-blue-400 shadow-xs'
+                        : 'bg-white text-blue-600 shadow-xs'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <span>Proyek Tersimpan</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 text-blue-500">
+                    {savedProjectsCandidates.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative flex-1 sm:max-w-xs">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Cari judul proyek..."
+                  value={shareSearchQuery}
+                  onChange={(e) => setShareSearchQuery(e.target.value)}
+                  className={`w-full pl-8.5 pr-3 py-1.5 rounded-xl text-xs border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Candidate Projects List (Scrollable) */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 scroller-dark">
+              {isLoadingSavedProjects && shareModalTab === 'saved-projects' ? (
+                <div className="py-12 text-center text-zinc-400 flex flex-col items-center gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                  <span className="text-xs">Memuat katalog proyek tersimpan...</span>
+                </div>
+              ) : filteredShareCandidates.length === 0 ? (
+                <div className="py-12 text-center text-zinc-400 space-y-2">
+                  <FolderOpen className="w-8 h-8 mx-auto text-zinc-500" />
+                  <p className="text-xs">
+                    {shareSearchQuery
+                      ? 'Tidak ada proyek yang sesuai dengan kata kunci pencarian.'
+                      : shareModalTab === 'open-tabs'
+                      ? 'Tidak ada proyek aktif yang terbuka di editor.'
+                      : 'Belum ada proyek yang tersimpan di akun Anda.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {filteredShareCandidates.map((candidate) => {
+                    const isSelected = selectedProjectIdsToShare.includes(candidate.id);
+                    const alreadyInTeam = teamProjects.some(
+                      (tp) => tp.title.toLowerCase() === candidate.title.toLowerCase() || tp.id === candidate.id
+                    );
+                    const ratioKey = candidate.aspectRatio || '4:5';
+                    const ratioConfig = ASPECT_RATIOS[ratioKey] || ASPECT_RATIOS['4:5'];
+                    const firstSlide = candidate.slides?.[0];
+                    const theme =
+                      THEME_PALETTES.find((t) => t.id === candidate.themeId) ||
+                      THEME_PALETTES[0];
+                    const previewScale = ratioKey === '9:16' ? 0.08 : 0.09;
+
+                    return (
+                      <div
+                        key={candidate.id}
+                        onClick={() => toggleProjectSelection(candidate.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? isDark
+                              ? 'border-emerald-500/60 bg-emerald-950/20 shadow-xs'
+                              : 'border-emerald-500 bg-emerald-50/60 shadow-xs'
+                            : isDark
+                            ? 'border-zinc-800 bg-zinc-900/40 hover:bg-zinc-800/40 hover:border-zinc-700'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          {/* Checkbox button */}
+                          <div
+                            className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                : isDark
+                                ? 'border-zinc-700 bg-zinc-800/80'
+                                : 'border-slate-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
+
+                          {/* Mini Thumbnail Cover Preview */}
+                          <div
+                            className="w-14 h-16 rounded-xl overflow-hidden shrink-0 border border-zinc-700/40 bg-zinc-950 flex items-center justify-center shadow-2xs relative"
+                          >
+                            {firstSlide ? (
+                              <div
+                                style={{
+                                  width: `${Math.round(ratioConfig.stageWidth * previewScale)}px`,
+                                  height: `${Math.round(ratioConfig.stageHeight * previewScale)}px`,
+                                }}
+                                className="relative overflow-hidden rounded shadow-sm pointer-events-none select-none shrink-0"
+                              >
+                                <SlideStage
+                                  slide={firstSlide}
+                                  slideIndex={0}
+                                  totalSlides={candidate.slideCount}
+                                  aspectRatio={ratioKey}
+                                  theme={theme}
+                                  branding={candidate.branding || DEFAULT_TEAM_BRAND_KIT}
+                                  scale={previewScale}
+                                  interactive={false}
+                                />
+                              </div>
+                            ) : (
+                              <FolderOpen className="w-5 h-5 text-zinc-500" />
+                            )}
+                          </div>
+
+                          {/* Project Info */}
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-xs sm:text-sm font-bold truncate">
+                                {candidate.title}
+                              </h4>
+                              {candidate.isActiveOnCanvas && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                  Sedang Aktif di Kanvas
+                                </span>
+                              )}
+                              {alreadyInTeam && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                                  Sudah di Folder Tim
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+                              <span className="font-mono font-semibold">{ratioKey}</span>
+                              <span>•</span>
+                              <span>{candidate.slideCount} Slide</span>
+                              <span>•</span>
+                              <span className="truncate">{theme.name}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Check indicator */}
+                        <div className="shrink-0 text-right">
+                          <span
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+                              isSelected
+                                ? 'text-emerald-500 bg-emerald-500/10'
+                                : 'text-zinc-400'
+                            }`}
+                          >
+                            {isSelected ? 'Dipilih' : 'Pilih'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-zinc-200/50 dark:border-zinc-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <p className="text-[11px] text-zinc-400 text-center sm:text-left">
+                {selectedProjectIdsToShare.length === 0
+                  ? 'Pilih minimal 1 proyek yang ingin dibagikan ke folder tim ini.'
+                  : `Hanya ${selectedProjectIdsToShare.length} proyek yang dipilih di atas yang akan disalin ke folder tim.`}
+              </p>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsShareProjectModalOpen(false)}
+                  className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
+                    isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  Batal
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmShareProjects}
+                  disabled={selectedProjectIdsToShare.length === 0 || isSharingProject}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all hover:scale-102"
+                >
+                  {isSharingProject ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Menyimpan ke Tim...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>
+                        Bagikan {selectedProjectIdsToShare.length > 0 ? `(${selectedProjectIdsToShare.length})` : ''} Proyek
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
