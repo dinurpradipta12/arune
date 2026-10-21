@@ -82,6 +82,7 @@ class MultiplayerService {
   private localBroadcastBus: BroadcastChannel | null = null;
   private peersMap = new Map<string, RemotePeer>();
   private listeners: Array<(state: MultiplayerState) => void> = [];
+  private cursorNotifyTimer: any = null;
   private elementUpdateListeners: Array<(event: RemoteElementUpdatePayload) => void> = [];
   private canvasStateListeners: Array<(event: CanvasStateSyncPayload) => void> = [];
   private canvasStateRequestListeners: Array<(requestorUserId: string) => void> = [];
@@ -462,7 +463,12 @@ class MultiplayerService {
       cursorYPercent: payload.yPercent,
       lastActive: Date.now(),
     });
-    this.notifyState();
+    if (!this.cursorNotifyTimer) {
+      this.cursorNotifyTimer = setTimeout(() => {
+        this.cursorNotifyTimer = null;
+        this.notifyState();
+      }, 40);
+    }
   }
 
   private handleCursorLeave(payload: any) {

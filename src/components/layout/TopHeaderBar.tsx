@@ -3,7 +3,6 @@ import {
   Eye,
   FileJson,
   FilePlus2,
-  History,
   Home,
   ImageDown,
   Loader2,
@@ -15,7 +14,6 @@ import {
   Plus,
   Redo2,
   Settings,
-  Smartphone,
   Sparkles,
   Sun,
   Undo2,
@@ -25,7 +23,6 @@ import { useStudioStore } from '../../store/useStudioStore';
 import { exportSingleSlidePng } from '../../utils/exportEngine';
 import { isElectronMac } from '../../utils/platform';
 import { UserAuthButton } from '../common/UserAuthButton';
-import { LiveCollaboratorsBar } from '../common/LiveCollaboratorsBar';
 import { getActiveTeamId, getCurrentUserTeamRole } from '../../services/teamWorkspaceService';
 
 export const TopHeaderBar: React.FC = () => {
@@ -52,12 +49,9 @@ export const TopHeaderBar: React.FC = () => {
     setCanvasZoom,
     slides,
     activeSlideIndex,
-    rightSidebarTab,
-    setRightSidebarTab,
   } = useStudioStore();
 
   const activeTeamId = getActiveTeamId();
-  const isTeamMode = Boolean(activeTeamId);
   const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
 
   return (
@@ -220,7 +214,6 @@ export const TopHeaderBar: React.FC = () => {
         )}
 
         <div className="flex items-center gap-1.5">
-          <LiveCollaboratorsBar darkMode={workspaceDarkMode} />
           <UserAuthButton darkMode={workspaceDarkMode} />
 
           <button
@@ -276,38 +269,6 @@ export const TopHeaderBar: React.FC = () => {
             aria-label="Settings"
           >
             <Settings className="w-3.5 h-3.5 text-zinc-400" />
-          </button>
-
-          {/* Team Version History & Milestone Snapshots (Only in Team Mode) */}
-          {isTeamMode && (
-            <button
-              type="button"
-              onClick={() => setRightSidebarTab(rightSidebarTab === 'history' ? 'inspector' : 'history')}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                rightSidebarTab === 'history'
-                  ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                  : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-blue-400'
-              }`}
-              title="Buka Tab Riwayat Versi Tim (Version History)"
-              aria-label="Version History"
-            >
-              <History className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Instagram Feed & Mobile Swipe Simulator Tab Toggle */}
-          <button
-            type="button"
-            onClick={() => setRightSidebarTab(rightSidebarTab === 'preview-ig' ? 'inspector' : 'preview-ig')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer text-xs font-medium ${
-              rightSidebarTab === 'preview-ig'
-                ? 'bg-pink-500/20 border-pink-500/40 text-pink-300'
-                : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300 hover:text-white'
-            }`}
-            title="Buka Tab Simulasi Swipe Carousel Instagram"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-pink-400" />
-            <span className="hidden sm:inline">Preview IG</span>
           </button>
 
           <button

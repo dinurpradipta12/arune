@@ -24,8 +24,15 @@ export const LiveCollaboratorsBar: React.FC<LiveCollaboratorsBarProps> = ({
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    let lastSummary = '';
     const unsubscribe = multiplayerService.subscribeToState((state) => {
-      setMultiplayerState(state);
+      const summary = `${state.isConnected}_${state.roomId}_${state.activeUsersCount}_${state.peers
+        .map((p) => `${p.userId}:${p.name}:${p.activeSlideIndex}`)
+        .join('|')}`;
+      if (summary !== lastSummary) {
+        lastSummary = summary;
+        setMultiplayerState(state);
+      }
     });
     return () => unsubscribe();
   }, []);
