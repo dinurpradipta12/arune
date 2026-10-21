@@ -11,6 +11,7 @@ import { StudioModals } from './components/modals/StudioModals';
 import { UpdateNotifier } from './components/modals/UpdateNotifier';
 import { DesktopUpdateModal } from './components/modals/DesktopUpdateModal';
 import { LocalFontAccessModal } from './components/modals/LocalFontAccessModal';
+import { TeamInviteNotification } from './components/modals/TeamInviteNotification';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { isDesktopApp } from './utils/platform';
 import { scanComputerFonts } from './services/fontManager';
@@ -257,6 +258,9 @@ export function App() {
         ) : (
           <UpdateNotifier darkMode={workspaceDarkMode} />
         )}
+
+        {/* Real-time Team Workspace Invitation Notification Toast */}
+        <TeamInviteNotification />
 
         {/* Offscreen 1:1 Stage Renderer for Batch HD (.ZIP) Export */}
         <div

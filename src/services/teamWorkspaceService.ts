@@ -15,6 +15,66 @@ export interface UserProfile {
   avatarColor: string;
 }
 
+export interface TeamInviteNotificationPayload {
+  id: string;
+  targetUserId: string;
+  targetEmail: string;
+  teamId: string;
+  teamName: string;
+  inviterName: string;
+  role: TeamRole;
+  timestamp: number;
+}
+
+const INVITE_LISTENERS: Array<(notif: TeamInviteNotificationPayload) => void> = [];
+
+export function subscribeToInviteNotifications(
+  callback: (notif: TeamInviteNotificationPayload) => void
+): () => void {
+  INVITE_LISTENERS.push(callback);
+  return () => {
+    const idx = INVITE_LISTENERS.indexOf(callback);
+    if (idx !== -1) INVITE_LISTENERS.splice(idx, 1);
+  };
+}
+
+export function broadcastTeamInviteNotification(payload: TeamInviteNotificationPayload) {
+  // 1. Notify in-memory listeners
+  INVITE_LISTENERS.forEach((fn) => {
+    try {
+      fn(payload);
+    } catch (e) {
+      console.warn('Error in invite notification listener:', e);
+    }
+  });
+
+  // 2. Local Inter-Tab BroadcastChannel
+  try {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      const bus = new BroadcastChannel('arune_team_invite_bus');
+      bus.postMessage(payload);
+      bus.close();
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // 3. Supabase Realtime broadcast
+  const client = getSupabaseClient();
+  if (client && isSupabaseConfigured()) {
+    try {
+      const channel = client.channel('arune_global_notifications');
+      channel.send({
+        type: 'broadcast',
+        event: 'team_invite',
+        payload,
+      });
+    } catch (e) {
+      console.warn('Failed to broadcast invite via Supabase:', e);
+    }
+  }
+}
+
 const DEFAULT_AVATAR_COLORS = [
   '#3B82F6', // Blue
   '#10B981', // Emerald
@@ -654,6 +714,20 @@ export async function addTeamMemberCloud(
       team.members.push(newMember);
       team.updatedAt = new Date().toISOString();
       saveTeams(teams);
+
+      // Broadcast real-time invitation notification to the target user
+      const authUser = getCurrentAuthUser();
+      broadcastTeamInviteNotification({
+        id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        targetUserId: profile.id,
+        targetEmail: trimmedEmail,
+        teamId: team.id,
+        teamName: team.name,
+        inviterName: authUser?.name || 'Rekan Tim',
+        role: memberData.role,
+        timestamp: Date.now(),
+      });
+
       return { success: true, member: newMember };
     } catch (err: any) {
       return { success: false, error: err.message || 'Gagal menambahkan anggota ke database.' };
@@ -673,6 +747,20 @@ export async function addTeamMemberCloud(
   team.members.push(newMember);
   team.updatedAt = new Date().toISOString();
   saveTeams(teams);
+
+  // Broadcast real-time notification in local bus
+  const authUser = getCurrentAuthUser();
+  broadcastTeamInviteNotification({
+    id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    targetUserId: newMember.id,
+    targetEmail: trimmedEmail,
+    teamId: team.id,
+    teamName: team.name,
+    inviterName: authUser?.name || 'Rekan Tim',
+    role: memberData.role,
+    timestamp: Date.now(),
+  });
+
   return { success: true, member: newMember };
 }
 
