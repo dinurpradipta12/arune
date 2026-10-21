@@ -1352,12 +1352,44 @@ export const StudioModals: React.FC = () => {
 
               <div className="bg-zinc-900/70 border border-zinc-800 rounded-md p-3 space-y-2">
                 <label className="flex items-center justify-between text-xs text-zinc-200 cursor-pointer">
-                  <span>Display Slide Folio Counter (01 / 06)</span>
+                  <span>Display Slide Counter (01 / 06)</span>
                   <input
                     type="checkbox"
                     checked={branding.showSlideNumbers}
                     onChange={(e) =>
                       updateBranding({ showSlideNumbers: e.target.checked })
+                    }
+                    className="rounded border-zinc-700 bg-zinc-900 text-blue-900"
+                  />
+                </label>
+
+                {branding.showSlideNumbers && (
+                  <div className="space-y-1 pl-2 border-l border-zinc-800">
+                    <label className="text-[10px] text-zinc-400">Gaya Nomor Slide</label>
+                    <select
+                      value={branding.slideNumberStyle || 'folio'}
+                      onChange={(e) =>
+                        updateBranding({
+                          slideNumberStyle: e.target.value as any,
+                        })
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-800 text-[11px] text-zinc-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="folio">Footer Bar Bawah (Editorial)</option>
+                      <option value="badge-top-right">Badge Kanan Atas (Modern Pill)</option>
+                      <option value="badge-bottom-right">Badge Kanan Bawah</option>
+                      <option value="minimal-top-right">Minimal Kanan Atas</option>
+                    </select>
+                  </div>
+                )}
+
+                <label className="flex items-center justify-between text-xs text-zinc-200 cursor-pointer">
+                  <span>Watermark Handle Atas (@handle)</span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(branding.showTopWatermark)}
+                    onChange={(e) =>
+                      updateBranding({ showTopWatermark: e.target.checked })
                     }
                     className="rounded border-zinc-700 bg-zinc-900 text-blue-900"
                   />

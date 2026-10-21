@@ -1,16 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
   FileText,
   FolderOpen,
+  Image as ImageIcon,
   Loader2,
   Plus,
   Trash2,
   Upload,
   X,
 } from 'lucide-react';
+import { copySlideToClipboard } from '../../utils/exportEngine';
 import {
   ASPECT_RATIOS,
 } from '../../constants/themesAndPresets';
@@ -71,6 +74,18 @@ export const CenterWorkspace: React.FC = () => {
   } = useStudioStore();
 
   const [multiplayerPeers, setMultiplayerPeers] = useState<RemotePeer[]>([]);
+  const [copiedSlideIndex, setCopiedSlideIndex] = useState<number | null>(null);
+
+  const handleCopySlideImage = async (e: React.MouseEvent, slideIdx: number) => {
+    e.stopPropagation();
+    try {
+      await copySlideToClipboard({ slideIndex: slideIdx });
+      setCopiedSlideIndex(slideIdx);
+      setTimeout(() => setCopiedSlideIndex(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy slide image:', err);
+    }
+  };
 
   // Harmonize multiplayer collaboration room ID across team members (reactive state)
   const [activeTeamId, setActiveTeamIdState] = useState<string | null>(getActiveTeamId());
@@ -1046,6 +1061,8 @@ export const CenterWorkspace: React.FC = () => {
               }}
               onUpdateElement={isViewer ? () => {} : handleUpdateElement}
               onCommitHistory={isViewer ? () => {} : commitElementHistory}
+              showSafeZoneOverlay={settings.showSafeZoneOverlay}
+              safeZonePlatform={settings.safeZonePlatform}
             />
 
             {/* Multiplayer Remote Cursors & Peer Selections Layer */}
@@ -1143,6 +1160,22 @@ export const CenterWorkspace: React.FC = () => {
                     className="p-0.5 text-zinc-300 hover:text-white disabled:opacity-25"
                   >
                     <ChevronLeft className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleCopySlideImage(e, idx)}
+                    title={
+                      copiedSlideIndex === idx
+                        ? 'Gambar Berhasil Disalin!'
+                        : 'Salin Gambar Slide (Siap Paste ke WhatsApp/Slack)'
+                    }
+                    className="p-0.5 text-zinc-300 hover:text-emerald-400"
+                  >
+                    {copiedSlideIndex === idx ? (
+                      <Check className="w-2.5 h-2.5 text-emerald-400" />
+                    ) : (
+                      <ImageIcon className="w-2.5 h-2.5" />
+                    )}
                   </button>
                   <button
                     type="button"

@@ -1,4 +1,7 @@
+import React, { useState } from 'react';
 import {
+  Check,
+  Copy,
   Download,
   Eye,
   FileJson,
@@ -20,7 +23,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useStudioStore } from '../../store/useStudioStore';
-import { exportSingleSlidePng } from '../../utils/exportEngine';
+import { copySlideToClipboard, exportSingleSlidePng } from '../../utils/exportEngine';
 import { isElectronMac } from '../../utils/platform';
 import { UserAuthButton } from '../common/UserAuthButton';
 import { getActiveTeamId, getCurrentUserTeamRole } from '../../services/teamWorkspaceService';
@@ -53,6 +56,8 @@ export const TopHeaderBar: React.FC = () => {
 
   const activeTeamId = getActiveTeamId();
   const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
+  const [isCopyingSlide, setIsCopyingSlide] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   return (
     <header
@@ -209,6 +214,42 @@ export const TopHeaderBar: React.FC = () => {
             >
               <ImageDown className="w-3.5 h-3.5" />
               <span className="hidden xl:inline">Export Slide Ini</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isCopyingSlide}
+              onClick={async () => {
+                try {
+                  setIsCopyingSlide(true);
+                  await copySlideToClipboard({ slideIndex: activeSlideIndex });
+                  setCopySuccess(true);
+                  setTimeout(() => setCopySuccess(false), 2000);
+                } catch (err) {
+                  console.error('Failed to copy slide:', err);
+                } finally {
+                  setIsCopyingSlide(false);
+                }
+              }}
+              title="Salin Gambar Slide Ini ke Clipboard (Bisa langsung Ctrl+V ke WhatsApp/Slack)"
+              className="p-1 rounded hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300 text-[10.5px] font-medium px-2 border-l border-zinc-700/50 cursor-pointer flex items-center gap-1.5 transition-colors"
+            >
+              {copySuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="hidden xl:inline text-emerald-300">Tersalin!</span>
+                </>
+              ) : isCopyingSlide ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="hidden xl:inline">Menyalin...</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">Copy Slide</span>
+                </>
+              )}
             </button>
           </div>
         )}

@@ -91,6 +91,8 @@ export interface StudioGeneralSettings {
   studioSubtitle: string;
   showCanvasRulers: boolean;
   showCanvasDotGrid: boolean;
+  showSafeZoneOverlay: boolean;
+  safeZonePlatform: 'instagram' | 'linkedin' | 'tiktok';
   snapToGrid: boolean;
   defaultAspectRatio: AspectRatioKey;
   defaultThemeId: string;
@@ -219,6 +221,8 @@ export function buildDefaultStudioSettings(): StudioGeneralSettings {
     studioSubtitle: globalCfg.studioSubtitle || 'Carousel & Story Pro',
     showCanvasRulers: true,
     showCanvasDotGrid: true,
+    showSafeZoneOverlay: false,
+    safeZonePlatform: 'instagram',
     snapToGrid: true,
     defaultAspectRatio: globalCfg.defaultAspectRatio || '4:5',
     defaultThemeId: globalCfg.defaultThemeId || THEME_PALETTES[0].id,

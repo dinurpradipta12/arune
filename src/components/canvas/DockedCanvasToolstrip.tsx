@@ -26,6 +26,7 @@ import {
   X,
   Plus,
   Loader2,
+  Scan,
 } from 'lucide-react';
 import { useStudioStore } from '../../store/useStudioStore';
 import { ASPECT_RATIOS, THEME_PALETTES } from '../../constants/themesAndPresets';
@@ -151,6 +152,8 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
     setCommentMode,
     activeSlideIndex,
     slides,
+    settings,
+    updateSettings,
   } = useStudioStore();
 
   const theme = getActiveTheme();
@@ -1095,6 +1098,28 @@ export const DockedCanvasToolstrip: React.FC<DockedCanvasToolstripProps> = ({
         </button>
         <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700/80 text-zinc-100 text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-50">
           Komentar <span className="text-zinc-400 font-mono text-[9px]">C</span>
+        </span>
+      </div>
+
+      {/* 12. Safe Zone Guides Toggle */}
+      <div className="relative group">
+        <button
+          type="button"
+          onClick={() => {
+            updateSettings({ showSafeZoneOverlay: !settings.showSafeZoneOverlay });
+          }}
+          className={`w-7 h-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+            settings.showSafeZoneOverlay
+              ? 'bg-blue-600/25 text-blue-400 ring-1 ring-blue-500/50'
+              : 'text-zinc-400 hover:text-blue-400 hover:bg-zinc-850'
+          }`}
+          title="Safe Zone Guides (Instagram 1:1 Crop & Header/Footer UI)"
+          aria-label="Safe Zone Guides"
+        >
+          <Scan className="w-3.5 h-3.5" />
+        </button>
+        <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700/80 text-zinc-100 text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-50">
+          Safe Zone Guides {settings.showSafeZoneOverlay ? '(Aktif)' : ''}
         </span>
       </div>
 

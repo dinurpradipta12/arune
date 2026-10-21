@@ -2445,9 +2445,9 @@ export const RightInspector: React.FC = () => {
           />
         </div>
 
-        <div className="pt-1 space-y-1.5">
+        <div className="pt-1 space-y-2">
           <label className="flex items-center justify-between text-[11px] text-zinc-300 cursor-pointer">
-            <span>Slide Folio Numbers (01 / 06)</span>
+            <span>Nomor Slide Aktif (01 / 06)</span>
             <input
               type="checkbox"
               checked={branding.showSlideNumbers}
@@ -2457,6 +2457,39 @@ export const RightInspector: React.FC = () => {
               className="rounded border-zinc-700 bg-zinc-900 text-blue-900"
             />
           </label>
+
+          {branding.showSlideNumbers && (
+            <div className="space-y-1 pl-2 border-l border-zinc-800">
+              <label className="text-[10px] text-zinc-400">Gaya Nomor Slide</label>
+              <select
+                value={branding.slideNumberStyle || 'folio'}
+                onChange={(e) =>
+                  updateBranding({
+                    slideNumberStyle: e.target.value as any,
+                  })
+                }
+                className="w-full bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+              >
+                <option value="folio">Footer Bar Bawah (Editorial)</option>
+                <option value="badge-top-right">Badge Kanan Atas (Modern Pill)</option>
+                <option value="badge-bottom-right">Badge Kanan Bawah</option>
+                <option value="minimal-top-right">Minimal Kanan Atas</option>
+              </select>
+            </div>
+          )}
+
+          <label className="flex items-center justify-between text-[11px] text-zinc-300 cursor-pointer">
+            <span>Watermark Handle Atas (@handle)</span>
+            <input
+              type="checkbox"
+              checked={Boolean(branding.showTopWatermark)}
+              onChange={(e) =>
+                updateBranding({ showTopWatermark: e.target.checked })
+              }
+              className="rounded border-zinc-700 bg-zinc-900 text-blue-900"
+            />
+          </label>
+
           <label className="flex items-center justify-between text-[11px] text-zinc-300 cursor-pointer">
             <span>Editorial Footer Credits</span>
             <input

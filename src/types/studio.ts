@@ -267,6 +267,13 @@ export interface ThemePalette {
   sansFont: FontFamilyName;
 }
 
+export type SlideNumberStyle =
+  | 'folio'
+  | 'badge-top-right'
+  | 'badge-bottom-right'
+  | 'pill-top-right'
+  | 'minimal-top-right';
+
 export interface GlobalBranding {
   publicationName: string;
   issueLabel: string;
@@ -274,6 +281,9 @@ export interface GlobalBranding {
   footerNote: string;
   showSlideNumbers: boolean;
   showFooterBar: boolean;
+  slideNumberStyle?: SlideNumberStyle;
+  showTopWatermark?: boolean;
+  topWatermarkPosition?: 'top-left' | 'top-right';
 }
 
 export interface CloudTemplateRecord {

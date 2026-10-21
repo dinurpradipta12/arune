@@ -32,6 +32,8 @@ interface SlideStageProps {
   ) => void;
   onCommitHistory?: () => void;
   exportId?: string;
+  showSafeZoneOverlay?: boolean;
+  safeZonePlatform?: 'instagram' | 'linkedin' | 'tiktok';
 }
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -77,6 +79,8 @@ export const SlideStage: React.FC<SlideStageProps> = ({
   onUpdateElement,
   onCommitHistory,
   exportId,
+  showSafeZoneOverlay = false,
+  safeZonePlatform = 'instagram',
 }) => {
   const { stageWidth: W, stageHeight: H } = ASPECT_RATIOS[aspectRatio];
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -1213,8 +1217,73 @@ export const SlideStage: React.FC<SlideStageProps> = ({
         );
       })}
 
+      {/* Modern Slide Number Badges (Alternative to Folio Footer) */}
+      {branding.showSlideNumbers && (branding.slideNumberStyle === 'badge-top-right' || branding.slideNumberStyle === 'pill-top-right') && (
+        <div
+          className="absolute top-[28px] right-[28px] px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider pointer-events-none z-[60] border shadow-xs"
+          style={{
+            fontFamily: `'${theme.sansFont}', Inter, sans-serif`,
+            color: folioColor,
+            backgroundColor: `${theme.surface}E6`,
+            borderColor: `${theme.divider}60`,
+          }}
+        >
+          {String(slideIndex + 1).padStart(2, '0')} / {String(totalSlides).padStart(2, '0')}
+        </div>
+      )}
+
+      {branding.showSlideNumbers && branding.slideNumberStyle === 'badge-bottom-right' && (
+        <div
+          className="absolute bottom-[24px] right-[28px] px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider pointer-events-none z-[60] border shadow-xs"
+          style={{
+            fontFamily: `'${theme.sansFont}', Inter, sans-serif`,
+            color: folioColor,
+            backgroundColor: `${theme.surface}E6`,
+            borderColor: `${theme.divider}60`,
+          }}
+        >
+          {String(slideIndex + 1).padStart(2, '0')} / {String(totalSlides).padStart(2, '0')}
+        </div>
+      )}
+
+      {branding.showSlideNumbers && branding.slideNumberStyle === 'minimal-top-right' && (
+        <div
+          className="absolute top-[28px] right-[28px] text-[10.5px] font-mono font-bold tracking-widest uppercase pointer-events-none z-[60]"
+          style={{
+            fontFamily: `'${theme.sansFont}', Inter, sans-serif`,
+            color: folioColor,
+          }}
+        >
+          {String(slideIndex + 1).padStart(2, '0')} · {String(totalSlides).padStart(2, '0')}
+        </div>
+      )}
+
+      {/* Global Top Watermark / Handle */}
+      {branding.showTopWatermark && branding.authorOrHandle && (
+        <div
+          className={`absolute top-[28px] ${
+            branding.topWatermarkPosition === 'top-right' &&
+            branding.slideNumberStyle !== 'badge-top-right' &&
+            branding.slideNumberStyle !== 'pill-top-right' &&
+            branding.slideNumberStyle !== 'minimal-top-right'
+              ? 'right-[28px]'
+              : 'left-[28px]'
+          } px-2.5 py-1 rounded-md text-[9.5px] font-semibold tracking-wider uppercase pointer-events-none z-[60] border backdrop-blur-xs`}
+          style={{
+            fontFamily: `'${theme.sansFont}', Inter, sans-serif`,
+            color: folioColor,
+            backgroundColor: `${theme.surface}B3`,
+            borderColor: `${theme.divider}40`,
+          }}
+        >
+          {branding.authorOrHandle}
+        </div>
+      )}
+
       {/* Global Editorial Folio Footer Bar */}
-      {(branding.showFooterBar || branding.showSlideNumbers) && (
+      {(branding.showFooterBar ||
+        (branding.showSlideNumbers &&
+          (!branding.slideNumberStyle || branding.slideNumberStyle === 'folio'))) && (
         <div
           className="absolute left-[36px] right-[36px] bottom-[14px] flex items-center justify-between pointer-events-none z-[60]"
           style={{
@@ -1235,10 +1304,116 @@ export const SlideStage: React.FC<SlideStageProps> = ({
               </>
             ) : null}
           </div>
-          {branding.showSlideNumbers && (
-            <div className="uppercase font-medium tabular-nums">
-              {String(slideIndex + 1).padStart(2, '0')} /{' '}
-              {String(totalSlides).padStart(2, '0')}
+          {branding.showSlideNumbers &&
+            (!branding.slideNumberStyle || branding.slideNumberStyle === 'folio') && (
+              <div className="uppercase font-medium tabular-nums">
+                {String(slideIndex + 1).padStart(2, '0')} /{' '}
+                {String(totalSlides).padStart(2, '0')}
+              </div>
+            )}
+        </div>
+      )}
+
+      {/* Social Media UI Safe Zone Guides Overlay (Instagram / LinkedIn / TikTok) */}
+      {showSafeZoneOverlay && interactive && (
+        <div
+          data-export-ignore="true"
+          data-platform={safeZonePlatform}
+          className="absolute inset-0 pointer-events-none z-[100] select-none overflow-hidden"
+        >
+          {aspectRatio === '4:5' && (
+            <>
+              {/* Top 1:1 Profile Grid Crop Out-of-bounds Shading */}
+              <div
+                className="absolute top-0 left-0 right-0 bg-blue-500/10 border-b-2 border-dashed border-blue-400/80 flex items-end justify-between px-4 pb-1"
+                style={{ height: '135px' }}
+              >
+                <span className="text-[9.5px] font-mono font-semibold uppercase tracking-wider text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded shadow-xs">
+                  📐 Terpotong di Profile Grid 1:1
+                </span>
+                <span className="text-[9px] font-mono text-blue-300/80">Y: 135px</span>
+              </div>
+
+              {/* Bottom 1:1 Profile Grid Crop Out-of-bounds Shading */}
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-blue-500/10 border-t-2 border-dashed border-blue-400/80 flex items-start justify-between px-4 pt-1"
+                style={{ height: '135px' }}
+              >
+                <span className="text-[9.5px] font-mono font-semibold uppercase tracking-wider text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded shadow-xs">
+                  📐 Terpotong di Profile Grid 1:1
+                </span>
+                <span className="text-[9px] font-mono text-blue-300/80">Y: 1215px</span>
+              </div>
+
+              {/* Feed UI Header Zone (Top 85px) */}
+              <div
+                className="absolute top-0 left-0 right-0 border-b border-rose-400/60 bg-rose-500/5 flex items-center justify-center"
+                style={{ height: '85px' }}
+              >
+                <span className="text-[9px] font-mono text-rose-300 bg-rose-950/80 px-2 py-0.5 rounded border border-rose-800/40">
+                  Instagram Header (Avatar & Username)
+                </span>
+              </div>
+
+              {/* Feed UI Dots & Actions Zone (Bottom 90px) */}
+              <div
+                className="absolute bottom-0 left-0 right-0 border-t border-amber-400/60 bg-amber-500/5 flex items-center justify-center"
+                style={{ height: '90px' }}
+              >
+                <span className="text-[9px] font-mono text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/40">
+                  Carousel Pagination Dots (...) & Like Bar
+                </span>
+              </div>
+
+              {/* Center 1:1 Square Indicator Tag */}
+              <div className="absolute top-[142px] left-4 text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/50 shadow-xs">
+                ✓ 1080×1080 Feed Grid Safe Zone
+              </div>
+            </>
+          )}
+
+          {aspectRatio === '9:16' && (
+            <>
+              {/* Stories / Reels Header Area */}
+              <div
+                className="absolute top-0 left-0 right-0 border-b-2 border-dashed border-rose-400/80 bg-rose-500/10 flex items-center justify-center px-4"
+                style={{ height: '220px' }}
+              >
+                <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-rose-300 bg-rose-950/90 px-2.5 py-1 rounded shadow-xs">
+                  Stories / Reels Header & Search Zone
+                </span>
+              </div>
+
+              {/* Stories / Reels Footer Area (Caption, Sound Title, Account) */}
+              <div
+                className="absolute bottom-0 left-0 right-0 border-t-2 border-dashed border-amber-400/80 bg-amber-500/10 flex items-center justify-center px-4"
+                style={{ height: '320px' }}
+              >
+                <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-300 bg-amber-950/90 px-2.5 py-1 rounded shadow-xs">
+                  Caption, Audio & Follow Bar Zone
+                </span>
+              </div>
+
+              {/* Right Action Icons Zone (Like, Comment, Share) */}
+              <div
+                className="absolute top-[240px] bottom-[340px] right-0 border-l-2 border-dashed border-indigo-400/70 bg-indigo-500/10 flex items-center justify-center"
+                style={{ width: '120px' }}
+              >
+                <span className="text-[9px] font-mono font-semibold text-indigo-300 bg-indigo-950/90 px-1.5 py-1 rounded -rotate-90">
+                  Action Icons
+                </span>
+              </div>
+            </>
+          )}
+
+          {aspectRatio === '1:1' && (
+            <div
+              className="absolute bottom-0 left-0 right-0 border-t-2 border-dashed border-amber-400/80 bg-amber-500/10 flex items-center justify-center px-4"
+              style={{ height: '80px' }}
+            >
+              <span className="text-[9.5px] font-mono font-semibold uppercase tracking-wider text-amber-300 bg-amber-950/90 px-2 py-0.5 rounded shadow-xs">
+                Carousel Dots (...) & Action Bar
+              </span>
             </div>
           )}
         </div>

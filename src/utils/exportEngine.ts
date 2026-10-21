@@ -326,3 +326,36 @@ export async function exportSingleSlidePng(options: {
     `${slugify(projectTitle)}-slide-${slideNum}-${slideLayout}.png`
   );
 }
+
+export async function copySlideToClipboard(options: {
+  slideIndex: number;
+  pixelRatio?: number;
+}): Promise<boolean> {
+  const { slideIndex, pixelRatio = 2 } = options;
+  const node = document.getElementById(`export-slide-node-${slideIndex}`);
+  if (!node) {
+    throw new Error('Elemen slide tidak ditemukan.');
+  }
+
+  await waitForImagesInNode(node);
+
+  const dataUrl = await renderSlideNodeToDataUrl(node, {
+    format: 'png',
+    pixelRatio,
+    transparentBackground: false,
+  });
+
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type || 'image/png']: blob,
+      }),
+    ]);
+    return true;
+  } else {
+    throw new Error('Clipboard Image API tidak didukung pada browser ini.');
+  }
+}

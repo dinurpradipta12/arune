@@ -781,6 +781,9 @@ export const DEFAULT_BRANDING: GlobalBranding = {
   footerNote: 'Banjarmasin - 2026',
   showSlideNumbers: true,
   showFooterBar: true,
+  slideNumberStyle: 'folio',
+  showTopWatermark: false,
+  topWatermarkPosition: 'top-left',
 };
 
 export const CURATED_EDITORIAL_IMAGES = {
