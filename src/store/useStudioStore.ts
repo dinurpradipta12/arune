@@ -45,6 +45,7 @@ import {
 } from '../utils/scriptParser';
 import { multiplayerService } from '../services/multiplayerService';
 import { saveProjectVersionSnapshot } from '../services/versionHistoryService';
+import { getActiveTeamId } from '../services/teamWorkspaceService';
 
 export interface HistorySnapshot {
   slides: Slide[];
@@ -67,6 +68,7 @@ export interface OpenDocumentTab {
   activeSlideIndex: number;
   canvasZoom: number;
   lastSavedAt: string | null;
+  lastModifiedTimestamp?: number;
   past: HistorySnapshot[];
   future: HistorySnapshot[];
 }
@@ -117,6 +119,7 @@ const LOCAL_SETTINGS_STORAGE_KEY = 'arune_studio_general_settings_v1';
 const LOCAL_ADMIN_AUTH_KEY = 'arune_admin_session_active_v1';
 const LOCAL_ACTIVE_VIEW_KEY = 'arune_studio_active_view_v1';
 const LOCAL_ACTIVE_WORKING_PROJECT_KEY = 'arune_active_working_project_v2';
+const LOCAL_PROJECT_BACKUP_VAULT_KEY = 'arune_project_backup_vault_v1';
 
 export interface SavedWorkingProject {
   projectId: string;
@@ -137,8 +140,18 @@ export function saveActiveWorkingProjectToStorage(doc: SavedWorkingProject): voi
   try {
     if (!doc.slides || doc.slides.length === 0) return;
     localStorage.setItem(LOCAL_ACTIVE_WORKING_PROJECT_KEY, JSON.stringify(doc));
-  } catch {
-    // ignore
+
+    // Maintain a rotating backup vault in localStorage (retains last 5 projects)
+    try {
+      const rawVault = localStorage.getItem(LOCAL_PROJECT_BACKUP_VAULT_KEY);
+      const vault: SavedWorkingProject[] = rawVault ? JSON.parse(rawVault) : [];
+      const updatedVault = [doc, ...vault.filter((v) => v.projectId !== doc.projectId)].slice(0, 5);
+      localStorage.setItem(LOCAL_PROJECT_BACKUP_VAULT_KEY, JSON.stringify(updatedVault));
+    } catch {
+      // ignore backup write errors
+    }
+  } catch (err) {
+    console.warn('Failed to save working project to localStorage:', err);
   }
 }
 
@@ -149,6 +162,15 @@ export function loadSavedWorkingProjectFromStorage(): SavedWorkingProject | null
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
         return parsed;
+      }
+    }
+
+    // Safety fallback: Recover from backup vault if primary key was empty
+    const rawVault = localStorage.getItem(LOCAL_PROJECT_BACKUP_VAULT_KEY);
+    if (rawVault) {
+      const vault: SavedWorkingProject[] = JSON.parse(rawVault);
+      if (Array.isArray(vault) && vault.length > 0 && vault[0].slides && vault[0].slides.length > 0) {
+        return vault[0];
       }
     }
   } catch {
@@ -272,6 +294,7 @@ interface StudioState {
   activeSlideIndex: number;
   selectedElementId: string | null;
   lastSavedAt: string | null;
+  lastModifiedTimestamp: number;
 
   // Multi-Document Tabs (Affinity / Photoshop style)
   openDocuments: OpenDocumentTab[];
@@ -430,6 +453,7 @@ interface StudioState {
     scriptText?: string;
     slides?: Slide[];
     activeSlideIndex?: number;
+    timestamp?: number;
   }) => void;
 
   // Collaborative In-Canvas Comments (Figma-Style)
@@ -482,6 +506,7 @@ function snapshotCurrentActiveDoc(state: StudioState): OpenDocumentTab {
     activeSlideIndex: state.activeSlideIndex,
     canvasZoom: state.canvasZoom,
     lastSavedAt: state.lastSavedAt,
+    lastModifiedTimestamp: state.lastModifiedTimestamp || Date.now(),
     past: state.past,
     future: state.future,
   };
@@ -519,42 +544,68 @@ function upsertOpenDocumentList(
 
 let broadcastCanvasTimer: any = null;
 function broadcastCurrentCanvasStateDebounced(state: StudioState) {
+  // Always trigger auto-save locally whenever canvas state updates
+  autoSaveWorkingProjectDebounced(state);
+
+  // Safeguard: only broadcast over network if in Team mode
+  if (!getActiveTeamId()) return;
+
   if (broadcastCanvasTimer) clearTimeout(broadcastCanvasTimer);
   broadcastCanvasTimer = setTimeout(() => {
-    if (!state.slides || state.slides.length === 0) return;
+    const latest = useStudioStore.getState();
+    if (!latest.slides || latest.slides.length === 0) return;
+    const hasElements = latest.slides.some((s) => s.elements && s.elements.length > 0);
+    if (!hasElements) return;
+
     multiplayerService.broadcastCanvasState({
-      projectId: state.projectId,
-      projectTitle: state.projectTitle || 'Untitled Carousel Project',
-      aspectRatio: state.aspectRatio,
-      activeThemeId: state.activeThemeId,
-      themeOverride: state.themeOverride,
-      branding: state.branding,
-      scriptText: state.scriptText,
-      slides: state.slides,
-      activeSlideIndex: state.activeSlideIndex,
+      projectId: latest.projectId,
+      projectTitle: latest.projectTitle || 'Untitled Carousel Project',
+      aspectRatio: latest.aspectRatio,
+      activeThemeId: latest.activeThemeId,
+      themeOverride: latest.themeOverride,
+      branding: latest.branding,
+      scriptText: latest.scriptText,
+      slides: latest.slides,
+      activeSlideIndex: latest.activeSlideIndex,
     });
   }, 120);
 }
 
 let autoSaveProjectTimer: any = null;
-function autoSaveWorkingProjectDebounced(state: StudioState) {
+function autoSaveWorkingProjectDebounced(_state?: StudioState) {
   if (autoSaveProjectTimer) clearTimeout(autoSaveProjectTimer);
   autoSaveProjectTimer = setTimeout(() => {
-    if (!state.slides || state.slides.length === 0) return;
+    const latestState = useStudioStore.getState();
+    if (!latestState.slides || latestState.slides.length === 0) return;
+
+    // Synchronize current active document tab snapshot into openDocuments list
+    const currentSnap = snapshotCurrentActiveDoc(latestState);
+    const existingList = latestState.openDocuments || [];
+    const syncedOpenDocs = existingList.length > 0
+      ? existingList.map((doc) => (doc.id === latestState.activeDocumentId ? currentSnap : doc))
+      : [currentSnap];
+
+    if (!syncedOpenDocs.some((d) => d.id === latestState.activeDocumentId)) {
+      syncedOpenDocs.push(currentSnap);
+    }
+
     saveActiveWorkingProjectToStorage({
-      projectId: state.projectId,
-      projectTitle: state.projectTitle || 'Untitled Carousel Project',
-      aspectRatio: state.aspectRatio,
-      activeThemeId: state.activeThemeId,
-      themeOverride: state.themeOverride,
-      branding: state.branding,
-      scriptText: state.scriptText,
-      slides: state.slides,
-      activeSlideIndex: state.activeSlideIndex,
-      openDocuments: state.openDocuments,
-      activeDocumentId: state.activeDocumentId,
-      comments: state.comments,
+      projectId: latestState.projectId,
+      projectTitle: latestState.projectTitle || 'Untitled Carousel Project',
+      aspectRatio: latestState.aspectRatio,
+      activeThemeId: latestState.activeThemeId,
+      themeOverride: latestState.themeOverride,
+      branding: latestState.branding,
+      scriptText: latestState.scriptText,
+      slides: latestState.slides,
+      activeSlideIndex: latestState.activeSlideIndex,
+      openDocuments: syncedOpenDocs,
+      activeDocumentId: latestState.activeDocumentId,
+      comments: latestState.comments,
     });
+
+    // Keep store's openDocuments in sync
+    useStudioStore.setState({ openDocuments: syncedOpenDocs });
   }, 150);
 }
 
@@ -572,6 +623,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   activeSlideIndex: savedWorkingDoc?.activeSlideIndex || 0,
   selectedElementId: null,
   lastSavedAt: null,
+  lastModifiedTimestamp: Date.now(),
 
   // Collaborative Comments
   comments: savedWorkingDoc?.comments || [],
@@ -750,6 +802,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       selectedElementId: null,
       activeView: 'editor',
     });
+    autoSaveWorkingProjectDebounced(get());
   },
 
   closeDocumentTab: (docId) => {
@@ -798,6 +851,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       future: nextActive.future,
       selectedElementId: null,
     });
+    autoSaveWorkingProjectDebounced(get());
   },
 
   openBlankDocumentTab: (ratio = '4:5') => {
@@ -829,6 +883,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeSlideIndex: 0,
       canvasZoom: suggestedZoom,
       lastSavedAt: null,
+      lastModifiedTimestamp: Date.now(),
       past: [],
       future: [],
     };
@@ -848,11 +903,12 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       selectedElementId: null,
       canvasZoom: suggestedZoom,
       lastSavedAt: null,
+      lastModifiedTimestamp: Date.now(),
       past: [],
       future: [],
       activeView: 'editor',
     });
-    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   addCustomFont: (font) => {
@@ -1283,7 +1339,9 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       past: past.slice(0, -1),
       future: [currentSnapshot, ...future.slice(0, 29)],
       selectedElementId: null,
+      lastModifiedTimestamp: Date.now(),
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   redo: () => {
@@ -1317,12 +1375,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       past: [...past, currentSnapshot],
       future: future.slice(1),
       selectedElementId: null,
+      lastModifiedTimestamp: Date.now(),
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   setProjectTitle: (projectTitle) => {
     set((state) => ({
       projectTitle,
+      lastModifiedTimestamp: Date.now(),
       openDocuments: state.openDocuments.map((doc) =>
         doc.id === state.activeDocumentId ? { ...doc, projectTitle } : doc
       ),
@@ -1385,6 +1446,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       aspectRatio: newRatio,
       slides: updatedSlides,
       canvasZoom: suggestedZoom,
+      lastModifiedTimestamp: Date.now(),
       openDocuments: state.openDocuments.map((doc) =>
         doc.id === state.activeDocumentId
           ? { ...doc, aspectRatio: newRatio, slides: cloneSlides(updatedSlides), canvasZoom: suggestedZoom }
@@ -1478,7 +1540,9 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeThemeId: themeId,
       themeOverride: {},
       slides: updatedSlides,
+      lastModifiedTimestamp: Date.now(),
     });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   updateThemeColors: (partial) => {
@@ -1523,17 +1587,28 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       };
     });
 
-    set({ slides: updatedSlides });
+    set({
+      slides: updatedSlides,
+      lastModifiedTimestamp: Date.now(),
+    });
+    broadcastCurrentCanvasStateDebounced(get());
   },
 
   updateBranding: (partial) => {
     set((state) => ({
       branding: { ...state.branding, ...partial },
+      lastModifiedTimestamp: Date.now(),
     }));
     broadcastCurrentCanvasStateDebounced(get());
   },
 
-  setScriptText: (scriptText) => set({ scriptText }),
+  setScriptText: (scriptText) => {
+    set({
+      scriptText,
+      lastModifiedTimestamp: Date.now(),
+    });
+    broadcastCurrentCanvasStateDebounced(get());
+  },
 
   generateSlidesFromScript: (
     scriptOverride,
@@ -2080,7 +2155,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       };
     });
 
-    set({ slides: nextSlides });
+    set({
+      slides: nextSlides,
+      lastModifiedTimestamp: Date.now(),
+    });
 
     if (updatedPartial) {
       multiplayerService.sendElementUpdate(state.activeSlideIndex, elementId, updatedPartial);
@@ -2296,6 +2374,65 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   syncRemoteCanvasSnapshot: (payload) => {
     const state = get();
     if (!payload.slides || payload.slides.length === 0) return;
+
+    // Rule 1: Safeguard against wiping substantive project with empty/blank remote snapshot
+    const localSlideCount = state.slides.length;
+    const localElementCount = state.slides.reduce((acc, s) => acc + (s.elements?.length || 0), 0);
+    const remoteSlideCount = payload.slides.length;
+    const remoteElementCount = payload.slides.reduce((acc, s) => acc + (s.elements?.length || 0), 0);
+
+    // If local has actual content but incoming has 0 elements, reject destructive wipeout
+    if (localElementCount > 0 && remoteElementCount === 0) {
+      console.warn('[Sync Safeguard] Rejected remote canvas snapshot: remote has 0 elements while local has', localElementCount);
+      return;
+    }
+
+    // Rule 2: Monotonic version / timestamp guard
+    // If incoming payload is older than local modifications, ignore it
+    if (payload.timestamp && state.lastModifiedTimestamp && payload.timestamp < state.lastModifiedTimestamp) {
+      console.warn('[Sync Safeguard] Rejected remote canvas snapshot: remote timestamp is older than local modifications');
+      return;
+    }
+
+    // Rule 3: Scoped to matching project ID.
+    // If local user is actively editing a different project, don't overwrite their canvas;
+    // instead, save/update the peer's project into openDocuments as a background tab.
+    if (
+      state.projectId &&
+      payload.id &&
+      payload.id !== state.projectId &&
+      localElementCount > 0
+    ) {
+      const nextRatio = (payload.aspectRatio as AspectRatioKey) || '4:5';
+      const bgDoc: OpenDocumentTab = {
+        id: payload.id,
+        projectTitle: payload.projectTitle || 'Untitled Carousel Project',
+        aspectRatio: nextRatio,
+        activeThemeId: payload.activeThemeId || state.activeThemeId,
+        themeOverride: payload.themeOverride || {},
+        branding: payload.branding || state.branding,
+        scriptText: payload.scriptText ?? '',
+        slides: cloneSlides(payload.slides),
+        activeSlideIndex: payload.activeSlideIndex || 0,
+        canvasZoom: 0.9,
+        lastSavedAt: null,
+        lastModifiedTimestamp: payload.timestamp || Date.now(),
+        past: [],
+        future: [],
+      };
+      const updatedDocs = upsertOpenDocumentList(state, bgDoc, true);
+      set({ openDocuments: updatedDocs });
+      return;
+    }
+
+    // Rule 4: Deduplicate identical snapshots to prevent render ping-pong
+    const isIdentical =
+      localSlideCount === remoteSlideCount &&
+      JSON.stringify(state.slides) === JSON.stringify(payload.slides);
+    if (isIdentical) {
+      return;
+    }
+
     const nextRatio = (payload.aspectRatio as AspectRatioKey) || state.aspectRatio;
     const nextThemeId = payload.activeThemeId || state.activeThemeId;
     const nextBranding = payload.branding || state.branding;
@@ -2321,6 +2458,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         : Math.min(state.activeSlideIndex, Math.max(0, nextSlides.length - 1)),
       canvasZoom: suggestedZoom,
       lastSavedAt: null,
+      lastModifiedTimestamp: payload.timestamp || Date.now(),
       past: [],
       future: [],
     };
@@ -2339,6 +2477,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       scriptText: nextScript,
       slides: nextSlides,
       activeSlideIndex: Math.min(state.activeSlideIndex, Math.max(0, nextSlides.length - 1)),
+      lastModifiedTimestamp: payload.timestamp || Date.now(),
     });
     autoSaveWorkingProjectDebounced(get());
   },
@@ -2354,6 +2493,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         doc.id === state.activeDocumentId ? currentSnap : doc
       ),
     });
+    autoSaveWorkingProjectDebounced(get());
   },
   setCanvasZoom: (canvasZoom) =>
     set({

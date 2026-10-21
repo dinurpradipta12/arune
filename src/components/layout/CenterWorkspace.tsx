@@ -24,7 +24,7 @@ import {
   ASPECT_RATIOS,
   THEME_PALETTES,
 } from '../../constants/themesAndPresets';
-import { useStudioStore } from '../../store/useStudioStore';
+import { useStudioStore, loadSavedWorkingProjectFromStorage } from '../../store/useStudioStore';
 import type { AspectRatioKey, CanvasElement } from '../../types/studio';
 import {
   removeImageBackground,
@@ -120,8 +120,18 @@ export const CenterWorkspace: React.FC = () => {
 
     // 1. When a new peer joins and requests current live canvas state
     const unsubCanvasReq = multiplayerService.onCanvasStateRequest(() => {
+      // ONLY respond if we are in an active team workspace
+      const currentTeamId = getActiveTeamId();
+      if (!currentTeamId) return;
+
       const currentStore = useStudioStore.getState();
-      if (currentStore.slides && currentStore.slides.length > 0) {
+      const hasContent =
+        currentStore.slides &&
+        currentStore.slides.length > 0 &&
+        currentStore.slides.some((s) => s.elements && s.elements.length > 0);
+
+      // ONLY broadcast if we have actual content! A blank client must NEVER respond with empty slides!
+      if (hasContent) {
         multiplayerService.broadcastCanvasState({
           projectId: currentStore.projectId,
           projectTitle: currentStore.projectTitle || 'Untitled Carousel Project',
@@ -138,6 +148,10 @@ export const CenterWorkspace: React.FC = () => {
 
     // 2. When receiving live canvas updates/sync from team collaborators
     const unsubCanvasSync = multiplayerService.onRemoteCanvasState((payload) => {
+      // In personal mode, do NOT accept remote canvas updates from global_collab_room!
+      const currentTeamId = getActiveTeamId();
+      if (!currentTeamId) return;
+
       if (!payload.slides || payload.slides.length === 0) return;
       syncRemoteCanvasSnapshot({
         id: payload.projectId,
@@ -149,6 +163,7 @@ export const CenterWorkspace: React.FC = () => {
         scriptText: payload.scriptText,
         slides: payload.slides,
         activeSlideIndex: payload.activeSlideIndex,
+        timestamp: payload.timestamp,
       });
     });
 
@@ -166,13 +181,34 @@ export const CenterWorkspace: React.FC = () => {
     };
   }, [collabRoomId, updateSlideElementRemote, syncRemoteCanvasSnapshot, syncRemoteComments]);
 
-  // If user opens editor with empty canvas (e.g. newcomer Allisha joining the active room)
+  // If user opens editor with empty canvas (e.g. newcomer joining the active room)
   useEffect(() => {
     if (slides.length === 0) {
-      // 1. Immediately request live canvas state from connected peers
-      multiplayerService.sendCanvasStateRequest();
+      // 1. First check if we have a saved working project in localStorage before doing anything destructive
+      const saved = loadSavedWorkingProjectFromStorage();
+      if (saved && saved.slides && saved.slides.length > 0) {
+        useStudioStore.setState({
+          projectId: saved.projectId,
+          projectTitle: saved.projectTitle,
+          aspectRatio: saved.aspectRatio,
+          activeThemeId: saved.activeThemeId,
+          themeOverride: saved.themeOverride || {},
+          branding: saved.branding,
+          scriptText: saved.scriptText || '',
+          slides: saved.slides,
+          activeSlideIndex: saved.activeSlideIndex || 0,
+          openDocuments: saved.openDocuments || [],
+          activeDocumentId: saved.activeDocumentId || saved.projectId,
+        });
+        return;
+      }
 
-      // 2. If no peer responded within 500ms, fallback to loading team project or blank slide
+      // 2. If in team mode, request live canvas state from connected peers
+      if (activeTeamId) {
+        multiplayerService.sendCanvasStateRequest();
+      }
+
+      // 3. Fallback only if canvas still remains empty
       const timer = setTimeout(() => {
         const currentSlides = useStudioStore.getState().slides;
         if (currentSlides.length === 0) {
