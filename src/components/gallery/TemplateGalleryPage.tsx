@@ -2,14 +2,18 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   Check,
+  ChevronRight,
   Clock,
   Copy,
+  ExternalLink,
   FileJson,
+  Folder,
   FolderHeart,
   FolderOpen,
   LayoutGrid,
   LayoutList,
   Moon,
+  Plus,
   RefreshCw,
   Save,
   Search,
@@ -30,6 +34,14 @@ import {
   listTemplates,
   upsertTemplate,
 } from '../../services/supabaseTemplates';
+import {
+  getCurrentUserProfile,
+  getActiveTeamId,
+  getTeams,
+  getTeamProjects,
+  subscribeToActiveTeam,
+} from '../../services/teamWorkspaceService';
+import type { TeamWorkspace, TeamProjectRecord } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
 import type {
   AspectRatioKey,
@@ -78,6 +90,62 @@ export const TemplateGalleryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+  // User Profile & Warm Greeting State
+  const currentUser = useMemo(() => getCurrentUserProfile(), []);
+  const firstName = useMemo(() => {
+    if (!currentUser?.name) return 'Kreator';
+    const parts = currentUser.name.trim().split(' ');
+    return parts[0] || 'Kreator';
+  }, [currentUser]);
+
+  const timeGreeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 11) {
+      return { text: 'Selamat Pagi', icon: '☀️' };
+    } else if (hour >= 11 && hour < 15) {
+      return { text: 'Selamat Siang', icon: '🌤️' };
+    } else if (hour >= 15 && hour < 18) {
+      return { text: 'Selamat Sore', icon: '🌇' };
+    } else {
+      return { text: 'Selamat Malam', icon: '🌙' };
+    }
+  }, []);
+
+  const todayFormatted = useMemo(() => {
+    return new Intl.DateTimeFormat('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date());
+  }, []);
+
+  // Team Workspace & Folder State
+  const [activeTeamId, setActiveTeamIdState] = useState<string | null>(getActiveTeamId());
+  const [teams, setTeams] = useState<TeamWorkspace[]>(getTeams());
+  const [teamProjects, setTeamProjects] = useState<TeamProjectRecord[]>(() => {
+    const currentId = getActiveTeamId();
+    return currentId ? getTeamProjects(currentId) : [];
+  });
+
+  useEffect(() => {
+    const unsub = subscribeToActiveTeam((tId) => {
+      setActiveTeamIdState(tId);
+      setTeams(getTeams());
+      if (tId) {
+        setTeamProjects(getTeamProjects(tId));
+      } else {
+        setTeamProjects([]);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const currentTeam = useMemo(() => {
+    if (!activeTeamId) return null;
+    return teams.find((t) => t.id === activeTeamId) || null;
+  }, [activeTeamId, teams]);
 
   // Desktop / Web Version Check State
   const [updateAvailable, setUpdateAvailable] = useState<{
@@ -223,6 +291,57 @@ export const TemplateGalleryPage: React.FC = () => {
       slides: JSON.parse(JSON.stringify(record.slides)),
     });
     await refreshSavedProjects();
+  };
+
+  const handleOpenTeamProject = (project: TeamProjectRecord) => {
+    try {
+      const parsed = JSON.parse(project.projectJson);
+      loadProjectSnapshot(
+        {
+          ...parsed,
+          id: project.id,
+        },
+        openInNewTab
+      );
+      setActiveView('editor');
+    } catch (e) {
+      console.error('Failed to parse team project snapshot:', e);
+      setSaveToast('Gagal memuat proyek tim: format snapshot rusak');
+      setTimeout(() => setSaveToast(null), 3000);
+    }
+  };
+
+  const handleCreateTeamProject = async () => {
+    const count = teamProjects.length + 1;
+    await createNewProject({
+      title: `${currentTeam?.name || 'Tim'} - Proyek #${count}`,
+      aspectRatio,
+      themeId: activeTheme.id,
+      slideCount: 6,
+      initialLayout: 'blank',
+      saveCurrentFirst: autoSaveBeforeSwitch && openDocuments.length > 0,
+      openInNewTab,
+    });
+    setActiveView('editor');
+  };
+
+  const formatRelativeTime = (dateStr: string): string => {
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffMins < 1) return 'Baru saja';
+      if (diffMins < 60) return `${diffMins}m lalu`;
+      if (diffHours < 24) return `${diffHours}j lalu`;
+      if (diffDays < 7) return `${diffDays}h lalu`;
+      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    } catch {
+      return dateStr;
+    }
   };
 
   // Pre-build curated templates previews
@@ -444,9 +563,81 @@ export const TemplateGalleryPage: React.FC = () => {
       {/* 2. MAIN SCROLLABLE CONTENT (Quick Start, Recent, Curated)          */}
       {/* ================================================================== */}
       <div className="flex-1 overflow-y-auto scroller-dark">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col lg:flex-row items-start gap-8">
+            {/* Left Column: Greeting, Hero Draft, Quick Start, Recent Projects, Templates */}
+            <div className="flex-1 min-w-0 w-full space-y-10">
 
-          {/* ACTIVE SESSION HERO CARD (If user currently has an open draft) */}
+              {/* WARM PERSONAL GREETING CARD */}
+              <div
+                className={`p-6 sm:p-8 rounded-3xl border transition-all relative overflow-hidden ${
+                  workspaceDarkMode
+                    ? 'bg-gradient-to-br from-zinc-900/90 via-zinc-900/60 to-blue-950/30 border-zinc-800/80 shadow-lg'
+                    : 'bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-white border-slate-200/90 shadow-xs'
+                }`}
+              >
+                {/* Subtle Decorative Glow Background */}
+                <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-2 max-w-2xl">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xl select-none">{timeGreeting.icon}</span>
+                      <span
+                        className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                          workspaceDarkMode
+                            ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                            : 'bg-blue-100/70 text-blue-700 border-blue-200'
+                        }`}
+                      >
+                        {timeGreeting.text}
+                      </span>
+                      <span className="text-xs text-zinc-400 font-medium">
+                        • {todayFormatted}
+                      </span>
+                    </div>
+
+                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                      Halo,{' '}
+                      <span className="bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
+                        {firstName}
+                      </span>
+                      !
+                    </h1>
+
+                    <p
+                      className={`text-sm sm:text-base leading-relaxed ${
+                        workspaceDarkMode ? 'text-zinc-300' : 'text-slate-600'
+                      }`}
+                    >
+                      Mau mendesain cerita apa hari ini? Yuk, buat konten visual yang memikat dan berkesan untuk audiensmu.
+                    </p>
+                  </div>
+
+                  {/* Quick Stats Pill */}
+                  <div className="shrink-0 flex items-center gap-3">
+                    <div
+                      className={`px-4 py-3 rounded-2xl border flex items-center gap-3 backdrop-blur-xs ${
+                        workspaceDarkMode
+                          ? 'bg-zinc-900/80 border-zinc-800/80 text-zinc-200'
+                          : 'bg-white/80 border-slate-200 text-slate-800 shadow-2xs'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold text-sm">
+                        <Sparkles className="w-5 h-5 text-blue-500 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold leading-tight">Studio Siap Pakai</div>
+                        <div className="text-[11px] text-zinc-400 mt-0.5">
+                          {savedProjects.length} proyek tersimpan
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ACTIVE SESSION HERO CARD (If user currently has an open draft) */}
           {openDocuments.length > 0 && (
             <div
               className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm ${
@@ -1102,6 +1293,197 @@ export const TemplateGalleryPage: React.FC = () => {
               </button>
             </div>
           )}
+
+            </div>
+
+            {/* RIGHT COLUMN: TEAM FOLDER & WORKSPACE PANEL */}
+            <aside className="w-full lg:w-80 shrink-0 space-y-5 lg:sticky lg:top-8">
+              {currentTeam ? (
+                <div
+                  className={`p-5 rounded-2xl border transition-all ${
+                    workspaceDarkMode
+                      ? 'bg-zinc-900/80 border-zinc-800/90 shadow-sm'
+                      : 'bg-white border-slate-200 shadow-sm'
+                  }`}
+                >
+                  {/* Team Header */}
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm"
+                        style={{ backgroundColor: currentTeam.avatarColor || '#3B82F6' }}
+                      >
+                        {currentTeam.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold truncate leading-tight">
+                          {currentTeam.name}
+                        </h3>
+                        <span className="text-[10px] text-zinc-400 block truncate mt-0.5">
+                          Folder Tim Aktif • {currentTeam.members.length} Anggota
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveView('team')}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors cursor-pointer"
+                      title="Buka Ruang Kerja Tim Penuh"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Team Members List */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-zinc-100/70 dark:bg-zinc-800/40 border border-zinc-200/40 dark:border-zinc-800/60 mb-4">
+                    <div className="flex items-center -space-x-1.5 overflow-hidden">
+                      {currentTeam.members.slice(0, 5).map((member) => (
+                        <div
+                          key={member.id}
+                          className="w-6 h-6 rounded-full border border-white dark:border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white shadow-2xs"
+                          style={{ backgroundColor: member.avatarColor || '#6366F1' }}
+                          title={`${member.name} (${member.role})`}
+                        >
+                          {member.name.charAt(0).toUpperCase()}
+                        </div>
+                      ))}
+                      {currentTeam.members.length > 5 && (
+                        <div className="w-6 h-6 rounded-full border border-white dark:border-zinc-900 bg-zinc-700 text-[9px] font-semibold text-zinc-200 flex items-center justify-center">
+                          +{currentTeam.members.length - 5}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveView('team')}
+                      className="text-[11px] font-semibold text-blue-500 hover:text-blue-400 cursor-pointer transition-colors"
+                    >
+                      Kelola Tim →
+                    </button>
+                  </div>
+
+                  {/* Recent Team Projects In Folder */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-400">
+                        <Folder className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Folder Proyek Tim</span>
+                      </div>
+                      <span className="text-[10px] font-medium text-zinc-500">
+                        {teamProjects.length} proyek
+                      </span>
+                    </div>
+
+                    {teamProjects.length === 0 ? (
+                      <div className="py-7 px-4 text-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40">
+                        <FolderOpen className="w-8 h-8 mx-auto text-zinc-400 mb-2 opacity-60" />
+                        <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                          Belum ada proyek tim
+                        </p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                          Mulai buat carousel pertama yang dapat diedit bersama rekan timmu.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleCreateTeamProject}
+                          className="mt-3.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Buat Proyek Tim</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {teamProjects.slice(0, 5).map((tp) => (
+                          <button
+                            key={tp.id}
+                            type="button"
+                            onClick={() => handleOpenTeamProject(tp)}
+                            className={`w-full group p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                              workspaceDarkMode
+                                ? 'bg-zinc-800/40 hover:bg-zinc-800/90 border-zinc-800/80 hover:border-blue-500/40'
+                                : 'bg-slate-50 hover:bg-white border-slate-200/80 hover:border-blue-400 shadow-2xs hover:shadow-xs'
+                            }`}
+                            title="Buka Proyek Tim di Editor"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                                  {tp.aspectRatio}
+                                </span>
+                                <span className="text-[10px] text-zinc-500">
+                                  {tp.slideCount} slides
+                                </span>
+                              </div>
+                              <h4 className="text-xs font-semibold truncate group-hover:text-blue-500 transition-colors">
+                                {tp.title}
+                              </h4>
+                              <p className="text-[10px] text-zinc-400 mt-0.5 truncate">
+                                {tp.lastEditedBy ? `${tp.lastEditedBy} • ` : ''}
+                                {formatRelativeTime(tp.lastEditedAt)}
+                              </p>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </button>
+                        ))}
+
+                        {teamProjects.length > 5 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveView('team')}
+                            className="w-full py-2 text-center text-xs text-blue-500 hover:text-blue-400 font-medium cursor-pointer"
+                          >
+                            Lihat semua {teamProjects.length} proyek tim →
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Quick Action Button */}
+                    {teamProjects.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleCreateTeamProject}
+                        className={`w-full mt-2 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+                          workspaceDarkMode
+                            ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-200'
+                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
+                        }`}
+                      >
+                        <Plus className="w-3.5 h-3.5 text-blue-500" />
+                        <span>+ Proyek Tim Baru</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* No active team / Personal Mode card */
+                <div
+                  className={`p-6 rounded-2xl border transition-all text-center ${
+                    workspaceDarkMode
+                      ? 'bg-gradient-to-b from-blue-950/20 to-zinc-900 border-zinc-800'
+                      : 'bg-gradient-to-b from-blue-50/50 to-white border-slate-200 shadow-sm'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-3 text-blue-500 shadow-sm">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold">Folder Kolaborasi Tim</h3>
+                  <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                    Bekerja bersama tim secara real-time, bagikan aset brand kit, dan kelola arsip carousel dalam satu ruang kerja.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveView('team')}
+                    className="mt-4 w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all hover:scale-[1.02]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Buat Ruang Kerja Tim</span>
+                  </button>
+                </div>
+              )}
+            </aside>
+          </div>
 
           {/* Toast Notification */}
           {saveToast && (
