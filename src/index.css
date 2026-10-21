@@ -24,6 +24,76 @@
 }
 
 /* ==========================================================================
+   CANVAS STAGE DIRECTIONAL TRANSITIONS (Option A: Snappy Slide & Soft Crossfade)
+   Accelerated on the GPU compositor via translate3d & opacity (200ms)
+   ========================================================================== */
+@keyframes canvasSlideInForward {
+  0% {
+    opacity: 0.15;
+    transform: translate3d(28px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes canvasSlideOutForward {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-28px, 0, 0);
+  }
+}
+
+@keyframes canvasSlideInBackward {
+  0% {
+    opacity: 0.15;
+    transform: translate3d(-28px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes canvasSlideOutBackward {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0);
+  }
+}
+
+.canvas-slide-in-forward {
+  animation: canvasSlideInForward 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.canvas-slide-out-forward {
+  animation: canvasSlideOutForward 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.canvas-slide-in-backward {
+  animation: canvasSlideInBackward 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.canvas-slide-out-backward {
+  animation: canvasSlideOutBackward 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* ==========================================================================
    WORKSPACE THEME ENGINE:
    - Dark Mode: SaaS Brand Guideline (Deep Navy Blue #0A1A2F, Muted Silver #B0B7C0, Soft Lavender #DCD0FF)
      Flat colors only, strictly no glow.

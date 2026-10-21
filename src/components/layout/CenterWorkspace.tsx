@@ -388,6 +388,42 @@ export const CenterWorkspace: React.FC = () => {
   const thumbW = Math.round(dim.stageWidth * thumbScale);
   const thumbH = Math.round(dim.stageHeight * thumbScale);
 
+  // Snappy Directional Slide & Soft Crossfade (Option A)
+  const [slideTransition, setSlideTransition] = useState<{
+    prevIndex: number;
+    direction: 'forward' | 'backward';
+  } | null>(null);
+  const prevSlideIndexRef = useRef(activeSlideIndex);
+  const transitionTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const prevIndex = prevSlideIndexRef.current;
+    if (
+      prevIndex !== activeSlideIndex &&
+      settings.smoothSlideTransitions !== false &&
+      slides[prevIndex]
+    ) {
+      const direction = activeSlideIndex > prevIndex ? 'forward' : 'backward';
+      setSlideTransition({ prevIndex, direction });
+
+      if (transitionTimerRef.current) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+      transitionTimerRef.current = window.setTimeout(() => {
+        setSlideTransition(null);
+      }, 210);
+    }
+    prevSlideIndexRef.current = activeSlideIndex;
+  }, [activeSlideIndex, settings.smoothSlideTransitions, slides]);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleQuickSave = async () => {
     await saveCurrentProjectToVault();
     setJustSaved(true);
@@ -1036,48 +1072,135 @@ export const CenterWorkspace: React.FC = () => {
 
         {/* Scaled Wrapper around SlideStage */}
         {activeSlide && (
-          <div
-            className="relative shadow-[0_24px_70px_-15px_rgba(0,0,0,0.55)] ring-1 ring-black/15 my-auto will-change-[width,height] select-none"
-            style={{
-              width: `${scaledW}px`,
-              height: `${scaledH}px`,
-            }}
-            onMouseMove={handleSlideMouseMove}
-          >
-            <SlideStage
-              slide={activeSlide}
-              slideIndex={activeSlideIndex}
-              totalSlides={slides.length}
-              aspectRatio={aspectRatio}
-              theme={theme}
-              branding={branding}
-              scale={canvasZoom}
-              interactive={!isViewer}
-              selectedElementId={isViewer ? null : selectedElementId}
-              onSelectElement={(id) => {
-                if (isViewer) return;
-                setSelectedElementId(id);
-                multiplayerService.sendElementSelection(id, activeSlideIndex);
+          <div className="relative group/canvas-stage my-auto flex items-center justify-center select-none">
+            {/* Quick Floating Previous Slide Button */}
+            {activeSlideIndex > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSlideIndex(activeSlideIndex - 1);
+                }}
+                className={`absolute -left-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full border shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover/canvas-stage:opacity-90 hover:opacity-100! hover:scale-110 cursor-pointer z-30 ${
+                  workspaceDarkMode
+                    ? 'bg-zinc-900/90 text-zinc-200 border-zinc-700/70 hover:bg-zinc-800'
+                    : 'bg-white/95 text-slate-700 border-slate-300 hover:bg-slate-50 shadow-md'
+                }`}
+                title="Slide Sebelumnya (Arrow Left)"
+                aria-label="Slide Sebelumnya"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Quick Floating Next Slide Button */}
+            {activeSlideIndex < slides.length - 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSlideIndex(activeSlideIndex + 1);
+                }}
+                className={`absolute -right-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full border shadow-xl backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover/canvas-stage:opacity-90 hover:opacity-100! hover:scale-110 cursor-pointer z-30 ${
+                  workspaceDarkMode
+                    ? 'bg-zinc-900/90 text-zinc-200 border-zinc-700/70 hover:bg-zinc-800'
+                    : 'bg-white/95 text-slate-700 border-slate-300 hover:bg-slate-50 shadow-md'
+                }`}
+                title="Slide Berikutnya (Arrow Right)"
+                aria-label="Slide Berikutnya"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Canvas Artboard Box with Viewport Clipping for Transitions */}
+            <div
+              className="relative shadow-[0_24px_70px_-15px_rgba(0,0,0,0.55)] ring-1 ring-black/15 will-change-[width,height] overflow-hidden rounded-xs"
+              style={{
+                width: `${scaledW}px`,
+                height: `${scaledH}px`,
               }}
-              onUpdateElement={isViewer ? () => {} : handleUpdateElement}
-              onCommitHistory={isViewer ? () => {} : commitElementHistory}
-              showSafeZoneOverlay={settings.showSafeZoneOverlay}
-              safeZonePlatform={settings.safeZonePlatform}
-            />
+              onMouseMove={handleSlideMouseMove}
+            >
+              {/* Ghost Outgoing Slide during smooth transition */}
+              {slideTransition && slides[slideTransition.prevIndex] && (
+                <div
+                  key={`outgoing-${slideTransition.prevIndex}`}
+                  className={`absolute inset-0 pointer-events-none z-10 ${
+                    slideTransition.direction === 'forward'
+                      ? 'canvas-slide-out-forward'
+                      : 'canvas-slide-out-backward'
+                  }`}
+                  style={{
+                    width: `${scaledW}px`,
+                    height: `${scaledH}px`,
+                  }}
+                >
+                  <SlideStage
+                    slide={slides[slideTransition.prevIndex]}
+                    slideIndex={slideTransition.prevIndex}
+                    totalSlides={slides.length}
+                    aspectRatio={aspectRatio}
+                    theme={theme}
+                    branding={branding}
+                    scale={canvasZoom}
+                    interactive={false}
+                    showSafeZoneOverlay={false}
+                  />
+                </div>
+              )}
 
-            {/* Multiplayer Remote Cursors & Peer Selections Layer */}
-            <MultiplayerCursorsLayer
-              activeSlideIndex={activeSlideIndex}
-              slide={activeSlide}
-              aspectRatio={aspectRatio}
-              scale={canvasZoom}
-            />
+              {/* Active Incoming Slide Layer */}
+              <div
+                key={`active-${activeSlideIndex}`}
+                className={`absolute inset-0 z-20 ${
+                  slideTransition
+                    ? slideTransition.direction === 'forward'
+                      ? 'canvas-slide-in-forward'
+                      : 'canvas-slide-in-backward'
+                    : ''
+                }`}
+                style={{
+                  width: `${scaledW}px`,
+                  height: `${scaledH}px`,
+                }}
+              >
+                <SlideStage
+                  slide={activeSlide}
+                  slideIndex={activeSlideIndex}
+                  totalSlides={slides.length}
+                  aspectRatio={aspectRatio}
+                  theme={theme}
+                  branding={branding}
+                  scale={canvasZoom}
+                  interactive={!isViewer}
+                  selectedElementId={isViewer ? null : selectedElementId}
+                  onSelectElement={(id) => {
+                    if (isViewer) return;
+                    setSelectedElementId(id);
+                    multiplayerService.sendElementSelection(id, activeSlideIndex);
+                  }}
+                  onUpdateElement={isViewer ? () => {} : handleUpdateElement}
+                  onCommitHistory={isViewer ? () => {} : commitElementHistory}
+                  showSafeZoneOverlay={settings.showSafeZoneOverlay}
+                  safeZonePlatform={settings.safeZonePlatform}
+                />
 
-            {/* In-Canvas Pin Comments & Feedback Layer */}
-            <CanvasCommentsLayer
-              activeSlideIndex={activeSlideIndex}
-              aspectRatio={aspectRatio}
-            />
+                {/* Multiplayer Remote Cursors & Peer Selections Layer */}
+                <MultiplayerCursorsLayer
+                  activeSlideIndex={activeSlideIndex}
+                  slide={activeSlide}
+                  aspectRatio={aspectRatio}
+                  scale={canvasZoom}
+                />
+
+                {/* In-Canvas Pin Comments & Feedback Layer */}
+                <CanvasCommentsLayer
+                  activeSlideIndex={activeSlideIndex}
+                  aspectRatio={aspectRatio}
+                />
+              </div>
+            </div>
           </div>
         )}
         </div>

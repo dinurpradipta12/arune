@@ -101,6 +101,7 @@ export interface StudioGeneralSettings {
   autoSaveLocalCache: boolean;
   defaultExportFormat: 'png' | 'jpg' | 'pdf';
   defaultExportWidthPx: number;
+  smoothSlideTransitions?: boolean;
   hotkeys: StudioHotkeys;
 }
 
@@ -231,6 +232,7 @@ export function buildDefaultStudioSettings(): StudioGeneralSettings {
     autoSaveLocalCache: true,
     defaultExportFormat: 'png',
     defaultExportWidthPx: 1080,
+    smoothSlideTransitions: true,
     hotkeys: { ...DEFAULT_STUDIO_HOTKEYS },
   };
 }
