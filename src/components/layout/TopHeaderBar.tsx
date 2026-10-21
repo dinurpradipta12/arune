@@ -214,8 +214,6 @@ export const TopHeaderBar: React.FC = () => {
         )}
 
         <div className="flex items-center gap-1.5">
-          <UserAuthButton darkMode={workspaceDarkMode} />
-
           <button
             type="button"
             onClick={() => setActiveView('team')}
@@ -291,6 +289,9 @@ export const TopHeaderBar: React.FC = () => {
               </>
             )}
           </button>
+
+          {/* User Profile Button on Far Right End */}
+          <UserAuthButton darkMode={workspaceDarkMode} />
         </div>
       </div>
     </header>

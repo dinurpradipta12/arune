@@ -102,7 +102,6 @@ export const UserAuthButton: React.FC<UserAuthButtonProps> = ({ darkMode = false
             alt={currentUser.name}
             className="w-full h-full object-cover"
           />
-          <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-500 border border-white" />
         </div>
 
         <span className="text-xs font-bold truncate max-w-[100px] hidden sm:inline">
