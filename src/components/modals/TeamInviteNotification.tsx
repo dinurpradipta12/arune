@@ -48,7 +48,7 @@ function playNotificationChime() {
 export const TeamInviteNotification: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(getCurrentAuthUser());
   const [notification, setNotification] = useState<TeamInviteNotificationPayload | null>(null);
-  const { setActiveView } = useStudioStore();
+  const { setActiveView, workspaceDarkMode } = useStudioStore();
 
   useEffect(() => {
     return subscribeToAuthChanges((u) => setCurrentUser(u));
@@ -114,7 +114,6 @@ export const TeamInviteNotification: React.FC = () => {
             const newMember = payload.new;
             const me = getCurrentAuthUser();
             if (me && newMember && newMember.user_id === me.id) {
-              // Fetch team name
               try {
                 const { data: teamData } = await client
                   .from('teams')
@@ -127,7 +126,7 @@ export const TeamInviteNotification: React.FC = () => {
                   targetUserId: me.id,
                   targetEmail: me.email,
                   teamId: newMember.team_id,
-                  teamName: teamData?.name || 'Workspace Tim',
+                  teamName: teamData?.name || 'Creative Studio Team',
                   inviterName: 'Rekan Tim',
                   role: newMember.role || 'editor',
                   timestamp: Date.now(),
@@ -150,6 +149,8 @@ export const TeamInviteNotification: React.FC = () => {
 
   if (!notification) return null;
 
+  const inviterName = notification.inviterName?.trim() || 'Rekan Tim';
+  const teamName = notification.teamName?.trim() || 'Creative Studio Team';
   const roleLabel =
     notification.role === 'owner'
       ? 'Co-Owner'
@@ -163,23 +164,45 @@ export const TeamInviteNotification: React.FC = () => {
     setNotification(null);
   };
 
+  const isDark = workspaceDarkMode;
+
   return (
     <div className="fixed bottom-5 right-5 z-50 max-w-sm w-full animate-in fade-in slide-in-from-bottom-5 duration-300 pointer-events-auto">
-      <div className="rounded-2xl p-4 shadow-2xl border bg-zinc-950/95 dark:bg-zinc-950/95 bg-white/95 border-emerald-500/40 dark:border-emerald-500/40 border-emerald-400/60 backdrop-blur-xl ring-1 ring-emerald-500/20 text-zinc-100 dark:text-zinc-100 text-stone-900">
+      <div
+        className={`rounded-2xl p-4.5 shadow-2xl border backdrop-blur-xl transition-colors duration-150 ${
+          isDark
+            ? 'bg-[#0A1A2F]/98 border-zinc-800 text-slate-100 ring-1 ring-blue-500/20 shadow-[0_12px_40px_rgba(0,0,0,0.6)]'
+            : 'bg-white border-[#DFE6E4] text-[#2F3E46] ring-1 ring-black/5 shadow-[0_12px_40px_rgba(47,62,70,0.14)]'
+        }`}
+      >
         {/* Top Header with Close */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shrink-0">
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md shrink-0 ${
+                isDark
+                  ? 'bg-gradient-to-tr from-blue-600 to-indigo-500'
+                  : 'bg-gradient-to-tr from-[#5E887E] to-[#4A6E65]'
+              }`}
+            >
               <Users className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold tracking-tight text-emerald-400 dark:text-emerald-400 text-emerald-600 flex items-center gap-1">
+                <span
+                  className={`text-xs font-bold tracking-tight flex items-center gap-1 ${
+                    isDark ? 'text-blue-400' : 'text-[#5E887E]'
+                  }`}
+                >
                   <Sparkles className="w-3.5 h-3.5" />
                   Undangan Tim Masuk
                 </span>
               </div>
-              <h4 className="text-sm font-bold text-white dark:text-white text-stone-900 leading-snug">
+              <h4
+                className={`text-sm font-bold leading-snug ${
+                  isDark ? 'text-white' : 'text-[#2F3E46]'
+                }`}
+              >
                 Ditambahkan ke Workspace
               </h4>
             </div>
@@ -189,38 +212,80 @@ export const TeamInviteNotification: React.FC = () => {
             type="button"
             onClick={() => setNotification(null)}
             title="Tutup Notifikasi"
-            className="p-1 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:bg-stone-100 text-zinc-400 hover:text-white dark:hover:text-white transition-colors cursor-pointer"
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              isDark
+                ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                : 'hover:bg-[#EAEFEF] text-[#8E9F9B] hover:text-[#2F3E46]'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Message body */}
-        <div className="mt-2.5 space-y-2">
-          <p className="text-xs leading-relaxed text-zinc-300 dark:text-zinc-300 text-stone-600">
-            <span className="font-semibold text-white dark:text-white text-stone-900">
-              {notification.inviterName}
+        <div className="mt-3 space-y-2.5">
+          <p
+            className={`text-xs leading-relaxed ${
+              isDark ? 'text-slate-300' : 'text-[#556B65]'
+            }`}
+          >
+            <span
+              className={`font-bold ${
+                isDark ? 'text-white' : 'text-[#2F3E46]'
+              }`}
+            >
+              {inviterName}
             </span>{' '}
             telah menambahkan Anda ke folder{' '}
-            <span className="font-semibold text-emerald-300 dark:text-emerald-300 text-emerald-700">
-              "{notification.teamName}"
+            <span
+              className={`font-bold ${
+                isDark ? 'text-blue-400' : 'text-[#5E887E]'
+              }`}
+            >
+              "{teamName}"
             </span>{' '}
-            sebagai <span className="font-medium text-white dark:text-white text-stone-800">{roleLabel}</span>.
+            sebagai{' '}
+            <span
+              className={`font-bold ${
+                isDark ? 'text-white' : 'text-[#2F3E46]'
+              }`}
+            >
+              {roleLabel}
+            </span>
+            .
           </p>
 
           {/* Feature connection badge */}
-          <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-950/30 dark:bg-emerald-950/30 bg-emerald-50/80 border border-emerald-800/30 dark:border-emerald-800/30 border-emerald-200 text-[11px] text-emerald-300 dark:text-emerald-300 text-emerald-800">
-            <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+          <div
+            className={`flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-medium ${
+              isDark
+                ? 'bg-blue-950/40 border-blue-900/50 text-blue-300'
+                : 'bg-[#EBF3F1] border-[#C3D8D3] text-[#2F3E46]'
+            }`}
+          >
+            <CheckCircle2
+              className={`w-4 h-4 shrink-0 ${
+                isDark ? 'text-blue-400' : 'text-[#5E887E]'
+              }`}
+            />
             <span>Terhubung untuk kolaborasi & kursor live realtime</span>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div className="mt-3.5 flex items-center gap-2 pt-2 border-t border-zinc-800/60 dark:border-zinc-800/60 border-stone-200">
+        <div
+          className={`mt-3.5 flex items-center gap-2 pt-2.5 border-t ${
+            isDark ? 'border-zinc-800/80' : 'border-[#DFE6E4]'
+          }`}
+        >
           <button
             type="button"
             onClick={handleOpenWorkspace}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-semibold shadow-md transition-all cursor-pointer active:scale-[0.98]"
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold shadow-md transition-all cursor-pointer active:scale-[0.98] ${
+              isDark
+                ? 'bg-blue-600 hover:bg-blue-500'
+                : 'bg-[#5E887E] hover:bg-[#4E756B]'
+            }`}
           >
             <Briefcase className="w-3.5 h-3.5" />
             <span>Buka Workspace Tim</span>
@@ -230,7 +295,11 @@ export const TeamInviteNotification: React.FC = () => {
           <button
             type="button"
             onClick={() => setNotification(null)}
-            className="px-3 py-2 rounded-xl border text-xs font-medium hover:bg-zinc-800/60 dark:hover:bg-zinc-800/60 hover:bg-stone-100 border-zinc-800 dark:border-zinc-800 border-stone-200 text-zinc-400 hover:text-white dark:hover:text-white transition-colors cursor-pointer"
+            className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
+              isDark
+                ? 'bg-zinc-900/80 hover:bg-zinc-800 border-zinc-800 text-slate-300 hover:text-white'
+                : 'bg-[#F7FAF9] hover:bg-[#EAEFEF] border-[#DFE6E4] text-[#556B65] hover:text-[#2F3E46]'
+            }`}
           >
             Nanti
           </button>
