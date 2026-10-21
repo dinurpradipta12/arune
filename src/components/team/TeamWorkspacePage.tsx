@@ -24,6 +24,10 @@ import {
   Sparkles,
   Download,
   Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  CloudUpload,
+  X,
 } from 'lucide-react';
 import {
   getTeams,
@@ -126,6 +130,18 @@ export const TeamWorkspacePage: React.FC = () => {
   const [profileSaved, setProfileSaved] = useState(false);
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
+
+  // Custom App Modal State (replaces native alert/confirm)
+  const [dialogModal, setDialogModal] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'confirm-delete' | 'error' | 'info';
+    title: string;
+    message: React.ReactNode;
+    primaryButtonText: string;
+    secondaryButtonText?: string;
+    onPrimary: () => void;
+    onSecondary?: () => void;
+  } | null>(null);
 
   // Load initial data and sync with Supabase Cloud
   useEffect(() => {
@@ -249,16 +265,31 @@ export const TeamWorkspacePage: React.FC = () => {
 
   const handleRemoveMember = (memberId: string, memberName: string) => {
     if (!currentTeam) return;
-    if (confirm(`Yakin ingin menghapus ${memberName} dari folder tim ${currentTeam.name}?`)) {
-      removeTeamMember(currentTeam.id, memberId);
-      refreshData();
-    }
+    setDialogModal({
+      isOpen: true,
+      type: 'confirm-delete',
+      title: 'Hapus Anggota Tim?',
+      message: (
+        <span>
+          Apakah Anda yakin ingin menghapus <strong className="text-slate-900 dark:text-white font-semibold">"{memberName}"</strong> dari tim <strong className="text-slate-900 dark:text-white font-semibold">"{currentTeam.name}"</strong>? Anggota ini tidak akan lagi memiliki akses ke proyek tim.
+        </span>
+      ),
+      primaryButtonText: 'Ya, Hapus Anggota',
+      secondaryButtonText: 'Batal',
+      onPrimary: () => {
+        removeTeamMember(currentTeam.id, memberId);
+        refreshData();
+        setDialogModal(null);
+      },
+      onSecondary: () => setDialogModal(null),
+    });
   };
 
   const handleShareCurrentProjectToTeam = async () => {
     if (!currentTeam) return;
+    const resolvedTitle = projectTitle?.trim() || 'Untitled Carousel Project';
     const snapshot = {
-      projectTitle: projectTitle || 'Untitled Carousel Project',
+      projectTitle: resolvedTitle,
       aspectRatio,
       activeThemeId,
       branding,
@@ -271,7 +302,7 @@ export const TeamWorkspacePage: React.FC = () => {
 
     await saveTeamProjectCloud(currentTeam.id, {
       id: projectId || crypto.randomUUID(),
-      title: projectTitle || 'Untitled Carousel Project',
+      title: resolvedTitle,
       aspectRatio,
       slideCount: slides.length,
       projectJson: json,
@@ -279,7 +310,18 @@ export const TeamWorkspacePage: React.FC = () => {
 
     const updatedProjects = await syncProjectsFromCloud(currentTeam.id);
     setTeamProjects(updatedProjects);
-    alert(`Project "${projectTitle}" berhasil disimpan ke folder tim ${currentTeam.name} dan tersinkronkan ke Supabase Cloud!`);
+    setDialogModal({
+      isOpen: true,
+      type: 'success',
+      title: 'Proyek Berhasil Disimpan & Disinkronkan',
+      message: (
+        <span>
+          Proyek <strong className="text-emerald-700 dark:text-emerald-300 font-semibold">"{resolvedTitle}"</strong> berhasil disimpan ke folder tim <strong className="text-slate-900 dark:text-white font-semibold">"{currentTeam.name}"</strong> dan tersinkronkan otomatis ke Supabase Cloud.
+        </span>
+      ),
+      primaryButtonText: 'Tutup & Lanjutkan',
+      onPrimary: () => setDialogModal(null),
+    });
   };
 
   const handleLoadTeamProject = (record: TeamProjectRecord) => {
@@ -288,16 +330,38 @@ export const TeamWorkspacePage: React.FC = () => {
       loadProjectSnapshot(parsed);
       setActiveView('editor');
     } catch {
-      alert('Gagal memuat snapshot project tim.');
+      setDialogModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Gagal Memuat Proyek',
+        message: 'Format data snapshot proyek tim tidak valid atau rusak.',
+        primaryButtonText: 'Tutup',
+        onPrimary: () => setDialogModal(null),
+      });
     }
   };
 
   const handleDeleteTeamProject = (recordId: string, title: string) => {
     if (!currentTeam) return;
-    if (confirm(`Hapus project tim "${title}"?`)) {
-      deleteTeamProject(currentTeam.id, recordId);
-      setTeamProjects(getTeamProjects(currentTeam.id));
-    }
+    const projectNameToDelete = title || 'Untitled';
+    setDialogModal({
+      isOpen: true,
+      type: 'confirm-delete',
+      title: 'Hapus Proyek Tim?',
+      message: (
+        <span>
+          Apakah Anda yakin ingin menghapus proyek <strong className="text-red-600 dark:text-red-400 font-semibold">"{projectNameToDelete}"</strong>? Tindakan ini tidak dapat dibatalkan.
+        </span>
+      ),
+      primaryButtonText: 'Ya, Hapus Proyek',
+      secondaryButtonText: 'Batal',
+      onPrimary: () => {
+        deleteTeamProject(currentTeam.id, recordId);
+        setTeamProjects(getTeamProjects(currentTeam.id));
+        setDialogModal(null);
+      },
+      onSecondary: () => setDialogModal(null),
+    });
   };
 
   const handleCreateNewBlankProjectInTeam = () => {
@@ -363,7 +427,18 @@ export const TeamWorkspacePage: React.FC = () => {
       bodyFont: theme.bodyFont || brandKit.bodyFont,
     };
     handleUpdateBrandKitField(imported);
-    alert(`Branding dari kanvas aktif berhasil diimpor sebagai Brand Kit resmi tim "${currentTeam.name}"!`);
+    setDialogModal({
+      isOpen: true,
+      type: 'success',
+      title: 'Brand Kit Berhasil Diimpor',
+      message: (
+        <span>
+          Branding dari kanvas aktif berhasil diimpor dan ditetapkan sebagai <strong className="text-emerald-700 dark:text-emerald-300 font-semibold">Brand Kit resmi</strong> untuk tim <strong className="text-slate-900 dark:text-white font-semibold">"{currentTeam.name}"</strong>.
+        </span>
+      ),
+      primaryButtonText: 'Selesai',
+      onPrimary: () => setDialogModal(null),
+    });
   };
 
   const filteredProjects = useMemo(() => {
@@ -1703,6 +1778,109 @@ export const TeamWorkspacePage: React.FC = () => {
         </aside>
 
       </div>
+
+      {/* Custom Dialog Modal (Replaces browser alert/confirm) */}
+      {dialogModal && dialogModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-2xl p-6 shadow-2xl border transition-all transform scale-100 animate-in zoom-in-95 duration-150 ${
+              isDark
+                ? 'bg-[#0A1A2F] border-zinc-800 text-slate-100'
+                : 'bg-white border-[#DFE6E4] text-[#2F3E46]'
+            }`}
+          >
+            <div className="flex items-start gap-4">
+              <div
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                  dialogModal.type === 'success'
+                    ? isDark
+                      ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
+                      : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                    : dialogModal.type === 'confirm-delete' || dialogModal.type === 'error'
+                    ? isDark
+                      ? 'bg-red-950/80 text-red-400 border border-red-800/60'
+                      : 'bg-red-50 text-red-600 border border-red-200'
+                    : isDark
+                    ? 'bg-blue-950/80 text-blue-400 border border-blue-800/60'
+                    : 'bg-blue-50 text-blue-600 border border-blue-200'
+                }`}
+              >
+                {dialogModal.type === 'success' && <CheckCircle2 className="w-6 h-6" />}
+                {(dialogModal.type === 'confirm-delete' || dialogModal.type === 'error') && (
+                  <AlertTriangle className="w-6 h-6" />
+                )}
+                {dialogModal.type === 'info' && <CloudUpload className="w-6 h-6" />}
+              </div>
+
+              <div className="flex-1 min-w-0 pt-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h3
+                    className={`text-base font-bold leading-tight ${
+                      isDark ? 'text-white' : 'text-[#2F3E46]'
+                    }`}
+                  >
+                    {dialogModal.title}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      if (dialogModal.onSecondary) dialogModal.onSecondary();
+                      else setDialogModal(null);
+                    }}
+                    className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                      isDark
+                        ? 'hover:bg-zinc-800 text-slate-400 hover:text-white'
+                        : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
+                    }`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div
+                  className={`mt-2 text-xs leading-relaxed ${
+                    isDark ? 'text-slate-300' : 'text-[#556B65]'
+                  }`}
+                >
+                  {dialogModal.message}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5 pt-2">
+              {dialogModal.secondaryButtonText && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (dialogModal.onSecondary) dialogModal.onSecondary();
+                    else setDialogModal(null);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors border ${
+                    isDark
+                      ? 'border-zinc-700 hover:bg-zinc-800 text-slate-300'
+                      : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {dialogModal.secondaryButtonText}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={dialogModal.onPrimary}
+                className={`px-5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all shadow-sm ${
+                  dialogModal.type === 'confirm-delete'
+                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20'
+                    : isDark
+                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20'
+                    : 'bg-[#5E887E] hover:bg-[#4E7269] text-white shadow-[#5E887E]/25'
+                }`}
+              >
+                {dialogModal.primaryButtonText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
