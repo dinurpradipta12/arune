@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
-import { TeamWorkspaceModal } from './TeamWorkspaceModal';
 import {
   ArrowLeft,
   Check,
@@ -520,7 +519,7 @@ export const StudioModals: React.FC = () => {
   if (!activeModal) return null;
 
   if (activeModal === 'team') {
-    return <TeamWorkspaceModal isOpen={true} onClose={() => setActiveModal(null)} />;
+    return null;
   }
 
   const currentProjectPayload = {

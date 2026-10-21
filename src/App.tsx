@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { SlideStage } from './components/canvas/SlideStage';
 import { TemplateGalleryPage } from './components/gallery/TemplateGalleryPage';
 import { ThemeBuilderPage } from './components/builder/ThemeBuilderPage';
+import { TeamWorkspacePage } from './components/team/TeamWorkspacePage';
 import { CenterWorkspace } from './components/layout/CenterWorkspace';
 import { LeftSidebar } from './components/layout/LeftSidebar';
 import { RightInspector } from './components/layout/RightInspector';
@@ -226,11 +227,13 @@ export function App() {
             : 'studio-theme-light bg-white text-slate-900'
         }`}
       >
-        {/* Main View Switcher: Full-Screen Studio Home Hub vs 3-Column Studio Editor vs Theme Builder */}
+        {/* Main View Switcher: Full-Screen Studio Home Hub vs 3-Column Studio Editor vs Theme Builder vs Team Workspace */}
         {activeView === 'gallery' ? (
           <TemplateGalleryPage />
         ) : activeView === 'theme-builder' ? (
           <ThemeBuilderPage />
+        ) : activeView === 'team' ? (
+          <TeamWorkspacePage />
         ) : (
           <>
             <TopHeaderBar />

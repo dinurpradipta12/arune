@@ -202,8 +202,8 @@ export const TopHeaderBar: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setActiveModal('team')}
-            title="Team Workspace & Kolaborasi Proyek"
+            onClick={() => setActiveView('team')}
+            title="Team Workspace & Folder Proyek"
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-blue-400 transition-colors cursor-pointer text-xs font-semibold"
           >
             <Users className="w-3.5 h-3.5 text-blue-400" />
