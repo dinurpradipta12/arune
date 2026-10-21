@@ -402,15 +402,18 @@ export const TopHeaderBar: React.FC = () => {
           }`}
         />
 
-        {/* Unified Smart Export Split Button */}
-        <div className="relative flex items-center" ref={exportMenuRef}>
-          {/* Main Primary Button: Export HD (.ZIP) */}
+        {/* Unified Smart Export Button */}
+        <div className="relative" ref={exportMenuRef}>
           <button
             type="button"
-            onClick={() => setActiveModal('export')}
+            onClick={() => setExportMenuOpen(!exportMenuOpen)}
             disabled={isExporting}
-            className="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 rounded-l-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all disabled:opacity-60 cursor-pointer"
-            title="Download Semua Slide Carousel dalam Format HD (.ZIP)"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all shadow-xs cursor-pointer select-none ${
+              workspaceDarkMode
+                ? 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white'
+                : 'bg-[#2F3E46] hover:bg-[#3D505A] active:bg-[#253238] text-white shadow-sm'
+            } disabled:opacity-60`}
+            title="Pilihan Export (Download HD .ZIP, Salin Slide ke Clipboard, atau Download PNG)"
           >
             {isExporting ? (
               <>
@@ -423,75 +426,45 @@ export const TopHeaderBar: React.FC = () => {
               <>
                 <Download className="w-3.5 h-3.5 stroke-[2.25]" />
                 <span>Export HD</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 ml-0.5 transition-transform duration-150 ${
+                    exportMenuOpen ? 'rotate-180' : ''
+                  }`}
+                />
               </>
             )}
-          </button>
-
-          {/* Dropdown Toggle Chevron */}
-          <button
-            type="button"
-            onClick={() => setExportMenuOpen(!exportMenuOpen)}
-            className="px-1.5 py-1.5 rounded-r-lg bg-blue-700 hover:bg-blue-600 active:bg-blue-800 text-white border-l border-blue-500/40 shadow-xs transition-colors cursor-pointer"
-            title="Opsi Export Tambahan (Copy Slide, Download Single PNG, dll.)"
-            aria-label="Export Options"
-          >
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                exportMenuOpen ? 'rotate-180' : ''
-              }`}
-            />
           </button>
 
           {/* Smart Export Dropdown Menu */}
           {exportMenuOpen && (
             <div
-              className={`absolute right-0 top-full mt-1.5 w-60 rounded-xl border shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150 ${
+              className={`absolute right-0 top-full mt-1.5 w-64 rounded-xl border shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150 ${
                 workspaceDarkMode
                   ? 'bg-zinc-950/98 border-zinc-800 text-zinc-200'
                   : 'bg-white/98 border-slate-200 text-slate-800 shadow-xl'
               }`}
             >
               <div className="px-3 py-1 text-[10px] font-semibold tracking-wider uppercase text-zinc-400 font-mono">
-                Opsi Export Cepat
+                Pilihan Export
               </div>
 
-              {/* 1. Salin Gambar Slide ke Clipboard */}
+              {/* 1. Download Semua Slide (.ZIP) */}
               <button
                 type="button"
-                disabled={isCopyingSlide}
-                onClick={handleCopyCurrentSlide}
-                className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                onClick={() => {
+                  setActiveModal('export');
+                  setExportMenuOpen(false);
+                }}
+                className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2.5 transition-colors cursor-pointer ${
                   workspaceDarkMode ? 'hover:bg-zinc-850 hover:text-white' : 'hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  {copySuccess ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5 text-emerald-400" />
-                  )}
-                  <div>
-                    <div className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      {copySuccess ? 'Tersalin ke Clipboard!' : 'Salin Slide Ini'}
-                    </div>
-                    <div className="text-[10px] text-zinc-400">Siap Paste ke WhatsApp / Slack</div>
-                  </div>
+                <div className="w-6 h-6 rounded-md bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                  <Download className="w-3.5 h-3.5" />
                 </div>
-                {isCopyingSlide && <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />}
-              </button>
-
-              {/* 2. Download Slide Ini (PNG) */}
-              <button
-                type="button"
-                onClick={handleExportSingleSlide}
-                className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors cursor-pointer ${
-                  workspaceDarkMode ? 'hover:bg-zinc-850 hover:text-white' : 'hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <ImageDown className="w-3.5 h-3.5 text-blue-400" />
                 <div>
-                  <div className="font-semibold">Download Slide Ini Saja</div>
-                  <div className="text-[10px] text-zinc-400">HD PNG (3× Resolusi Retina)</div>
+                  <div className="font-semibold">Download Semua Slide (.ZIP)</div>
+                  <div className="text-[10px] text-zinc-400">Export batch PNG / JPG / PDF</div>
                 </div>
               </button>
 
@@ -501,21 +474,47 @@ export const TopHeaderBar: React.FC = () => {
                 }`}
               />
 
-              {/* 3. Export Semua Slide (.ZIP) */}
+              {/* 2. Salin Slide Ini ke Clipboard */}
               <button
                 type="button"
-                onClick={() => {
-                  setActiveModal('export');
-                  setExportMenuOpen(false);
-                }}
-                className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2 transition-colors cursor-pointer ${
+                disabled={isCopyingSlide}
+                onClick={handleCopyCurrentSlide}
+                className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
                   workspaceDarkMode ? 'hover:bg-zinc-850 hover:text-white' : 'hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                <Download className="w-3.5 h-3.5 text-indigo-400" />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                    {copySuccess ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-emerald-500" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {copySuccess ? 'Tersalin ke Clipboard!' : 'Salin Slide Ini'}
+                    </div>
+                    <div className="text-[10px] text-zinc-400">Siap Paste ke WA / Slack</div>
+                  </div>
+                </div>
+                {isCopyingSlide && <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />}
+              </button>
+
+              {/* 3. Download Slide Ini (PNG) */}
+              <button
+                type="button"
+                onClick={handleExportSingleSlide}
+                className={`w-full px-3 py-2 text-left text-xs flex items-center gap-2.5 transition-colors cursor-pointer ${
+                  workspaceDarkMode ? 'hover:bg-zinc-850 hover:text-white' : 'hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <div className="w-6 h-6 rounded-md bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+                  <ImageDown className="w-3.5 h-3.5" />
+                </div>
                 <div>
-                  <div className="font-semibold">Download Semua Slide (.ZIP)</div>
-                  <div className="text-[10px] text-zinc-400">Export batch PNG / JPG / PDF</div>
+                  <div className="font-semibold">Download Slide Ini Saja</div>
+                  <div className="text-[10px] text-zinc-400">HD PNG (Resolusi Retina 3×)</div>
                 </div>
               </button>
             </div>
