@@ -24,7 +24,7 @@ export const UserGuidePdfModal: React.FC<UserGuidePdfModalProps> = ({ isOpen, on
       }}
     >
       <div
-        className={`w-full max-w-5xl h-[92vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden transition-all ${
+        className={`w-full max-w-[95vw] xl:max-w-7xl h-[94vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden transition-all ${
           workspaceDarkMode
             ? 'bg-[#0A1A2F] border-zinc-800 text-white'
             : 'bg-white border-slate-200 text-slate-900'
@@ -48,8 +48,8 @@ export const UserGuidePdfModal: React.FC<UserGuidePdfModalProps> = ({ isOpen, on
                 <h3 className="text-sm sm:text-base font-bold truncate">
                   Panduan Penggunaan Arune Carousel Studio
                 </h3>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
-                  Ebook PDF • 18 Halaman
+                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
+                  Ebook PDF Landscape • 18 Halaman
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400 truncate">
