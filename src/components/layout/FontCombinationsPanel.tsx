@@ -108,22 +108,16 @@ export const FontCombinationsPanel: React.FC = () => {
   return (
     <div className="flex-1 overflow-y-auto p-3 space-y-4 scroller-dark">
       {/* Header Info */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-blue-900" />
-            <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider">
-              Font Combinations
-            </h3>
-          </div>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/10 text-blue-900 border border-blue-900/30 font-medium">
-            {FONT_COMBINATIONS.length} Pairings
-          </span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-blue-900" />
+          <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider">
+            Font Combinations
+          </h3>
         </div>
-        <p className="text-[11px] text-zinc-400 leading-relaxed">
-          Kombinasi font terkurasi dari <strong>Adobe Fonts 10選</strong> &{' '}
-          <strong>Canva Font Pairings</strong>. Teks default warna hitam rata (#000000) dan siap dikustomisasi pada kanvas.
-        </p>
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/10 text-blue-900 border border-blue-900/30 font-medium">
+          {FONT_COMBINATIONS.length} Pairings
+        </span>
       </div>
 
       {/* Category Filter Switcher */}
