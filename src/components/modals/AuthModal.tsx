@@ -236,9 +236,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           {/* Notifications */}
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 animate-fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
+            <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs space-y-1.5 animate-fade-in">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>{errorMsg}</span>
+              </div>
+              {errorMsg.toLowerCase().includes('confirmation email') && (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 pl-6 leading-relaxed">
+                  Layanan pengiriman email bawaan Supabase terkena batas limit (SMTP rate limit).
+                  Buka <strong>Supabase Dashboard → Authentication → Providers → Email</strong>, lalu <strong>matikan toggle "Confirm email"</strong> agar pendaftaran langsung aktif seketika tanpa perlu verifikasi email.
+                </p>
+              )}
             </div>
           )}
 
