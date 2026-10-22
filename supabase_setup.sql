@@ -404,4 +404,59 @@ begin
   end if;
 end $$;
 
--- Selesai! Seluruh tabel, RLS, Storage Bucket, Realtime WebSocket, Project Folders, dan Editorial Templates siap digunakan.
+-- ============================================================================
+-- 15. TABEL FOLDER RUANG KERJA TIM (TEAM_FOLDERS) & KOLOM FOLDER_ID
+-- ============================================================================
+create table if not exists public.team_folders (
+  id uuid default gen_random_uuid() primary key,
+  team_id uuid references public.teams on delete cascade not null,
+  name text not null,
+  description text,
+  color text not null default 'blue',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index if not exists idx_team_folders_team on public.team_folders(team_id);
+
+-- Tambahkan kolom folder_id pada tabel team_projects
+alter table public.team_projects 
+add column if not exists folder_id uuid references public.team_folders on delete set null;
+
+create index if not exists idx_team_projects_folder on public.team_projects(folder_id);
+
+-- Aktifkan RLS dan Policies untuk team_folders
+alter table public.team_folders enable row level security;
+
+drop policy if exists "Anggota tim dapat melihat folder tim" on public.team_folders;
+create policy "Anggota tim dapat melihat folder tim"
+  on public.team_folders for select
+  using (true);
+
+drop policy if exists "Anggota tim dapat menambah folder tim" on public.team_folders;
+create policy "Anggota tim dapat menambah folder tim"
+  on public.team_folders for insert
+  with check (true);
+
+drop policy if exists "Anggota tim dapat mengupdate folder tim" on public.team_folders;
+create policy "Anggota tim dapat mengupdate folder tim"
+  on public.team_folders for update
+  using (true);
+
+drop policy if exists "Anggota tim dapat menghapus folder tim" on public.team_folders;
+create policy "Anggota tim dapat menghapus folder tim"
+  on public.team_folders for delete
+  using (true);
+
+-- Aktifkan Realtime WebSocket untuk team_folders
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'team_folders'
+  ) then
+    alter publication supabase_realtime add table public.team_folders;
+  end if;
+end $$;
+
+-- Selesai! Seluruh tabel, RLS, Storage Bucket, Realtime WebSocket, Project Folders, Team Folders, dan Editorial Templates siap digunakan.

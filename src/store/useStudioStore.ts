@@ -45,7 +45,11 @@ import {
 } from '../utils/scriptParser';
 import { multiplayerService } from '../services/multiplayerService';
 import { saveProjectVersionSnapshot } from '../services/versionHistoryService';
-import { getActiveTeamId } from '../services/teamWorkspaceService';
+import {
+  getActiveTeamId,
+  getAllStoredTeamProjects,
+  saveTeamProjectCloud,
+} from '../services/teamWorkspaceService';
 import {
   saveWorkingProjectIDB,
   loadWorkingProjectIDB,
@@ -699,6 +703,35 @@ function autoSaveWorkingProjectDebounced(_state?: StudioState) {
       scriptText: latestState.scriptText,
       slides: latestState.slides,
     });
+
+    // If currently operating in a Team Workspace, keep the team project copy updated & preserved in its folder
+    const activeTeamId = getActiveTeamId();
+    if (activeTeamId) {
+      const allTeamProjects = getAllStoredTeamProjects();
+      const existingTeamProject = allTeamProjects.find(
+        (p: any) => (p.id === idToSync || p.id === latestState.projectId) && p.teamId === activeTeamId
+      );
+      if (existingTeamProject) {
+        const teamSnapshot = {
+          projectTitle: titleToSync,
+          aspectRatio: latestState.aspectRatio,
+          activeThemeId: latestState.activeThemeId,
+          branding: latestState.branding,
+          scriptText: latestState.scriptText,
+          slides: latestState.slides,
+          exportedAt: new Date().toISOString(),
+          version: '1.0.0',
+        };
+        saveTeamProjectCloud(activeTeamId, {
+          id: existingTeamProject.id,
+          title: titleToSync,
+          aspectRatio: latestState.aspectRatio,
+          slideCount: latestState.slides.length,
+          folderId: existingTeamProject.folderId,
+          projectJson: JSON.stringify(teamSnapshot),
+        }).catch(() => {});
+      }
+    }
 
     const nowFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 

@@ -1205,23 +1205,27 @@ export async function saveTeamProjectCloud(
   const client = getSupabaseClient();
   if (client && isSupabaseConfigured()) {
     try {
-      const parsedJson = typeof project.projectJson === 'string' ? JSON.parse(project.projectJson) : project.projectJson;
+      const payload: any = {
+        id: validProjectId,
+        team_id: validTeamId,
+        title: project.title,
+        aspect_ratio: project.aspectRatio,
+        slide_count: project.slideCount,
+        folder_id: effectiveFolderId ? ensureUuid(effectiveFolderId) : null,
+        project_json: parsedJson,
+        last_edited_by: authUser?.name || me.name,
+        last_edited_at: now,
+      };
+
       const { error } = await client.from('team_projects').upsert(
-        {
-          id: validProjectId,
-          team_id: validTeamId,
-          title: project.title,
-          aspect_ratio: project.aspectRatio,
-          slide_count: project.slideCount,
-          project_json: parsedJson,
-          last_edited_by: authUser?.name || me.name,
-          last_edited_at: now,
-        },
+        payload,
         { onConflict: 'id' }
       );
 
       if (error) {
-        console.error('Failed to save project to Supabase:', error);
+        console.warn('Upsert with folder_id column failed, falling back without column:', error);
+        delete payload.folder_id;
+        await client.from('team_projects').upsert(payload, { onConflict: 'id' });
       }
     } catch (e) {
       console.warn('Error syncing project to Supabase:', e);
@@ -1303,7 +1307,7 @@ export function setProjectLock(
   }
 }
 
-function getAllStoredTeamProjects(): TeamProjectRecord[] {
+export function getAllStoredTeamProjects(): TeamProjectRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TEAM_PROJECTS);
     if (raw) {
@@ -1523,6 +1527,11 @@ export async function deleteTeamFolder(teamId: string, folderId: string): Promis
   const client = getSupabaseClient();
   if (client && isSupabaseConfigured()) {
     try {
+      await client.from('team_projects').update({ folder_id: null }).eq('folder_id', folderId);
+    } catch {
+      // ignore
+    }
+    try {
       await client.from('team_folders').delete().eq('id', folderId);
     } catch {
       // ignore
@@ -1535,30 +1544,56 @@ export async function moveProjectToTeamFolder(
   projectId: string,
   folderId: string | null
 ): Promise<void> {
+  const validProjectId = ensureUuid(projectId);
+  const validTeamId = ensureUuid(teamId);
+  const validFolderId = folderId ? ensureUuid(folderId) : null;
+
   const allProjects = getAllStoredTeamProjects();
-  const project = allProjects.find((p) => p.id === projectId && p.teamId === teamId);
-  if (!project) return;
-
-  project.folderId = folderId || undefined;
-  let parsed: any = {};
-  try {
-    parsed = typeof project.projectJson === 'string' ? JSON.parse(project.projectJson) : (project.projectJson || {});
-  } catch {
-    parsed = {};
+  const project = allProjects.find((p) => p.id === validProjectId && p.teamId === validTeamId);
+  if (project) {
+    project.folderId = validFolderId || undefined;
+    let parsed: any = {};
+    try {
+      parsed = typeof project.projectJson === 'string' ? JSON.parse(project.projectJson) : (project.projectJson || {});
+    } catch {
+      parsed = {};
+    }
+    parsed.teamFolderId = validFolderId;
+    project.projectJson = JSON.stringify(parsed);
+    project.lastEditedAt = new Date().toISOString();
+    saveAllStoredTeamProjects(allProjects);
   }
-  parsed.teamFolderId = folderId || null;
-  project.projectJson = JSON.stringify(parsed);
-  project.lastEditedAt = new Date().toISOString();
-
-  saveAllStoredTeamProjects(allProjects);
 
   const client = getSupabaseClient();
   if (client && isSupabaseConfigured()) {
     try {
-      await client.from('team_projects').update({
+      let parsed: any = {};
+      if (project) {
+        try {
+          parsed = typeof project.projectJson === 'string' ? JSON.parse(project.projectJson) : project.projectJson;
+        } catch {}
+      }
+      parsed.teamFolderId = validFolderId;
+
+      const updatePayload: any = {
+        folder_id: validFolderId,
         project_json: parsed,
-        last_edited_at: project.lastEditedAt,
-      }).eq('id', projectId);
+        last_edited_at: new Date().toISOString(),
+      };
+
+      const { error } = await client
+        .from('team_projects')
+        .update(updatePayload)
+        .eq('id', validProjectId);
+
+      if (error) {
+        console.warn('Update team_projects with folder_id column failed, falling back:', error);
+        delete updatePayload.folder_id;
+        await client
+          .from('team_projects')
+          .update(updatePayload)
+          .eq('id', validProjectId);
+      }
     } catch (e) {
       console.warn('Failed to update project folder on Supabase:', e);
     }

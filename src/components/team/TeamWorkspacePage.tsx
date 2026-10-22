@@ -262,6 +262,9 @@ export const TeamWorkspacePage: React.FC = () => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team_projects' }, () => {
           refreshData();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_folders' }, () => {
+          refreshData();
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
           refreshData();
         })
@@ -709,9 +712,66 @@ export const TeamWorkspacePage: React.FC = () => {
     });
   };
 
-  const handleCreateNewBlankProjectInTeam = () => {
-    openBlankDocumentTab('4:5');
-    setActiveView('editor');
+  const handleCreateNewBlankProjectInTeam = async () => {
+    if (!currentTeam) {
+      openBlankDocumentTab('4:5');
+      setActiveView('editor');
+      return;
+    }
+
+    const newProjectId = crypto.randomUUID();
+    const folderPrefix = selectedFolder ? ` [${selectedFolder.name}]` : '';
+    const newTitle = `Proyek Tim Baru${folderPrefix}`;
+    const initialSlide: Slide = {
+      id: 'slide-1',
+      layout: 'blank',
+      elements: [],
+      backgroundColor: brandKit?.backgroundColor || '#FFFFFF',
+    };
+    const snapshot = {
+      projectTitle: newTitle,
+      aspectRatio: '4:5' as AspectRatioKey,
+      activeThemeId: 'theme-obsidian-gold',
+      branding: {
+        publicationName: brandKit?.publicationName || 'Creative Editorial Studio',
+        authorOrHandle: brandKit?.authorOrHandle || '@teammember',
+        issueLabel: brandKit?.issueLabel || 'VOL. 01',
+        footerNote: brandKit?.footerNote || 'swipe to read',
+        showSlideNumbers: brandKit?.showSlideNumbers ?? true,
+        showFooterBar: brandKit?.showFooterBar ?? true,
+      },
+      scriptText: '',
+      slides: [initialSlide],
+      exportedAt: new Date().toISOString(),
+      version: '1.0.0',
+    };
+    const json = JSON.stringify(snapshot);
+
+    try {
+      const saved = await saveTeamProjectCloud(currentTeam.id, {
+        id: newProjectId,
+        title: newTitle,
+        aspectRatio: '4:5',
+        slideCount: 1,
+        folderId: selectedFolderId || undefined,
+        projectJson: json,
+      });
+
+      setTeamProjects((prev) => [saved, ...prev.filter((p) => p.id !== saved.id)]);
+
+      loadProjectSnapshot(
+        {
+          ...snapshot,
+          id: saved.id,
+        },
+        false
+      );
+      setActiveView('editor');
+    } catch (e) {
+      console.warn('Failed to pre-create team project:', e);
+      openBlankDocumentTab('4:5');
+      setActiveView('editor');
+    }
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -876,10 +936,35 @@ export const TeamWorkspacePage: React.FC = () => {
 
   const handleMoveProjectToFolder = async (folderId: string | null) => {
     if (!currentTeam || !projectToMove) return;
+    const targetFolder = folderId ? teamFolders.find((f) => f.id === folderId) : null;
+    const projectTitle = projectToMove.title || 'Untitled';
+
     await moveProjectToTeamFolder(currentTeam.id, projectToMove.id, folderId);
     setTeamProjects(getTeamProjects(currentTeam.id));
     setIsMoveProjectModalOpen(false);
     setProjectToMove(null);
+
+    // Sync from cloud in background to guarantee cross-user consistency
+    syncProjectsFromCloud(currentTeam.id).then((updated) => {
+      setTeamProjects(updated);
+    });
+
+    setDialogModal({
+      isOpen: true,
+      type: 'success',
+      title: 'Proyek Berhasil Dipindahkan',
+      message: (
+        <span>
+          Proyek <strong className="text-slate-900 dark:text-white font-semibold">"{projectTitle}"</strong> berhasil dipindahkan ke{' '}
+          <strong className="text-blue-600 dark:text-blue-400 font-semibold">
+            {targetFolder ? `folder "${targetFolder.name}"` : 'daftar mandiri (tanpa folder)'}
+          </strong>{' '}
+          dan tersinkronisasi ke seluruh anggota tim.
+        </span>
+      ),
+      primaryButtonText: 'Selesai',
+      onPrimary: () => setDialogModal(null),
+    });
   };
 
   const selectedFolder = useMemo(() => {
