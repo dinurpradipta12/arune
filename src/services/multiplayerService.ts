@@ -95,7 +95,7 @@ class MultiplayerService {
   private mySessionId = `sess_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
   private myUserId = '';
   private myName = '';
-  private myAvatarId = 'avatar-sage';
+  private myAvatarId = 'ava-1';
   private myAvatarColor = '#5E887E';
   private mySlideIndex = 0;
   private mySelectedElementId: string | null = null;
@@ -148,7 +148,7 @@ class MultiplayerService {
     if (authUser) {
       this.myUserId = authUser.id;
       this.myName = authUser.name || 'Member Tim';
-      this.myAvatarId = authUser.avatarId || 'avatar-sage';
+      this.myAvatarId = authUser.avatarId || 'ava-1';
       this.myAvatarColor = authUser.avatarColor || '#5E887E';
     } else {
       const guest = getOrCreateGuestIdentity();
@@ -214,7 +214,7 @@ class MultiplayerService {
                 sessionId: p.sessionId,
                 userId: p.userId,
                 name: p.name || 'Member',
-                avatarId: p.avatarId || 'avatar-sage',
+                avatarId: p.avatarId || 'ava-1',
                 avatarColor: p.avatarColor || '#5E887E',
                 activeSlideIndex: p.activeSlideIndex ?? 0,
                 selectedElementId: p.selectedElementId ?? null,
@@ -704,7 +704,7 @@ class MultiplayerService {
             sessionId: p.sessionId,
             userId: p.userId,
             name: p.name || 'Member',
-            avatarId: p.avatarId || 'avatar-sage',
+            avatarId: p.avatarId || 'ava-1',
             avatarColor: p.avatarColor || '#5E887E',
             activeSlideIndex: p.activeSlideIndex ?? 0,
             selectedElementId: p.selectedElementId ?? null,
@@ -738,7 +738,7 @@ class MultiplayerService {
         sessionId: partial.sessionId || peerKey,
         userId: partial.userId || peerKey,
         name: partial.name || 'Member',
-        avatarId: partial.avatarId || 'avatar-sage',
+        avatarId: partial.avatarId || 'ava-1',
         avatarColor: partial.avatarColor || '#5E887E',
         activeSlideIndex: partial.activeSlideIndex ?? 0,
         selectedElementId: partial.selectedElementId ?? null,

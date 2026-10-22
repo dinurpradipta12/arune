@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, LogIn, UserPlus, Check, Sparkles, AlertCircle, Shield } from 'lucide-react';
-import { AVATAR_PRESETS } from '../../constants/avatarPresets';
+import { AVATAR_PRESETS, getAvatarPresetById } from '../../constants/avatarPresets';
 import { loginWithEmail, registerWithEmail, updateAuthUserProfile, type AuthUser } from '../../services/authService';
 
 interface AuthModalProps {
@@ -28,7 +28,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState(currentUser?.email || '');
   const [password, setPassword] = useState('');
   const [selectedAvatarId, setSelectedAvatarId] = useState<string>(
-    currentUser?.avatarId || 'avatar-sage'
+    currentUser?.avatarId || 'ava-1'
   );
 
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTab(currentUser ? (initialTab === 'edit-profile' ? 'edit-profile' : initialTab) : initialTab);
       setName(currentUser?.name || '');
       setEmail(currentUser?.email || '');
-      setSelectedAvatarId(currentUser?.avatarId || 'avatar-sage');
+      setSelectedAvatarId(currentUser?.avatarId || 'ava-1');
       setPassword('');
       setErrorMsg(null);
       setSuccessMsg(null);
@@ -325,9 +325,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   Menggunakan ilustrasi vektor ringan agar database tidak terbebani file foto besar.
                 </p>
 
-                <div className="grid grid-cols-4 gap-2.5 pt-1">
+                <div className="grid grid-cols-5 gap-2 pt-1">
                   {AVATAR_PRESETS.map((preset) => {
-                    const isSelected = selectedAvatarId === preset.id;
+                    const isSelected =
+                      selectedAvatarId === preset.id ||
+                      (selectedAvatarId && getAvatarPresetById(selectedAvatarId).id === preset.id);
                     return (
                       <button
                         key={preset.id}

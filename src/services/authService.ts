@@ -78,7 +78,7 @@ function saveLocalSession(user: AuthUser | null) {
 // Map a Supabase User object into our AuthUser
 async function mapSupabaseUser(supaUser: User, client: SupabaseClient): Promise<AuthUser> {
   let name = supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'Member';
-  let avatarId = supaUser.user_metadata?.avatar_id || 'avatar-sage';
+  let avatarId = supaUser.user_metadata?.avatar_id || 'ava-1';
 
   try {
     const { data: profile } = await client

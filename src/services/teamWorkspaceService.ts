@@ -453,7 +453,7 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
           profilesMap.set(p.id, {
             name: p.name || 'Member',
             email: p.email || '',
-            avatarId: p.avatar_id || 'avatar-sage',
+            avatarId: p.avatar_id || 'ava-1',
             avatarColor: p.avatar_color || '#5E887E',
           });
         });
