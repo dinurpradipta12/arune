@@ -49,6 +49,7 @@ import {
   getActiveTeamId,
   getAllStoredTeamProjects,
   saveTeamProjectCloud,
+  ensureUuid,
 } from '../services/teamWorkspaceService';
 import {
   saveWorkingProjectIDB,
@@ -718,33 +719,35 @@ function autoSaveWorkingProjectDebounced(_state?: StudioState) {
       slides: latestState.slides,
     });
 
-    // If currently operating in a Team Workspace, keep the team project copy updated & preserved in its folder
+    // If currently operating in a Team Workspace, keep the team project copy updated & preserved in Supabase
     const activeTeamId = getActiveTeamId();
-    if (activeTeamId) {
+    if (activeTeamId && latestState.slides.length > 0) {
+      const validId = ensureUuid(latestState.projectId || idToSync);
       const allTeamProjects = getAllStoredTeamProjects();
       const existingTeamProject = allTeamProjects.find(
-        (p: any) => (p.id === idToSync || p.id === latestState.projectId) && p.teamId === activeTeamId
+        (p: any) =>
+          (p.id === validId || p.id === idToSync || p.id === latestState.projectId) &&
+          p.teamId === activeTeamId
       );
-      if (existingTeamProject) {
-        const teamSnapshot = {
-          projectTitle: titleToSync,
-          aspectRatio: latestState.aspectRatio,
-          activeThemeId: latestState.activeThemeId,
-          branding: latestState.branding,
-          scriptText: latestState.scriptText,
-          slides: latestState.slides,
-          exportedAt: new Date().toISOString(),
-          version: '1.0.0',
-        };
-        saveTeamProjectCloud(activeTeamId, {
-          id: existingTeamProject.id,
-          title: titleToSync,
-          aspectRatio: latestState.aspectRatio,
-          slideCount: latestState.slides.length,
-          folderId: existingTeamProject.folderId,
-          projectJson: JSON.stringify(teamSnapshot),
-        }).catch(() => {});
-      }
+      const teamSnapshot = {
+        projectTitle: titleToSync,
+        aspectRatio: latestState.aspectRatio,
+        activeThemeId: latestState.activeThemeId,
+        themeOverride: latestState.themeOverride,
+        branding: latestState.branding,
+        scriptText: latestState.scriptText,
+        slides: cloneSlides(latestState.slides),
+        exportedAt: new Date().toISOString(),
+        version: '1.0.0',
+      };
+      saveTeamProjectCloud(activeTeamId, {
+        id: validId,
+        title: titleToSync,
+        aspectRatio: latestState.aspectRatio,
+        slideCount: latestState.slides.length,
+        folderId: existingTeamProject?.folderId,
+        projectJson: JSON.stringify(teamSnapshot),
+      }).catch((e) => console.warn('Background auto-save team project warning:', e));
     }
 
     const nowFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1242,6 +1245,42 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       slides: cloneSlides(state.slides),
     });
 
+    // If operating in a Team Workspace, immediately sync to Supabase team_projects
+    // so all teammates see the exact full design with no data loss
+    const activeTeamId = getActiveTeamId();
+    if (activeTeamId && state.slides.length > 0) {
+      const validId = ensureUuid(idToUse);
+      const allTeamProjects = getAllStoredTeamProjects();
+      const existingTeamProject = allTeamProjects.find(
+        (p: any) =>
+          (p.id === validId || p.id === idToUse || p.id === state.projectId) &&
+          p.teamId === activeTeamId
+      );
+      const teamSnapshot = {
+        projectTitle: titleToUse,
+        aspectRatio: state.aspectRatio,
+        activeThemeId: state.activeThemeId,
+        themeOverride: state.themeOverride,
+        branding: state.branding,
+        scriptText: state.scriptText,
+        slides: cloneSlides(state.slides),
+        exportedAt: new Date().toISOString(),
+        version: '1.0.0',
+      };
+      try {
+        await saveTeamProjectCloud(activeTeamId, {
+          id: validId,
+          title: titleToUse,
+          aspectRatio: state.aspectRatio,
+          slideCount: state.slides.length,
+          folderId: existingTeamProject?.folderId,
+          projectJson: JSON.stringify(teamSnapshot),
+        });
+      } catch (err) {
+        console.warn('Failed to save team project cloud on manual save:', err);
+      }
+    }
+
     const savedTime = new Date().toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
@@ -1390,7 +1429,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeView: 'editor',
     });
     saveActiveView('editor');
-    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   createNewProject: async (options) => {
@@ -1545,7 +1584,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeView: 'editor',
     });
     saveActiveView('editor');
-    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   pushHistory: () => {
@@ -2872,14 +2911,14 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       activeView: 'editor',
     });
     saveActiveView('editor');
-    broadcastCurrentCanvasStateDebounced(get());
+    autoSaveWorkingProjectDebounced(get());
   },
 
   syncRemoteCanvasSnapshot: (payload) => {
     const state = get();
     if (!payload.slides || payload.slides.length === 0) return;
 
-    // Rule 1: Safeguard against wiping substantive project with empty/blank remote snapshot
+    // Rule 1: Safeguard against wiping substantive project with empty/blank or regressed remote snapshot
     const localSlideCount = state.slides.length;
     const localElementCount = state.slides.reduce((acc, s) => acc + (s.elements?.length || 0), 0);
     const remoteSlideCount = payload.slides.length;
@@ -2891,6 +2930,12 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       return;
     }
 
+    // If local has established content and remote incoming is suspiciously empty/regressed, protect user design
+    if (localElementCount >= 3 && remoteElementCount < Math.ceil(localElementCount / 2)) {
+      console.warn('[Sync Safeguard] Rejected remote snapshot: local has', localElementCount, 'elements while incoming only has', remoteElementCount);
+      return;
+    }
+
     // Rule 2: Monotonic version / timestamp guard
     // If incoming payload is older than local modifications, ignore it
     if (payload.timestamp && state.lastModifiedTimestamp && payload.timestamp < state.lastModifiedTimestamp) {
@@ -2898,18 +2943,21 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       return;
     }
 
-    // Rule 3: Scoped to matching project ID.
+    // Rule 3: Scoped strictly to matching project ID.
     // If local user is actively editing a different project, don't overwrite their canvas;
     // instead, save/update the peer's project into openDocuments as a background tab.
+    const localProjId = state.projectId ? ensureUuid(state.projectId) : '';
+    const incomingProjId = payload.id ? ensureUuid(payload.id) : '';
+
     if (
-      state.projectId &&
-      payload.id &&
-      payload.id !== state.projectId &&
+      localProjId &&
+      incomingProjId &&
+      localProjId !== incomingProjId &&
       localElementCount > 0
     ) {
       const nextRatio = (payload.aspectRatio as AspectRatioKey) || '4:5';
       const bgDoc: OpenDocumentTab = {
-        id: payload.id,
+        id: payload.id || incomingProjId,
         projectTitle: payload.projectTitle || 'Untitled Carousel Project',
         aspectRatio: nextRatio,
         activeThemeId: payload.activeThemeId || state.activeThemeId,

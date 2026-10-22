@@ -32,7 +32,7 @@ import {
   type RemotePeer,
 } from '../../services/multiplayerService';
 import { getAvatarPresetById } from '../../constants/avatarPresets';
-import { getActiveTeamId, getCurrentUserTeamRole, getTeamProjects, subscribeToActiveTeam } from '../../services/teamWorkspaceService';
+import { getActiveTeamId, getCurrentUserTeamRole, subscribeToActiveTeam, ensureUuid } from '../../services/teamWorkspaceService';
 
 export const CenterWorkspace: React.FC = () => {
   const {
@@ -41,6 +41,7 @@ export const CenterWorkspace: React.FC = () => {
     activeSlideIndex,
     setActiveSlideIndex,
     aspectRatio,
+    projectId,
     getActiveTheme,
     branding,
     canvasZoom,
@@ -99,14 +100,22 @@ export const CenterWorkspace: React.FC = () => {
     return () => unsub();
   }, []);
 
-  const collabRoomId = activeTeamId
-    ? `team_${activeTeamId}`
-    : 'global_collab_room';
+  const currentProjectId = projectId || activeDocumentId;
+  const collabRoomId = activeTeamId && currentProjectId
+    ? `team_${activeTeamId}_proj_${ensureUuid(currentProjectId)}`
+    : activeTeamId
+    ? `team_${activeTeamId}_collab`
+    : null;
 
   const isViewer = Boolean(activeTeamId && getCurrentUserTeamRole(activeTeamId) === 'viewer');
 
   // Connect to multiplayer collaboration room
   useEffect(() => {
+    if (!collabRoomId) {
+      multiplayerService.disconnect();
+      return;
+    }
+
     multiplayerService.connectToRoom(collabRoomId);
     multiplayerService.updatePresence(activeSlideIndex, selectedElementId);
     multiplayerService.sendCanvasStateRequest();
@@ -213,18 +222,6 @@ export const CenterWorkspace: React.FC = () => {
       const timer = setTimeout(() => {
         const currentSlides = useStudioStore.getState().slides;
         if (currentSlides.length === 0) {
-          if (activeTeamId) {
-            const teamProjects = getTeamProjects(activeTeamId);
-            if (teamProjects.length > 0 && teamProjects[0].projectJson) {
-              try {
-                const parsed = JSON.parse(teamProjects[0].projectJson);
-                loadProjectSnapshot(parsed, false);
-                return;
-              } catch {
-                // ignore
-              }
-            }
-          }
           openBlankDocumentTab(aspectRatio || '4:5');
         }
       }, 500);
