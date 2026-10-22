@@ -159,6 +159,7 @@ export const TeamWorkspacePage: React.FC = () => {
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
 
   // Share Project Selection Modal State
   const [isShareProjectModalOpen, setIsShareProjectModalOpen] = useState(false);
@@ -362,19 +363,36 @@ export const TeamWorkspacePage: React.FC = () => {
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeamName.trim()) return;
-    const created = await createTeamCloud(
-      newTeamName,
-      newTeamDesc,
-      newTeamIconUrl || undefined,
-      newTeamAvatarColor
-    );
-    setNewTeamName('');
-    setNewTeamDesc('');
-    setNewTeamIconUrl(null);
-    setIsCreateTeamModalOpen(false);
-    await refreshData();
-    handleSelectTeam(created.id);
+    if (!newTeamName.trim() || isCreatingTeam) return;
+    setIsCreatingTeam(true);
+    try {
+      const created = await createTeamCloud(
+        newTeamName,
+        newTeamDesc,
+        newTeamIconUrl || undefined,
+        newTeamAvatarColor
+      );
+
+      // Update state immediately so UI updates with no blank delay
+      setTeams((prev) => {
+        const withoutNew = prev.filter((t) => t.id !== created.id);
+        return [...withoutNew, created];
+      });
+      setCurrentActiveTeamId(created.id);
+      setActiveTeamId(created.id);
+
+      setNewTeamName('');
+      setNewTeamDesc('');
+      setNewTeamIconUrl(null);
+      setIsCreateTeamModalOpen(false);
+
+      await refreshData();
+      handleSelectTeam(created.id);
+    } catch (err) {
+      console.error('Create team error:', err);
+    } finally {
+      setIsCreatingTeam(false);
+    }
   };
 
   const handleOpenEditTeamModal = (team: TeamWorkspace) => {
@@ -3193,9 +3211,17 @@ export const TeamWorkspacePage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                  disabled={isCreatingTeam}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm inline-flex items-center gap-1.5"
                 >
-                  Buat Ruang Kerja
+                  {isCreatingTeam ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Membuat...</span>
+                    </>
+                  ) : (
+                    <span>Buat Ruang Kerja</span>
+                  )}
                 </button>
               </div>
             </form>

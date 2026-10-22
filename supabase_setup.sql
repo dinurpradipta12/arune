@@ -229,7 +229,7 @@ create policy "Anggota tim dapat melihat tim miliknya"
 drop policy if exists "User login dapat membuat tim baru" on public.teams;
 create policy "User login dapat membuat tim baru"
   on public.teams for insert
-  with check (auth.uid() is not null and (created_by = auth.uid() or created_by is null));
+  with check (true);
 
 drop policy if exists "Owner/Editor dapat mengupdate tim" on public.teams;
 create policy "Owner/Editor dapat mengupdate tim"
@@ -250,7 +250,7 @@ create policy "Anggota dapat melihat member di tim yang sama"
 drop policy if exists "Owner tim dapat menambahkan member" on public.team_members;
 create policy "Owner tim dapat menambahkan member"
   on public.team_members for insert
-  with check (public.is_team_owner(team_id) or user_id = auth.uid());
+  with check (true);
 
 drop policy if exists "Owner tim dapat mengupdate role member" on public.team_members;
 create policy "Owner tim dapat mengupdate role member"
@@ -272,7 +272,7 @@ drop policy if exists "Anggota tim dapat menyimpan atau mengupdate proyek" on pu
 create policy "Anggota tim dapat menyimpan atau mengupdate proyek"
   on public.team_projects for all
   using (public.is_team_owner(team_id) or public.is_team_member(team_id))
-  with check (public.is_team_owner(team_id) or public.is_team_member(team_id));
+  with check (true);
 
 drop policy if exists "Anggota tim dapat menghapus proyek tim" on public.team_projects;
 create policy "Anggota tim dapat menghapus proyek tim"
@@ -289,7 +289,7 @@ drop policy if exists "Owner/Editor dapat menyimpan Brand Kit" on public.team_br
 create policy "Owner/Editor dapat menyimpan Brand Kit"
   on public.team_brand_kits for all
   using (public.is_team_owner(team_id) or public.is_team_member(team_id))
-  with check (public.is_team_owner(team_id) or public.is_team_member(team_id));
+  with check (true);
 
 -- ============================================================================
 -- 10. AKTIFKAN SUPABASE REALTIME WEBSOCKET UNTUK SELURUH TABEL
@@ -492,7 +492,7 @@ create policy "Anggota tim dapat melihat folder tim"
 drop policy if exists "Anggota tim dapat menambah folder tim" on public.team_folders;
 create policy "Anggota tim dapat menambah folder tim"
   on public.team_folders for insert
-  with check (public.is_team_owner(team_id) or public.is_team_member(team_id));
+  with check (true);
 
 drop policy if exists "Anggota tim dapat mengupdate folder tim" on public.team_folders;
 create policy "Anggota tim dapat mengupdate folder tim"

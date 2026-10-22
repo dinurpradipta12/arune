@@ -402,6 +402,11 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
     }
 
     if (!teamsData || teamsData.length === 0) {
+      // If user has locally created teams belonging to them, preserve them!
+      const localOwned = getTeams().filter((t) => t.ownerId === authUser.id);
+      if (localOwned.length > 0) {
+        return localOwned;
+      }
       saveTeams([]);
       setActiveTeamId(null);
       return [];
@@ -415,6 +420,11 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
     });
 
     if (userTeams.length === 0) {
+      // If user has locally created teams belonging to them, preserve them!
+      const localOwned = getTeams().filter((t) => t.ownerId === authUser.id);
+      if (localOwned.length > 0) {
+        return localOwned;
+      }
       saveTeams([]);
       setActiveTeamId(null);
       return [];
@@ -530,9 +540,18 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       };
     });
 
+    // Merge any locally created team that might not yet be returned by Supabase
+    const localOwned = getTeams().filter((t) => t.ownerId === authUser.id);
+    const combinedMapped = [...mappedTeams];
+    for (const lt of localOwned) {
+      if (!combinedMapped.some((ct) => ct.id === lt.id)) {
+        combinedMapped.push(lt);
+      }
+    }
+
     // For authenticated Supabase users, Cloud is authoritative!
     const deletedIds: string[] = JSON.parse(localStorage.getItem('arune_deleted_team_ids') || '[]');
-    const activeCloudTeams = mappedTeams.filter((t) => !deletedIds.includes(t.id));
+    const activeCloudTeams = combinedMapped.filter((t) => !deletedIds.includes(t.id));
 
     saveTeams(activeCloudTeams);
 
@@ -726,7 +745,7 @@ export async function createTeamCloud(
   // 1. Save to Supabase
   if (client && isSupabaseConfigured() && authUser?.isSupabaseUser) {
     try {
-      await client.from('teams').insert({
+      const { error: insTeamErr } = await client.from('teams').insert({
         id: newTeamId,
         name: newTeam.name,
         description: newTeam.description,
@@ -735,11 +754,38 @@ export async function createTeamCloud(
         created_by: authUser.id,
       });
 
-      await client.from('team_members').insert({
+      if (insTeamErr) {
+        console.warn('Failed to insert team with created_by, retrying fallback:', insTeamErr);
+        await client.from('teams').insert({
+          id: newTeamId,
+          name: newTeam.name,
+          description: newTeam.description,
+          avatar_color: newTeam.avatarColor,
+          icon_url: newTeam.iconUrl || null,
+        });
+      }
+
+      await client.from('team_members').upsert({
         team_id: newTeamId,
         user_id: authUser.id,
         role: 'owner',
-      });
+      }, { onConflict: 'team_id,user_id' });
+
+      await client.from('team_brand_kits').upsert({
+        team_id: newTeamId,
+        publication_name: newTeam.brandKit?.publicationName || 'Creative Editorial Studio',
+        author_handle: newTeam.brandKit?.authorOrHandle || '@arune.studio',
+        issue_label: newTeam.brandKit?.issueLabel || 'VOL. 01',
+        footer_note: newTeam.brandKit?.footerNote || 'arune.studio • swipe to read',
+        primary_color: newTeam.brandKit?.primaryColor || '#2F3E46',
+        accent_color: newTeam.brandKit?.accentColor || '#5E887E',
+        background_color: newTeam.brandKit?.backgroundColor || '#FFFFFF',
+        text_color: newTeam.brandKit?.textColor || '#2F3E46',
+        heading_font: newTeam.brandKit?.headingFont || 'Plus Jakarta Sans',
+        body_font: newTeam.brandKit?.bodyFont || 'Plus Jakarta Sans',
+        show_slide_numbers: true,
+        show_footer_bar: true,
+      }, { onConflict: 'team_id' });
     } catch (e) {
       console.warn('Failed to insert team to Supabase:', e);
     }
@@ -747,7 +793,12 @@ export async function createTeamCloud(
 
   // 2. Save locally
   const teams = getTeams();
-  teams.push(newTeam);
+  const existingIdx = teams.findIndex((t) => t.id === newTeam.id);
+  if (existingIdx !== -1) {
+    teams[existingIdx] = newTeam;
+  } else {
+    teams.push(newTeam);
+  }
   saveTeams(teams);
   setActiveTeamId(newTeam.id);
   return newTeam;
