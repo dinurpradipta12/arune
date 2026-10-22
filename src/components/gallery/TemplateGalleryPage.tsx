@@ -1762,14 +1762,14 @@ export const TemplateGalleryPage: React.FC = () => {
           type="button"
           onClick={() => setIsGuideModalOpen(true)}
           className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer ring-2 ring-white/20 backdrop-blur-md group"
-          title="Buka Buku Panduan Lengkap PDF Arune Studio (16 Halaman)"
+          title="Buka Buku Panduan Lengkap PDF Arune Studio (18 Halaman)"
         >
           <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:rotate-12 transition-transform">
             <BookOpen className="w-3.5 h-3.5 text-white" />
           </div>
           <div className="flex flex-col text-left">
             <span className="leading-tight text-white font-bold">Panduan Pengguna</span>
-            <span className="text-[9px] text-blue-100 font-medium leading-none">Ebook Lengkap 16 Halaman</span>
+            <span className="text-[9px] text-blue-100 font-medium leading-none">Ebook Lengkap 18 Halaman</span>
           </div>
         </button>
       </div>
