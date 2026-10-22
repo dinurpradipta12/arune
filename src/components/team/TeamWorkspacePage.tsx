@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   UserPlus,
+  Folder,
   FolderOpen,
   FolderPlus,
   Plus,
@@ -53,12 +54,19 @@ import {
   syncProjectsFromCloud,
   ensureUuid,
   deduplicateTeamMembers,
+  getTeamFolders,
+  saveTeamFolder,
+  deleteTeamFolder,
+  moveProjectToTeamFolder,
+  syncTeamFoldersFromCloud,
+  getTeamFolderColorTheme,
+  TEAM_FOLDER_COLORS,
   type UserProfile,
 } from '../../services/teamWorkspaceService';
 import { getSupabaseClient, isSupabaseConfigured } from '../../services/supabaseClient';
 import { subscribeToAuthChanges, updateAuthUserProfile } from '../../services/authService';
 import { getAvatarPresetById, AVATAR_PRESETS } from '../../constants/avatarPresets';
-import type { TeamWorkspace, TeamRole, TeamProjectRecord, TeamBrandKit } from '../../types/team';
+import type { TeamWorkspace, TeamRole, TeamProjectRecord, TeamBrandKit, TeamFolder } from '../../types/team';
 import { DEFAULT_TEAM_BRAND_KIT } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
 import { isElectronMac } from '../../utils/platform';
@@ -191,6 +199,17 @@ export const TeamWorkspacePage: React.FC = () => {
   const [teamProjects, setTeamProjects] = useState<TeamProjectRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Team folders state (grouping per project or customer)
+  const [teamFolders, setTeamFolders] = useState<TeamFolder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string>('all');
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<TeamFolder | null>(null);
+  const [folderFormName, setFolderFormName] = useState('');
+  const [folderFormDesc, setFolderFormDesc] = useState('');
+  const [folderFormColor, setFolderFormColor] = useState('blue');
+  const [isMoveProjectModalOpen, setIsMoveProjectModalOpen] = useState(false);
+  const [projectToMove, setProjectToMove] = useState<TeamProjectRecord | null>(null);
+
   // Brand Kit State
   const [brandKit, setBrandKit] = useState<TeamBrandKit>({ ...DEFAULT_TEAM_BRAND_KIT });
   const [brandKitSaved, setBrandKitSaved] = useState(false);
@@ -268,6 +287,7 @@ export const TeamWorkspacePage: React.FC = () => {
     if (activeId) {
       setTeamProjects(getTeamProjects(activeId));
       setBrandKit(getTeamBrandKit(activeId));
+      setTeamFolders(getTeamFolders(activeId));
     }
     setUserProfile(getCurrentUserProfile());
 
@@ -282,6 +302,8 @@ export const TeamWorkspacePage: React.FC = () => {
         const cloudProjects = await syncProjectsFromCloud(effectiveActiveId);
         setTeamProjects(cloudProjects);
         setBrandKit(getTeamBrandKit(effectiveActiveId));
+        const cloudFolders = await syncTeamFoldersFromCloud(effectiveActiveId);
+        setTeamFolders(cloudFolders);
       }
     } catch (e) {
       console.warn('Cloud team sync finished:', e);
@@ -300,13 +322,17 @@ export const TeamWorkspacePage: React.FC = () => {
   const handleSelectTeam = async (teamId: string) => {
     setActiveTeamId(teamId);
     setCurrentActiveTeamId(teamId);
+    setSelectedFolderId('all');
     setTeamProjects(getTeamProjects(teamId));
     setBrandKit(getTeamBrandKit(teamId));
+    setTeamFolders(getTeamFolders(teamId));
     setInviteError(null);
     setInviteSuccess(null);
 
     const cloudProjects = await syncProjectsFromCloud(teamId);
     setTeamProjects(cloudProjects);
+    const cloudFolders = await syncTeamFoldersFromCloud(teamId);
+    setTeamFolders(cloudFolders);
   };
 
   const handleOpenCreateTeamModal = () => {
@@ -780,8 +806,91 @@ export const TeamWorkspacePage: React.FC = () => {
     }
   };
 
+  const handleOpenCreateFolderModal = () => {
+    setEditingFolder(null);
+    setFolderFormName('');
+    setFolderFormDesc('');
+    setFolderFormColor('blue');
+    setIsFolderModalOpen(true);
+  };
+
+  const handleOpenEditFolderModal = (folder: TeamFolder) => {
+    setEditingFolder(folder);
+    setFolderFormName(folder.name);
+    setFolderFormDesc(folder.description || '');
+    setFolderFormColor(folder.color || 'blue');
+    setIsFolderModalOpen(true);
+  };
+
+  const handleSaveTeamFolderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTeam || !folderFormName.trim()) return;
+    try {
+      const saved = await saveTeamFolder(currentTeam.id, {
+        id: editingFolder ? editingFolder.id : undefined,
+        name: folderFormName.trim(),
+        description: folderFormDesc.trim(),
+        color: folderFormColor,
+      });
+      const updated = getTeamFolders(currentTeam.id);
+      setTeamFolders(updated);
+      setIsFolderModalOpen(false);
+      if (!editingFolder) {
+        setSelectedFolderId(saved.id);
+      }
+    } catch (err: any) {
+      console.error('Failed to save team folder:', err);
+    }
+  };
+
+  const handleDeleteTeamFolderConfirm = async (folderId: string, folderName: string) => {
+    if (!currentTeam) return;
+    setDialogModal({
+      isOpen: true,
+      type: 'confirm-delete',
+      title: 'Hapus Folder Tim?',
+      message: (
+        <span>
+          Apakah Anda yakin ingin menghapus folder <strong className="text-red-500 font-semibold">"{folderName}"</strong>?
+          Proyek di dalamnya tidak akan terhapus, melainkan dikembalikan ke status tanpa folder di tim ini.
+        </span>
+      ),
+      primaryButtonText: 'Ya, Hapus Folder',
+      secondaryButtonText: 'Batal',
+      onPrimary: async () => {
+        await deleteTeamFolder(currentTeam.id, folderId);
+        const updatedFolders = getTeamFolders(currentTeam.id);
+        setTeamFolders(updatedFolders);
+        if (selectedFolderId === folderId) {
+          setSelectedFolderId('all');
+        }
+        setTeamProjects(getTeamProjects(currentTeam.id));
+        setDialogModal(null);
+      },
+      onSecondary: () => setDialogModal(null),
+    });
+  };
+
+  const handleMoveProjectToFolder = async (folderId: string | null) => {
+    if (!currentTeam || !projectToMove) return;
+    await moveProjectToTeamFolder(currentTeam.id, projectToMove.id, folderId);
+    setTeamProjects(getTeamProjects(currentTeam.id));
+    setIsMoveProjectModalOpen(false);
+    setProjectToMove(null);
+  };
+
+  const selectedFolder = useMemo(() => {
+    if (selectedFolderId === 'all') return null;
+    return teamFolders.find((f) => f.id === selectedFolderId) || null;
+  }, [selectedFolderId, teamFolders]);
+
   const filteredProjects = useMemo(() => {
     let list = teamProjects;
+    if (selectedFolderId === 'unassigned') {
+      list = list.filter((p) => !p.folderId);
+    } else if (selectedFolderId !== 'all') {
+      list = list.filter((p) => p.folderId === selectedFolderId);
+    }
     if (selectedRatioFilter !== 'All') {
       list = list.filter((p) => p.aspectRatio === selectedRatioFilter);
     }
@@ -794,7 +903,7 @@ export const TeamWorkspacePage: React.FC = () => {
       );
     }
     return list;
-  }, [teamProjects, selectedRatioFilter, searchQuery]);
+  }, [teamProjects, selectedFolderId, selectedRatioFilter, searchQuery]);
 
   return (
     <div
@@ -1263,6 +1372,223 @@ export const TeamWorkspacePage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Team Folders Row (Project & Customer Organization) */}
+              <div
+                className={`p-3.5 rounded-2xl border transition-all ${
+                  isDark
+                    ? 'bg-[#0A1A2F]/60 border-zinc-800/80'
+                    : 'bg-white/90 border-slate-200/80 shadow-2xs'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3 mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Folder className="w-4 h-4 text-blue-500" />
+                    <span className="text-xs font-bold tracking-tight">
+                      Folder Proyek & Klien
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {teamFolders.length} Folder
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenCreateFolderModal}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-102"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5" />
+                    <span>+ Folder Baru</span>
+                  </button>
+                </div>
+
+                {/* Horizontal Scrollable Folder Chips */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                  {/* Pill: Semua Proyek */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFolderId('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer border ${
+                      selectedFolderId === 'all'
+                        ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                        : isDark
+                        ? 'bg-zinc-900/80 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <span>Semua Proyek</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                        selectedFolderId === 'all'
+                          ? 'bg-white/20 text-white font-bold'
+                          : isDark
+                          ? 'bg-zinc-800 text-zinc-400'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {teamProjects.length}
+                    </span>
+                  </button>
+
+                  {/* Pill: Tanpa Folder */}
+                  {teamProjects.some((p) => !p.folderId) && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFolderId('unassigned')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer border ${
+                        selectedFolderId === 'unassigned'
+                          ? isDark
+                            ? 'bg-zinc-700 text-white border-zinc-600 shadow-xs'
+                            : 'bg-slate-700 text-white border-slate-700 shadow-xs'
+                          : isDark
+                          ? 'bg-zinc-900/80 hover:bg-zinc-800 border-zinc-800 text-zinc-400'
+                          : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <span>Tanpa Folder</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                          selectedFolderId === 'unassigned'
+                            ? 'bg-white/20 text-white font-bold'
+                            : isDark
+                            ? 'bg-zinc-800 text-zinc-400'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {teamProjects.filter((p) => !p.folderId).length}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Individual Folder Pills */}
+                  {teamFolders.map((folder) => {
+                    const theme = getTeamFolderColorTheme(folder.color);
+                    const isSelected = selectedFolderId === folder.id;
+                    const count = teamProjects.filter((p) => p.folderId === folder.id).length;
+
+                    return (
+                      <div
+                        key={folder.id}
+                        className={`group/folder flex items-center rounded-xl border shrink-0 transition-all ${
+                          isSelected
+                            ? isDark
+                              ? 'bg-zinc-800 border-blue-500 shadow-xs'
+                              : 'bg-white border-blue-500 shadow-xs'
+                            : isDark
+                            ? 'bg-zinc-900/80 hover:bg-zinc-800/80 border-zinc-800 text-zinc-300'
+                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFolderId(folder.id)}
+                          className="px-3 py-1.5 text-xs font-semibold flex items-center gap-2 cursor-pointer"
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
+                            style={{ backgroundColor: theme.hex }}
+                          />
+                          <span className="truncate max-w-[140px]">{folder.name}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                              isSelected
+                                ? 'bg-blue-500/20 text-blue-400 font-bold'
+                                : isDark
+                                ? 'bg-zinc-800 text-zinc-400'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditFolderModal(folder);
+                          }}
+                          title="Edit Folder"
+                          className="p-1.5 mr-1 rounded-lg text-zinc-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors cursor-pointer"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {teamFolders.length === 0 && (
+                    <span className="text-xs text-zinc-400 italic py-1">
+                      Belum ada folder. Buat folder untuk mengelompokkan proyek per klien atau campaign.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Active Folder Header Banner (if a specific folder is selected) */}
+              {selectedFolder && (
+                <div
+                  className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-all animate-in fade-in duration-150 ${
+                    isDark
+                      ? 'bg-gradient-to-r from-blue-950/30 via-zinc-900/60 to-zinc-900/30 border-blue-500/30'
+                      : 'bg-gradient-to-r from-blue-50/70 via-white to-slate-50 border-blue-200 shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                      style={{
+                        backgroundColor: `${getTeamFolderColorTheme(selectedFolder.color).hex}22`,
+                        color: getTeamFolderColorTheme(selectedFolder.color).hex,
+                        border: `1px solid ${getTeamFolderColorTheme(selectedFolder.color).hex}44`,
+                      }}
+                    >
+                      <Folder className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold truncate">{selectedFolder.name}</h3>
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: getTeamFolderColorTheme(selectedFolder.color).hex }}
+                        />
+                      </div>
+                      {selectedFolder.description && (
+                        <p className="text-xs text-zinc-400 truncate mt-0.5 max-w-lg">
+                          {selectedFolder.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditFolderModal(selectedFolder)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                        isDark
+                          ? 'border-zinc-700 hover:bg-zinc-800 text-zinc-300'
+                          : 'border-slate-200 hover:bg-white text-slate-700 shadow-2xs'
+                      }`}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit Folder</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFolderId('all')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-500 hover:underline cursor-pointer"
+                    >
+                      Lihat Semua Proyek
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Projects Grid / List Area */}
               {filteredProjects.length === 0 ? (
                 <div
@@ -1277,11 +1603,19 @@ export const TeamWorkspacePage: React.FC = () => {
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-base font-bold">
-                      {searchQuery ? 'Tidak ada proyek yang cocok' : 'Belum ada proyek di folder ini'}
+                      {searchQuery
+                        ? 'Tidak ada proyek yang cocok'
+                        : selectedFolder
+                        ? `Belum ada proyek di folder "${selectedFolder.name}"`
+                        : selectedFolderId === 'unassigned'
+                        ? 'Tidak ada proyek tanpa folder'
+                        : 'Belum ada proyek di ruang kerja tim ini'}
                     </h3>
                     <p className="text-xs text-zinc-400 max-w-md mx-auto">
                       {searchQuery
                         ? `Tidak ditemukan proyek tim dengan kata kunci "${searchQuery}". Coba kata kunci lain.`
+                        : selectedFolder
+                        ? `Pindahkan proyek yang sudah ada ke folder "${selectedFolder.name}", atau bagikan proyek baru dari kanvas.`
                         : 'Bagikan proyek carousel yang sedang Anda kerjakan di kanvas atau buat proyek baru untuk mulai berkolaborasi.'}
                     </p>
                   </div>
@@ -1370,10 +1704,28 @@ export const TeamWorkspacePage: React.FC = () => {
                           </div>
 
                           {/* Top Badges */}
-                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                          <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 max-w-[75%] flex-wrap">
                             <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white border border-white/10 uppercase">
                               {proj.aspectRatio}
                             </span>
+                            {(() => {
+                              const f = teamFolders.find((folder) => folder.id === proj.folderId);
+                              if (!f) return null;
+                              const col = getTeamFolderColorTheme(f.color);
+                              return (
+                                <span
+                                  className="text-[9px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-xs border truncate max-w-[120px] flex items-center gap-1 text-white shadow-xs"
+                                  style={{
+                                    backgroundColor: `${col.hex}dd`,
+                                    borderColor: col.hex,
+                                  }}
+                                  title={`Folder: ${f.name}`}
+                                >
+                                  <Folder className="w-2.5 h-2.5 shrink-0" />
+                                  <span className="truncate">{f.name}</span>
+                                </span>
+                              );
+                            })()}
                           </div>
                           <div className="absolute top-2.5 right-2.5">
                             <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-zinc-200 border border-white/10">
@@ -1392,17 +1744,31 @@ export const TeamWorkspacePage: React.FC = () => {
                             >
                               {proj.title}
                             </h4>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteTeamProject(proj.id, proj.title);
-                              }}
-                              className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
-                              title="Hapus proyek tim"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setProjectToMove(proj);
+                                  setIsMoveProjectModalOpen(true);
+                                }}
+                                className="p-1 rounded text-zinc-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors cursor-pointer"
+                                title="Pindahkan ke folder..."
+                              >
+                                <Folder className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTeamProject(proj.id, proj.title);
+                                }}
+                                className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                title="Hapus proyek tim"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
 
                           <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800/60">
@@ -1448,6 +1814,24 @@ export const TeamWorkspacePage: React.FC = () => {
                             <span className="text-[10px] text-zinc-400 font-medium">
                               {proj.slideCount} Slide
                             </span>
+                            {(() => {
+                              const f = teamFolders.find((folder) => folder.id === proj.folderId);
+                              if (!f) return null;
+                              const col = getTeamFolderColorTheme(f.color);
+                              return (
+                                <span
+                                  className="text-[9px] font-semibold px-2 py-0.2 rounded border flex items-center gap-1 shadow-2xs"
+                                  style={{
+                                    backgroundColor: `${col.hex}18`,
+                                    color: col.hex,
+                                    borderColor: `${col.hex}44`,
+                                  }}
+                                >
+                                  <Folder className="w-2.5 h-2.5" />
+                                  <span>{f.name}</span>
+                                </span>
+                              );
+                            })()}
                           </div>
                           <h4
                             className={`text-xs font-bold truncate group-hover:text-blue-500 transition-colors ${
@@ -1476,6 +1860,23 @@ export const TeamWorkspacePage: React.FC = () => {
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                           <span>Buka</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProjectToMove(proj);
+                            setIsMoveProjectModalOpen(true);
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
+                            isDark
+                              ? 'border-zinc-700 hover:bg-zinc-800 text-zinc-300'
+                              : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                          }`}
+                          title="Pindahkan ke folder..."
+                        >
+                          <Folder className="w-3.5 h-3.5" />
                         </button>
 
                         <button
@@ -2937,6 +3338,314 @@ export const TeamWorkspacePage: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: CREATE / EDIT TEAM FOLDER
+         ======================================================== */}
+      {isFolderModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border transition-all transform scale-100 animate-in zoom-in-95 duration-150 ${
+              isDark
+                ? 'bg-[#0A1A2F] border-zinc-800 text-slate-100'
+                : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3 pb-4 border-b border-zinc-200/50 dark:border-zinc-800/80">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs"
+                  style={{
+                    backgroundColor: `${getTeamFolderColorTheme(folderFormColor).hex}22`,
+                    color: getTeamFolderColorTheme(folderFormColor).hex,
+                  }}
+                >
+                  <Folder className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">
+                    {editingFolder ? 'Edit Folder Tim' : 'Buat Folder Tim Baru'}
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Kelompokkan proyek berdasarkan klien, customer, atau campaign
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFolderModalOpen(false)}
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+                  isDark
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTeamFolderSubmit} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1.5">
+                  Nama Folder / Klien <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={folderFormName}
+                  onChange={(e) => setFolderFormName(e.target.value)}
+                  placeholder="Contoh: Klien Tokopedia, Campaign Ramadan, Client ABC..."
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs outline-hidden transition-all border ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 focus:border-blue-500 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 focus:border-blue-500 text-slate-800 placeholder-slate-400'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1.5">
+                  Deskripsi / Catatan (Opsional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={folderFormDesc}
+                  onChange={(e) => setFolderFormDesc(e.target.value)}
+                  placeholder="Contoh: Proyek carousel untuk kebutuhan postingan sosial media mingguan..."
+                  className={`w-full px-3.5 py-2 rounded-xl text-xs outline-hidden resize-none transition-all border ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 focus:border-blue-500 text-white placeholder-zinc-500'
+                      : 'bg-slate-50 border-slate-200 focus:border-blue-500 text-slate-800 placeholder-slate-400'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2">
+                  Warna Label Folder
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {TEAM_FOLDER_COLORS.map((c) => {
+                    const isSelected = folderFormColor === c.id;
+                    return (
+                      <button
+                        type="button"
+                        key={c.id}
+                        onClick={() => setFolderFormColor(c.id)}
+                        className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-blue-500 ring-2 ring-blue-500/30'
+                            : isDark
+                            ? 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/50'
+                            : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                        }`}
+                      >
+                        <span
+                          className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
+                          style={{ backgroundColor: c.hex }}
+                        />
+                        <span className="text-[11px] font-medium truncate">{c.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-between gap-3 border-t border-zinc-200/50 dark:border-zinc-800/80">
+                {editingFolder ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFolderModalOpen(false);
+                      handleDeleteTeamFolderConfirm(editingFolder.id, editingFolder.name);
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus Folder</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsFolderModalOpen(false)}
+                    className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
+                      isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={!folderFormName.trim()}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm transition-all hover:scale-102"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{editingFolder ? 'Simpan Perubahan' : 'Buat Folder'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: MOVE PROJECT TO FOLDER
+         ======================================================== */}
+      {isMoveProjectModalOpen && projectToMove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border transition-all transform scale-100 animate-in zoom-in-95 duration-150 ${
+              isDark
+                ? 'bg-[#0A1A2F] border-zinc-800 text-slate-100'
+                : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3 pb-4 border-b border-zinc-200/50 dark:border-zinc-800/80">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center shadow-xs">
+                  <Folder className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Pindahkan ke Folder</h3>
+                  <p className="text-[11px] text-zinc-400 truncate max-w-[240px]">
+                    Proyek: <strong className="text-white dark:text-white">{projectToMove.title}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoveProjectModalOpen(false);
+                  setProjectToMove(null);
+                }}
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+                  isDark
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2 max-h-72 overflow-y-auto scrollbar-thin pr-1">
+              {/* Option: Tanpa Folder (Root) */}
+              <button
+                type="button"
+                onClick={() => handleMoveProjectToFolder(null)}
+                className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                  !projectToMove.folderId
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : isDark
+                    ? 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60'
+                    : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-zinc-700/30 text-zinc-400 flex items-center justify-center shrink-0">
+                    <FolderOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">Tanpa Folder (Root Tim)</div>
+                    <div className="text-[10px] text-zinc-400">Proyek ditampilkan di daftar umum</div>
+                  </div>
+                </div>
+                {!projectToMove.folderId && (
+                  <Check className="w-4 h-4 text-blue-500 shrink-0" />
+                )}
+              </button>
+
+              {/* Individual Folders */}
+              {teamFolders.map((folder) => {
+                const theme = getTeamFolderColorTheme(folder.color);
+                const isCurrent = projectToMove.folderId === folder.id;
+                const count = teamProjects.filter((p) => p.folderId === folder.id).length;
+
+                return (
+                  <button
+                    type="button"
+                    key={folder.id}
+                    onClick={() => handleMoveProjectToFolder(folder.id)}
+                    className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      isCurrent
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : isDark
+                        ? 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60'
+                        : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs"
+                        style={{
+                          backgroundColor: `${theme.hex}22`,
+                          color: theme.hex,
+                        }}
+                      >
+                        <Folder className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold truncate">{folder.name}</div>
+                        {folder.description ? (
+                          <div className="text-[10px] text-zinc-400 truncate">
+                            {folder.description}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-zinc-500">
+                            {count} proyek di folder ini
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {isCurrent && (
+                      <Check className="w-4 h-4 text-blue-500 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+
+              {teamFolders.length === 0 && (
+                <div className="py-6 text-center text-xs text-zinc-400">
+                  Belum ada folder yang dibuat. Buat folder baru terlebih dahulu.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 pt-3 flex items-center justify-between border-t border-zinc-200/50 dark:border-zinc-800/80">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoveProjectModalOpen(false);
+                  handleOpenCreateFolderModal();
+                }}
+                className="text-xs text-blue-500 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                <FolderPlus className="w-3.5 h-3.5" />
+                <span>+ Buat Folder Baru</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoveProjectModalOpen(false);
+                  setProjectToMove(null);
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
+                  isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>

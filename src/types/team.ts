@@ -58,9 +58,21 @@ export interface TeamWorkspace {
   updatedAt: string;
 }
 
+export interface TeamFolder {
+  id: string;
+  teamId: string;
+  name: string;
+  description?: string;
+  color?: string; // 'blue' | 'emerald' | 'amber' | 'purple' | 'rose' | 'indigo' | 'cyan' | 'orange'
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TeamProjectRecord {
   id: string;
   teamId: string;
+  folderId?: string;
   title: string;
   aspectRatio: string;
   slideCount: number;

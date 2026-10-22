@@ -1,4 +1,4 @@
-import type { TeamWorkspace, TeamMember, TeamProjectRecord, TeamRole, TeamBrandKit } from '../types/team';
+import type { TeamWorkspace, TeamMember, TeamProjectRecord, TeamFolder, TeamRole, TeamBrandKit } from '../types/team';
 import { DEFAULT_TEAM_BRAND_KIT } from '../types/team';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import { getCurrentAuthUser } from './authService';
@@ -6,6 +6,7 @@ import { getCurrentAuthUser } from './authService';
 const STORAGE_KEY_TEAMS = 'arune_team_workspaces_v1';
 const STORAGE_KEY_ACTIVE_TEAM = 'arune_active_team_id_v1';
 const STORAGE_KEY_TEAM_PROJECTS = 'arune_team_projects_v1';
+const STORAGE_KEY_TEAM_FOLDERS = 'arune_team_folders_v1';
 const STORAGE_KEY_USER_PROFILE = 'arune_user_profile_v1';
 
 export interface UserProfile {
@@ -609,16 +610,28 @@ export async function syncProjectsFromCloud(teamId: string): Promise<TeamProject
         .order('last_edited_at', { ascending: false });
 
       if (!error && data) {
-        const mapped: TeamProjectRecord[] = data.map((row: any) => ({
-          id: row.id,
-          teamId: row.team_id,
-          title: row.title || 'Untitled Carousel Project',
-          aspectRatio: row.aspect_ratio || '4:5',
-          slideCount: row.slide_count || 6,
-          projectJson: typeof row.project_json === 'object' ? JSON.stringify(row.project_json) : (row.project_json || '{}'),
-          lastEditedBy: row.last_edited_by || 'Member',
-          lastEditedAt: row.last_edited_at || new Date().toISOString(),
-        }));
+        const mapped: TeamProjectRecord[] = data.map((row: any) => {
+          let folderId = row.folder_id || undefined;
+          try {
+            const parsed = typeof row.project_json === 'object' ? row.project_json : JSON.parse(row.project_json || '{}');
+            if (!folderId && parsed?.teamFolderId) {
+              folderId = parsed.teamFolderId;
+            }
+          } catch {
+            // ignore
+          }
+          return {
+            id: row.id,
+            teamId: row.team_id,
+            folderId,
+            title: row.title || 'Untitled Carousel Project',
+            aspectRatio: row.aspect_ratio || '4:5',
+            slideCount: row.slide_count || 6,
+            projectJson: typeof row.project_json === 'object' ? JSON.stringify(row.project_json) : (row.project_json || '{}'),
+            lastEditedBy: row.last_edited_by || 'Member',
+            lastEditedAt: row.last_edited_at || new Date().toISOString(),
+          };
+        });
 
         // Merge with local projects
         const allStored = getAllStoredTeamProjects().filter((p) => p.teamId !== validTeamId);
@@ -1145,6 +1158,7 @@ export async function saveTeamProjectCloud(
     aspectRatio: string;
     slideCount: number;
     projectJson: string;
+    folderId?: string;
   }
 ): Promise<TeamProjectRecord> {
   const me = getCurrentUserProfile();
@@ -1153,15 +1167,27 @@ export async function saveTeamProjectCloud(
   const validTeamId = ensureUuid(teamId);
   const now = new Date().toISOString();
 
+  let parsedJson: any = {};
+  try {
+    parsedJson = typeof project.projectJson === 'string' ? JSON.parse(project.projectJson) : (project.projectJson || {});
+  } catch {
+    parsedJson = {};
+  }
+  if (project.folderId !== undefined) {
+    parsedJson.teamFolderId = project.folderId;
+  }
+  const effectiveFolderId = project.folderId !== undefined ? project.folderId : (parsedJson.teamFolderId || undefined);
+
   const record: TeamProjectRecord = {
     id: validProjectId,
     teamId: validTeamId,
+    folderId: effectiveFolderId,
     title: project.title,
     aspectRatio: project.aspectRatio,
     slideCount: project.slideCount,
     lastEditedBy: authUser?.name || me.name,
     lastEditedAt: now,
-    projectJson: project.projectJson,
+    projectJson: typeof project.projectJson === 'string' ? (project.folderId !== undefined ? JSON.stringify(parsedJson) : project.projectJson) : JSON.stringify(parsedJson),
     isLocked: false,
   };
 
@@ -1379,4 +1405,196 @@ export function getCurrentUserTeamRole(teamId?: string | null): TeamRole {
   );
 
   return member ? member.role : 'editor';
+}
+
+// ============================================================================
+// TEAM FOLDERS (PROJECT & CUSTOMER GROUPING)
+// ============================================================================
+
+export const TEAM_FOLDER_COLORS = [
+  { id: 'blue', label: 'Biru', hex: '#3B82F6', bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-500' },
+  { id: 'emerald', label: 'Hijau Mint', hex: '#10B981', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500' },
+  { id: 'amber', label: 'Amber', hex: '#F59E0B', bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-500' },
+  { id: 'purple', label: 'Ungu', hex: '#A855F7', bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-500' },
+  { id: 'rose', label: 'Merah', hex: '#F43F5E', bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-500' },
+  { id: 'indigo', label: 'Indigo', hex: '#6366F1', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', text: 'text-indigo-500' },
+  { id: 'cyan', label: 'Cyan', hex: '#06B6D4', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-500' },
+  { id: 'orange', label: 'Oranye', hex: '#F97316', bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-500' },
+];
+
+export function getTeamFolderColorTheme(colorId?: string) {
+  return TEAM_FOLDER_COLORS.find((c) => c.id === colorId) || TEAM_FOLDER_COLORS[0];
+}
+
+export function getAllStoredTeamFolders(): TeamFolder[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_TEAM_FOLDERS);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function saveAllStoredTeamFolders(folders: TeamFolder[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_TEAM_FOLDERS, JSON.stringify(folders));
+  } catch {
+    // ignore
+  }
+}
+
+export function getTeamFolders(teamId: string): TeamFolder[] {
+  const all = getAllStoredTeamFolders();
+  return all.filter((f) => f.teamId === teamId);
+}
+
+export async function saveTeamFolder(
+  teamId: string,
+  folder: { id?: string; name: string; description?: string; color?: string }
+): Promise<TeamFolder> {
+  const all = getAllStoredTeamFolders();
+  const validTeamId = ensureUuid(teamId);
+  const now = new Date().toISOString();
+  const folderId = folder.id || `tf_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  const existingIndex = all.findIndex((f) => f.id === folderId);
+  const record: TeamFolder = {
+    id: folderId,
+    teamId: validTeamId,
+    name: folder.name.trim(),
+    description: folder.description?.trim() || '',
+    color: folder.color || 'blue',
+    createdAt: existingIndex >= 0 ? all[existingIndex].createdAt : now,
+    updatedAt: now,
+  };
+
+  if (existingIndex >= 0) {
+    all[existingIndex] = record;
+  } else {
+    all.push(record);
+  }
+  saveAllStoredTeamFolders(all);
+
+  const client = getSupabaseClient();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client.from('team_folders').upsert({
+        id: record.id,
+        team_id: record.teamId,
+        name: record.name,
+        description: record.description,
+        color: record.color,
+        updated_at: record.updatedAt,
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  return record;
+}
+
+export async function deleteTeamFolder(teamId: string, folderId: string): Promise<void> {
+  const all = getAllStoredTeamFolders().filter((f) => f.id !== folderId);
+  saveAllStoredTeamFolders(all);
+
+  // Unlink all projects that belonged to this folder
+  const allProjects = getAllStoredTeamProjects();
+  let changed = false;
+  allProjects.forEach((p) => {
+    if (p.teamId === teamId && p.folderId === folderId) {
+      p.folderId = undefined;
+      let parsed: any = {};
+      try {
+        parsed = typeof p.projectJson === 'string' ? JSON.parse(p.projectJson) : (p.projectJson || {});
+      } catch {
+        parsed = {};
+      }
+      parsed.teamFolderId = null;
+      p.projectJson = JSON.stringify(parsed);
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveAllStoredTeamProjects(allProjects);
+  }
+
+  const client = getSupabaseClient();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client.from('team_folders').delete().eq('id', folderId);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export async function moveProjectToTeamFolder(
+  teamId: string,
+  projectId: string,
+  folderId: string | null
+): Promise<void> {
+  const allProjects = getAllStoredTeamProjects();
+  const project = allProjects.find((p) => p.id === projectId && p.teamId === teamId);
+  if (!project) return;
+
+  project.folderId = folderId || undefined;
+  let parsed: any = {};
+  try {
+    parsed = typeof project.projectJson === 'string' ? JSON.parse(project.projectJson) : (project.projectJson || {});
+  } catch {
+    parsed = {};
+  }
+  parsed.teamFolderId = folderId || null;
+  project.projectJson = JSON.stringify(parsed);
+  project.lastEditedAt = new Date().toISOString();
+
+  saveAllStoredTeamProjects(allProjects);
+
+  const client = getSupabaseClient();
+  if (client && isSupabaseConfigured()) {
+    try {
+      await client.from('team_projects').update({
+        project_json: parsed,
+        last_edited_at: project.lastEditedAt,
+      }).eq('id', projectId);
+    } catch (e) {
+      console.warn('Failed to update project folder on Supabase:', e);
+    }
+  }
+}
+
+export async function syncTeamFoldersFromCloud(teamId: string): Promise<TeamFolder[]> {
+  const client = getSupabaseClient();
+  const validTeamId = ensureUuid(teamId);
+
+  if (client && isSupabaseConfigured()) {
+    try {
+      const { data, error } = await client
+        .from('team_folders')
+        .select('*')
+        .eq('team_id', validTeamId);
+
+      if (!error && data && data.length > 0) {
+        const mapped: TeamFolder[] = data.map((row: any) => ({
+          id: row.id,
+          teamId: row.team_id,
+          name: row.name,
+          description: row.description || '',
+          color: row.color || 'blue',
+          createdAt: row.created_at || new Date().toISOString(),
+          updatedAt: row.updated_at || new Date().toISOString(),
+        }));
+
+        const others = getAllStoredTeamFolders().filter((f) => f.teamId !== validTeamId);
+        saveAllStoredTeamFolders([...mapped, ...others]);
+        return mapped;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return getTeamFolders(teamId);
 }
