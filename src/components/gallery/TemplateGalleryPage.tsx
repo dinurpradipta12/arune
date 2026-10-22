@@ -292,7 +292,7 @@ export const TemplateGalleryPage: React.FC = () => {
           if (isMounted && res && res.hasUpdate) {
             setUpdateAvailable({
               hasUpdate: true,
-              version: res.latestVersion || '1.0.2',
+              version: res.latestVersion || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.3'),
               releaseDate: res.releaseDate,
             });
             return;
@@ -312,7 +312,7 @@ export const TemplateGalleryPage: React.FC = () => {
         const currentBuild =
           typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : '';
         const currentVersion =
-          typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.1';
+          typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.3';
 
         const hasRemoteUpdate = Boolean(
           (data.build && currentBuild && !currentBuild.includes(data.build.slice(0, 7))) ||
@@ -322,7 +322,7 @@ export const TemplateGalleryPage: React.FC = () => {
         if (isMounted && hasRemoteUpdate) {
           setUpdateAvailable({
             hasUpdate: true,
-            version: data.version || '1.0.2',
+            version: data.version || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.3'),
             releaseDate: data.builtAt,
           });
         }
@@ -1524,8 +1524,27 @@ export const TemplateGalleryPage: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
+                onClick={async () => {
+                  if (typeof window !== 'undefined' && (window as any).aruneDesktop) {
+                    window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
+                  } else {
+                    // Browser / PWA: Flush Service Worker caches and hard reload to fetch newest assets
+                    try {
+                      if ('serviceWorker' in navigator) {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        for (const reg of regs) {
+                          await reg.unregister();
+                        }
+                      }
+                      if ('caches' in window) {
+                        const keys = await caches.keys();
+                        for (const key of keys) {
+                          await caches.delete(key);
+                        }
+                      }
+                    } catch {}
+                    window.location.reload();
+                  }
                 }}
                 className="px-2.5 py-1.5 rounded-lg bg-white text-emerald-900 font-bold text-xs hover:bg-emerald-50 transition-colors cursor-pointer shrink-0 shadow-xs"
               >
