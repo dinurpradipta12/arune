@@ -980,21 +980,35 @@ export async function addTeamMemberCloud(
         }
       }
 
-      // Query target profile by email
-      const { data: profile, error: pErr } = await client
-        .from('profiles')
-        .select('id, name, email, avatar_id, avatar_color')
-        .ilike('email', trimmedEmail)
-        .maybeSingle();
+      // Query target profile by email (Try RPC first to also check auth.users, fallback to profiles query)
+      let profile: any = null;
+      try {
+        const { data: rpcProfile, error: rpcErr } = await client
+          .rpc('find_user_by_email', { lookup_email: trimmedEmail });
+        if (!rpcErr && rpcProfile) {
+          profile = Array.isArray(rpcProfile) ? rpcProfile[0] : rpcProfile;
+        }
+      } catch {
+        // RPC might not exist yet
+      }
 
-      if (pErr) {
-        console.warn('Error checking profile:', pErr);
+      if (!profile) {
+        const { data: pData, error: pErr } = await client
+          .from('profiles')
+          .select('id, name, email, avatar_id, avatar_color')
+          .ilike('email', trimmedEmail)
+          .maybeSingle();
+
+        if (pErr) {
+          console.warn('Error checking profile:', pErr);
+        }
+        profile = pData;
       }
 
       if (!profile) {
         return {
           success: false,
-          error: `Akun dengan email "${trimmedEmail}" belum terdaftar di Arune Studio. Minta rekan Anda membuat akun terlebih dahulu dengan email ini, lalu tambahkan kembali.`,
+          error: `Akun dengan email "${trimmedEmail}" belum terdaftar di tabel profil Arune Studio. Pastikan akun sudah dibuat di Supabase, lalu jalankan sinkronisasi profil atau daftarkan akun tersebut terlebih dahulu.`,
         };
       }
 

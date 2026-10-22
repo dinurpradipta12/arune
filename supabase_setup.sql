@@ -116,6 +116,60 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- SINKRONKAN SEMUA PENGGUNA YANG SUDAH ADA DI AUTH.USERS KE PUBLIC.PROFILES
+insert into public.profiles (id, email, name, avatar_id, avatar_color)
+select 
+  id, 
+  email, 
+  coalesce(raw_user_meta_data->>'name', split_part(email, '@', 1)),
+  coalesce(raw_user_meta_data->>'avatar_id', 'ava-1'),
+  '#5E887E'
+from auth.users
+on conflict (id) do update set
+  email = excluded.email,
+  name = coalesce(profiles.name, excluded.name);
+
+-- FUNGSI SECURITY DEFINER UNTUK MENCARI USER BERDASARKAN EMAIL (TEMBUS KE AUTH.USERS)
+create or replace function public.find_user_by_email(lookup_email text)
+returns table (
+  id uuid,
+  email text,
+  name text,
+  avatar_id text,
+  avatar_color text
+) security definer as $$
+begin
+  -- 1. Cek di tabel public.profiles
+  return query
+  select p.id, p.email, p.name, p.avatar_id, p.avatar_color
+  from public.profiles p
+  where lower(p.email) = lower(trim(lookup_email))
+  limit 1;
+
+  if found then
+    return;
+  end if;
+
+  -- 2. Jika tidak ada di profiles tetapi ada di auth.users, sinkronkan otomatis!
+  insert into public.profiles (id, email, name, avatar_id, avatar_color)
+  select 
+    u.id, 
+    u.email, 
+    coalesce(u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)),
+    coalesce(u.raw_user_meta_data->>'avatar_id', 'ava-1'),
+    '#5E887E'
+  from auth.users u
+  where lower(u.email) = lower(trim(lookup_email))
+  on conflict (id) do update set email = excluded.email;
+
+  return query
+  select p.id, p.email, p.name, p.avatar_id, p.avatar_color
+  from public.profiles p
+  where lower(p.email) = lower(trim(lookup_email))
+  limit 1;
+end;
+$$ language plpgsql;
+
 -- ============================================================================
 -- 8. HELPER SECURITY DEFINER FUNCTIONS (MENCEGAH INFINITE RECURSION RLS)
 -- Fungsi ini berjalan dengan hak akses definer sehingga bebas dari perulangan policy.
