@@ -50,6 +50,20 @@ async function fetchRemoteVersion(): Promise<RemoteVersion | null> {
   }
 }
 
+function compareSemver(v1: string, v2: string): number {
+  const parse = (v: string) =>
+    v.replace(/^[^\d]*/, '').split('.').map((p) => parseInt(p, 10) || 0);
+  const a = parse(v1);
+  const b = parse(v2);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const na = a[i] ?? 0;
+    const nb = b[i] ?? 0;
+    if (na > nb) return 1;
+    if (na < nb) return -1;
+  }
+  return 0;
+}
+
 export const UpdateNotifier: React.FC<{ darkMode?: boolean }> = ({
   darkMode = false,
 }) => {
@@ -62,13 +76,24 @@ export const UpdateNotifier: React.FC<{ darkMode?: boolean }> = ({
   const check = useCallback(async () => {
     if (import.meta.env.DEV) return;
     const data = await fetchRemoteVersion();
-    if (!data) return;
+    if (!data || !data.version) return;
 
-    const hasNewBuild = Boolean(
-      (data.build && currentBuild && !currentBuild.includes(data.build.slice(0, 7))) ||
-      (data.version && data.version !== currentVersion)
+    // Check if user already dismissed or installed this version
+    const dismissed = localStorage.getItem('arune_dismissed_update_version');
+    if (dismissed && compareSemver(data.version, dismissed) <= 0) {
+      return;
+    }
+
+    const isNewerSemver = compareSemver(data.version, currentVersion) > 0;
+    const isNewerBuild = Boolean(
+      compareSemver(data.version, currentVersion) === 0 &&
+      data.build &&
+      currentBuild &&
+      !currentBuild.toLowerCase().includes(data.build.slice(0, 7).toLowerCase()) &&
+      localStorage.getItem('arune_dismissed_update_build') !== data.build
     );
 
+    const hasNewBuild = isNewerSemver || isNewerBuild;
     if (!hasNewBuild) return;
 
     // A new build is live.
@@ -105,6 +130,12 @@ export const UpdateNotifier: React.FC<{ darkMode?: boolean }> = ({
   const handleRefresh = async () => {
     setReloading(true);
     try {
+      if (remote?.version) {
+        localStorage.setItem('arune_dismissed_update_version', remote.version);
+      }
+      if (remote?.build) {
+        localStorage.setItem('arune_dismissed_update_build', remote.build);
+      }
       // Clear any Cache Storage entries so the new bundle is fetched fresh.
       if ('caches' in window) {
         const keys = await caches.keys();
@@ -125,6 +156,11 @@ export const UpdateNotifier: React.FC<{ darkMode?: boolean }> = ({
   };
 
   const handleLater = () => {
+    try {
+      if (remote?.version) {
+        localStorage.setItem('arune_dismissed_update_version', remote.version);
+      }
+    } catch {}
     snoozedUntil.current = Date.now() + SNOOZE_MS;
     setVisible(false);
   };

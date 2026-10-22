@@ -274,29 +274,47 @@ export const TemplateGalleryPage: React.FC = () => {
     hasUpdate: boolean;
     version: string;
     releaseDate?: string;
+    build?: string;
   } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
+    const compareSemver = (v1: string, v2: string): number => {
+      const parse = (v: string) =>
+        v.replace(/^[^\d]*/, '').split('.').map((p) => parseInt(p, 10) || 0);
+      const a = parse(v1);
+      const b = parse(v2);
+      for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        const na = a[i] ?? 0;
+        const nb = b[i] ?? 0;
+        if (na > nb) return 1;
+        if (na < nb) return -1;
+      }
+      return 0;
+    };
+
     const checkAppVersion = async () => {
       try {
+        const currentBuild =
+          typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : '';
+        const currentVersion =
+          typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.6';
+
         if (typeof window !== 'undefined' && (window as any).aruneDesktop?.checkForUpdates) {
-          const currentBuild =
-            typeof __APP_BUILD_ID__ !== 'undefined'
-              ? __APP_BUILD_ID__
-              : typeof __APP_VERSION__ !== 'undefined'
-              ? __APP_VERSION__
-              : '1.0.0';
-          const res = await (window as any).aruneDesktop.checkForUpdates(currentBuild);
-          if (isMounted && res && res.hasUpdate) {
-            setUpdateAvailable({
-              hasUpdate: true,
-              version: res.latestVersion || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.3'),
-              releaseDate: res.releaseDate,
-            });
-            return;
+          const res = await (window as any).aruneDesktop.checkForUpdates(currentBuild || currentVersion);
+          if (isMounted && res && res.hasUpdate && res.latestVersion) {
+            const dismissed = localStorage.getItem('arune_dismissed_update_version');
+            if (!dismissed || compareSemver(res.latestVersion, dismissed) > 0) {
+              setUpdateAvailable({
+                hasUpdate: true,
+                version: res.latestVersion,
+                releaseDate: res.releaseDate,
+              });
+              return;
+            }
           }
+          return;
         }
 
         const targetUrl =
@@ -309,21 +327,36 @@ export const TemplateGalleryPage: React.FC = () => {
         });
         if (!res.ok) return;
         const data = await res.json();
-        const currentBuild =
-          typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : '';
-        const currentVersion =
-          typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.3';
 
-        const hasRemoteUpdate = Boolean(
-          (data.build && currentBuild && !currentBuild.includes(data.build.slice(0, 7))) ||
-          (data.version && data.version !== currentVersion)
+        // 1. Check if user already dismissed this version or newer
+        const dismissed = localStorage.getItem('arune_dismissed_update_version');
+        if (dismissed && data.version && compareSemver(data.version, dismissed) <= 0) {
+          return;
+        }
+
+        // 2. Strict SemVer check: remote must be strictly newer than current app version
+        const isNewerSemver = Boolean(
+          data.version && compareSemver(data.version, currentVersion) > 0
         );
 
-        if (isMounted && hasRemoteUpdate) {
+        // 3. Or if versions are identical, check if a newer deploy build SHA is available (and not already running)
+        const isNewerBuild = Boolean(
+          data.version &&
+          compareSemver(data.version, currentVersion) === 0 &&
+          data.build &&
+          currentBuild &&
+          !currentBuild.toLowerCase().includes(data.build.slice(0, 7).toLowerCase()) &&
+          localStorage.getItem('arune_dismissed_update_build') !== data.build
+        );
+
+        const hasRemoteUpdate = isNewerSemver || isNewerBuild;
+
+        if (isMounted && hasRemoteUpdate && data.version) {
           setUpdateAvailable({
             hasUpdate: true,
-            version: data.version || (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.3'),
+            version: data.version,
             releaseDate: data.builtAt,
+            build: data.build,
           });
         }
       } catch {
@@ -1522,12 +1555,27 @@ export const TemplateGalleryPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (typeof window !== 'undefined' && (window as any).aruneDesktop) {
-                    window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
-                  } else {
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      if (updateAvailable.version) {
+                        localStorage.setItem('arune_dismissed_update_version', updateAvailable.version);
+                      }
+                      if (updateAvailable.build) {
+                        localStorage.setItem('arune_dismissed_update_build', updateAvailable.build);
+                      }
+                    } catch {}
+
+                    if (typeof window !== 'undefined' && (window as any).aruneDesktop) {
+                      window.dispatchEvent(new CustomEvent('check-desktop-update-manual'));
+                      if ((window as any).aruneDesktop.reloadLatest) {
+                        await (window as any).aruneDesktop.reloadLatest();
+                        return;
+                      }
+                    }
+
                     // Browser / PWA: Flush Service Worker caches and hard reload to fetch newest assets
                     try {
                       if ('serviceWorker' in navigator) {
@@ -1544,12 +1592,31 @@ export const TemplateGalleryPage: React.FC = () => {
                       }
                     } catch {}
                     window.location.reload();
-                  }
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white text-emerald-900 font-bold text-xs hover:bg-emerald-50 transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                Perbarui
-              </button>
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-white text-emerald-900 font-bold text-xs hover:bg-emerald-50 transition-colors cursor-pointer shrink-0 shadow-xs"
+                >
+                  Perbarui
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      if (updateAvailable.version) {
+                        localStorage.setItem('arune_dismissed_update_version', updateAvailable.version);
+                      }
+                      if (updateAvailable.build) {
+                        localStorage.setItem('arune_dismissed_update_build', updateAvailable.build);
+                      }
+                    } catch {}
+                    setUpdateAvailable(null);
+                  }}
+                  className="p-1 rounded-lg text-emerald-100 hover:text-white hover:bg-black/20 transition-colors cursor-pointer shrink-0"
+                  title="Tutup pemberitahuan"
+                  aria-label="Tutup pemberitahuan pembaruan"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           )}
 
