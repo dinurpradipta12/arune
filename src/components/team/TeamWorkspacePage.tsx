@@ -723,8 +723,44 @@ export const TeamWorkspacePage: React.FC = () => {
       ),
       primaryButtonText: 'Ya, Hapus Proyek',
       secondaryButtonText: 'Batal',
-      onPrimary: () => {
-        deleteTeamProject(currentTeam.id, recordId);
+      onPrimary: async () => {
+        const deletedId = recordId;
+        const validDeletedId = ensureUuid(deletedId);
+
+        // 1. Optimistic UI update: instantly drop from state
+        setTeamProjects((prev) =>
+          prev.filter(
+            (p) =>
+              p.id !== deletedId &&
+              p.id !== validDeletedId &&
+              ensureUuid(p.id) !== validDeletedId
+          )
+        );
+
+        // 2. If the active editor is currently holding this project, reset its identity
+        // so that autosave won't accidentally recreate it in the team workspace
+        const studioState = useStudioStore.getState();
+        if (
+          studioState.projectId === deletedId ||
+          studioState.projectId === validDeletedId ||
+          ensureUuid(studioState.projectId) === validDeletedId
+        ) {
+          useStudioStore.setState({
+            projectId: `proj-${Date.now().toString(36)}`,
+            projectTitle: 'Untitled Carousel Project',
+            openDocuments: (studioState.openDocuments || []).filter(
+              (doc) =>
+                doc.id !== deletedId &&
+                doc.id !== validDeletedId &&
+                ensureUuid(doc.id) !== validDeletedId
+            ),
+          });
+        }
+
+        // 3. Persist deletion in local tombstone and Supabase Cloud
+        await deleteTeamProject(currentTeam.id, deletedId);
+
+        // 4. Refresh project list from store
         setTeamProjects(getTeamProjects(currentTeam.id));
         setDialogModal(null);
       },

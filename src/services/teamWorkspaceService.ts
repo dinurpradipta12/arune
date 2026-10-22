@@ -8,6 +8,34 @@ const STORAGE_KEY_ACTIVE_TEAM = 'arune_active_team_id_v1';
 const STORAGE_KEY_TEAM_PROJECTS = 'arune_team_projects_v1';
 const STORAGE_KEY_TEAM_FOLDERS = 'arune_team_folders_v1';
 const STORAGE_KEY_USER_PROFILE = 'arune_user_profile_v1';
+const STORAGE_KEY_DELETED_PROJECTS = 'arune_deleted_team_project_ids';
+
+export function getDeletedTeamProjectIds(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED_PROJECTS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function recordDeletedTeamProjectId(id: string): void {
+  if (!id) return;
+  try {
+    const list = getDeletedTeamProjectIds();
+    const cleanId = String(id).trim();
+    if (!list.includes(cleanId)) {
+      list.push(cleanId);
+    }
+    const uuid = ensureUuid(cleanId);
+    if (!list.includes(uuid)) {
+      list.push(uuid);
+    }
+    localStorage.setItem(STORAGE_KEY_DELETED_PROJECTS, JSON.stringify(list));
+  } catch {}
+}
 
 export interface UserProfile {
   id: string;
@@ -594,7 +622,14 @@ export async function syncProjectsFromCloud(teamId: string): Promise<TeamProject
         .order('last_edited_at', { ascending: false });
 
       if (!error && data) {
-        const mapped: TeamProjectRecord[] = data.map((row: any) => {
+        const deletedIds = getDeletedTeamProjectIds();
+        const mapped: TeamProjectRecord[] = data
+          .filter(
+            (row: any) =>
+              !deletedIds.includes(row.id) &&
+              !deletedIds.includes(ensureUuid(row.id))
+          )
+          .map((row: any) => {
           let folderId = row.folder_id || undefined;
           try {
             const parsed = typeof row.project_json === 'object' ? row.project_json : JSON.parse(row.project_json || '{}');
@@ -1378,18 +1413,49 @@ export function saveTeamProject(
   return record;
 }
 
-export function deleteTeamProject(teamId: string, projectId: string): void {
+export async function deleteTeamProject(teamId: string, projectId: string): Promise<void> {
   const validProjectId = ensureUuid(projectId);
   const validTeamId = ensureUuid(teamId);
 
+  // 1. Mark as deleted in tombstone storage immediately so sync/realtime cannot revive it
+  recordDeletedTeamProjectId(projectId);
+  recordDeletedTeamProjectId(validProjectId);
+
+  // 2. Filter out locally stored project
   const allProjects = getAllStoredTeamProjects().filter(
-    (p) => !(p.id === validProjectId && p.teamId === validTeamId)
+    (p) => !(
+      (p.id === projectId || p.id === validProjectId || ensureUuid(p.id) === validProjectId) &&
+      (p.teamId === teamId || p.teamId === validTeamId || ensureUuid(p.teamId) === validTeamId)
+    )
   );
   saveAllStoredTeamProjects(allProjects);
 
+  // 3. Delete from Supabase Cloud
   const client = getSupabaseClient();
   if (client && isSupabaseConfigured()) {
-    client.from('team_projects').delete().eq('id', validProjectId).eq('team_id', validTeamId).then();
+    try {
+      // First attempt: call secure RPC helper that bypasses RLS
+      const { error: rpcErr } = await client.rpc('delete_team_project_secure', {
+        p_team_id: validTeamId,
+        p_project_id: validProjectId,
+      });
+
+      if (rpcErr) {
+        // Fallback: direct table DELETE
+        const { error: delErr } = await client
+          .from('team_projects')
+          .delete()
+          .eq('id', validProjectId)
+          .eq('team_id', validTeamId);
+
+        if (delErr) {
+          console.warn('Failed to delete team_project with team_id, trying by id only:', delErr);
+          await client.from('team_projects').delete().eq('id', validProjectId);
+        }
+      }
+    } catch (err) {
+      console.warn('Exception during Supabase team project deletion:', err);
+    }
   }
 }
 
@@ -1414,7 +1480,15 @@ export function getAllStoredTeamProjects(): TeamProjectRecord[] {
     const raw = localStorage.getItem(STORAGE_KEY_TEAM_PROJECTS);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        const deletedIds = getDeletedTeamProjectIds();
+        if (deletedIds.length === 0) return parsed;
+        return parsed.filter(
+          (p) =>
+            !deletedIds.includes(p.id) &&
+            !deletedIds.includes(ensureUuid(p.id))
+        );
+      }
     }
   } catch {
     // ignore

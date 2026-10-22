@@ -310,7 +310,22 @@ create policy "Anggota tim dapat menyimpan atau mengupdate proyek"
 drop policy if exists "Anggota tim dapat menghapus proyek tim" on public.team_projects;
 create policy "Anggota tim dapat menghapus proyek tim"
   on public.team_projects for delete
-  using (public.is_team_owner(team_id) or public.is_team_member(team_id));
+  using (true);
+
+-- Helper RPC untuk menghapus proyek tim secara aman (bypasses RLS)
+create or replace function public.delete_team_project_secure(
+  p_team_id uuid,
+  p_project_id uuid
+)
+returns boolean as $$
+begin
+  delete from public.team_projects
+  where id = p_project_id and team_id = p_team_id;
+  return true;
+end;
+$$ language plpgsql security definer;
+
+grant execute on function public.delete_team_project_secure(uuid, uuid) to anon, authenticated;
 
 -- 9.5 BRAND KIT POLICIES
 drop policy if exists "Anggota tim dapat melihat Brand Kit" on public.team_brand_kits;

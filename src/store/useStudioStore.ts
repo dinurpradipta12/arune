@@ -50,6 +50,7 @@ import {
   getAllStoredTeamProjects,
   saveTeamProjectCloud,
   ensureUuid,
+  getDeletedTeamProjectIds,
 } from '../services/teamWorkspaceService';
 import {
   saveWorkingProjectIDB,
@@ -723,31 +724,39 @@ function autoSaveWorkingProjectDebounced(_state?: StudioState) {
     const activeTeamId = getActiveTeamId();
     if (activeTeamId && latestState.slides.length > 0) {
       const validId = ensureUuid(latestState.projectId || idToSync);
-      const allTeamProjects = getAllStoredTeamProjects();
-      const existingTeamProject = allTeamProjects.find(
-        (p: any) =>
-          (p.id === validId || p.id === idToSync || p.id === latestState.projectId) &&
-          p.teamId === activeTeamId
-      );
-      const teamSnapshot = {
-        projectTitle: titleToSync,
-        aspectRatio: latestState.aspectRatio,
-        activeThemeId: latestState.activeThemeId,
-        themeOverride: latestState.themeOverride,
-        branding: latestState.branding,
-        scriptText: latestState.scriptText,
-        slides: cloneSlides(latestState.slides),
-        exportedAt: new Date().toISOString(),
-        version: '1.0.0',
-      };
-      saveTeamProjectCloud(activeTeamId, {
-        id: validId,
-        title: titleToSync,
-        aspectRatio: latestState.aspectRatio,
-        slideCount: latestState.slides.length,
-        folderId: existingTeamProject?.folderId,
-        projectJson: JSON.stringify(teamSnapshot),
-      }).catch((e) => console.warn('Background auto-save team project warning:', e));
+      const deletedIds = getDeletedTeamProjectIds();
+      const isDeleted =
+        deletedIds.includes(latestState.projectId) ||
+        deletedIds.includes(validId) ||
+        deletedIds.includes(idToSync);
+
+      if (!isDeleted) {
+        const allTeamProjects = getAllStoredTeamProjects();
+        const existingTeamProject = allTeamProjects.find(
+          (p: any) =>
+            (p.id === validId || p.id === idToSync || p.id === latestState.projectId) &&
+            p.teamId === activeTeamId
+        );
+        const teamSnapshot = {
+          projectTitle: titleToSync,
+          aspectRatio: latestState.aspectRatio,
+          activeThemeId: latestState.activeThemeId,
+          themeOverride: latestState.themeOverride,
+          branding: latestState.branding,
+          scriptText: latestState.scriptText,
+          slides: cloneSlides(latestState.slides),
+          exportedAt: new Date().toISOString(),
+          version: '1.0.0',
+        };
+        saveTeamProjectCloud(activeTeamId, {
+          id: validId,
+          title: titleToSync,
+          aspectRatio: latestState.aspectRatio,
+          slideCount: latestState.slides.length,
+          folderId: existingTeamProject?.folderId,
+          projectJson: JSON.stringify(teamSnapshot),
+        }).catch((e) => console.warn('Background auto-save team project warning:', e));
+      }
     }
 
     const nowFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1250,34 +1259,42 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     const activeTeamId = getActiveTeamId();
     if (activeTeamId && state.slides.length > 0) {
       const validId = ensureUuid(idToUse);
-      const allTeamProjects = getAllStoredTeamProjects();
-      const existingTeamProject = allTeamProjects.find(
-        (p: any) =>
-          (p.id === validId || p.id === idToUse || p.id === state.projectId) &&
-          p.teamId === activeTeamId
-      );
-      const teamSnapshot = {
-        projectTitle: titleToUse,
-        aspectRatio: state.aspectRatio,
-        activeThemeId: state.activeThemeId,
-        themeOverride: state.themeOverride,
-        branding: state.branding,
-        scriptText: state.scriptText,
-        slides: cloneSlides(state.slides),
-        exportedAt: new Date().toISOString(),
-        version: '1.0.0',
-      };
-      try {
-        await saveTeamProjectCloud(activeTeamId, {
-          id: validId,
-          title: titleToUse,
+      const deletedIds = getDeletedTeamProjectIds();
+      const isDeleted =
+        deletedIds.includes(idToUse) ||
+        deletedIds.includes(validId) ||
+        deletedIds.includes(state.projectId);
+
+      if (!isDeleted) {
+        const allTeamProjects = getAllStoredTeamProjects();
+        const existingTeamProject = allTeamProjects.find(
+          (p: any) =>
+            (p.id === validId || p.id === idToUse || p.id === state.projectId) &&
+            p.teamId === activeTeamId
+        );
+        const teamSnapshot = {
+          projectTitle: titleToUse,
           aspectRatio: state.aspectRatio,
-          slideCount: state.slides.length,
-          folderId: existingTeamProject?.folderId,
-          projectJson: JSON.stringify(teamSnapshot),
-        });
-      } catch (err) {
-        console.warn('Failed to save team project cloud on manual save:', err);
+          activeThemeId: state.activeThemeId,
+          themeOverride: state.themeOverride,
+          branding: state.branding,
+          scriptText: state.scriptText,
+          slides: cloneSlides(state.slides),
+          exportedAt: new Date().toISOString(),
+          version: '1.0.0',
+        };
+        try {
+          await saveTeamProjectCloud(activeTeamId, {
+            id: validId,
+            title: titleToUse,
+            aspectRatio: state.aspectRatio,
+            slideCount: state.slides.length,
+            folderId: existingTeamProject?.folderId,
+            projectJson: JSON.stringify(teamSnapshot),
+          });
+        } catch (err) {
+          console.warn('Failed to save team project cloud on manual save:', err);
+        }
       }
     }
 
