@@ -21,7 +21,11 @@ import { isDesktopApp } from './utils/platform';
 import { scanComputerFonts } from './services/fontManager';
 import { fetchCloudStudioData } from './services/supabaseTemplates';
 import { syncTeamsFromCloud, getActiveTeamId, setActiveTeamId } from './services/teamWorkspaceService';
-import { useStudioStore } from './store/useStudioStore';
+import {
+  useStudioStore,
+  flushActiveWorkingProjectSync,
+  hydrateStoreFromIndexedDB,
+} from './store/useStudioStore';
 
 function matchesHotkey(e: KeyboardEvent, combo: string): boolean {
   if (!combo) return false;
@@ -76,6 +80,34 @@ export function App() {
   // Expose store to window for automation/screenshots
   useEffect(() => {
     (window as unknown as { useStudioStore: typeof useStudioStore }).useStudioStore = useStudioStore;
+  }, []);
+
+  // Hydrate full-fidelity working project from IndexedDB on startup
+  useEffect(() => {
+    void hydrateStoreFromIndexedDB();
+  }, []);
+
+  // Safeguard: Synchronously flush pending project state to storage on window close, refresh, or hide
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      flushActiveWorkingProjectSync();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushActiveWorkingProjectSync();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Keep browser document title synced with Studio Name

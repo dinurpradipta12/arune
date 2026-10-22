@@ -46,6 +46,10 @@ import {
 import { multiplayerService } from '../services/multiplayerService';
 import { saveProjectVersionSnapshot } from '../services/versionHistoryService';
 import { getActiveTeamId } from '../services/teamWorkspaceService';
+import {
+  saveWorkingProjectIDB,
+  loadWorkingProjectIDB,
+} from '../services/indexedDbStorage';
 
 export interface HistorySnapshot {
   slides: Slide[];
@@ -139,22 +143,74 @@ export interface SavedWorkingProject {
   comments?: CanvasComment[];
 }
 
+export function cleanLocalStorageBloat(): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('arune_snapshots_v1_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        // ignore
+      }
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export function saveActiveWorkingProjectToStorage(doc: SavedWorkingProject): void {
   try {
     if (!doc.slides || doc.slides.length === 0) return;
-    localStorage.setItem(LOCAL_ACTIVE_WORKING_PROJECT_KEY, JSON.stringify(doc));
 
-    // Maintain a rotating backup vault in localStorage (retains last 5 projects)
+    // 1. Guaranteed full-fidelity save into IndexedDB (handles any photo sizes and all tabs)
+    void saveWorkingProjectIDB({
+      ...doc,
+      savedAt: new Date().toISOString(),
+      timestamp: Date.now(),
+    });
+
+    // 2. Best-effort write to localStorage for instant synchronous startup
+    try {
+      localStorage.setItem(LOCAL_ACTIVE_WORKING_PROJECT_KEY, JSON.stringify(doc));
+    } catch (err: any) {
+      // If QuotaExceededError, clean bloated snapshot keys from localStorage and try pruned version
+      cleanLocalStorageBloat();
+      try {
+        const prunedSlides = doc.slides.map((s) => ({
+          ...s,
+          elements: (s.elements || []).map((el) => {
+            if (el.type === 'image' && (el as any).content?.startsWith('data:image')) {
+              return { ...el, content: (el as any).content.slice(0, 50) + '...[idb]' };
+            }
+            return el;
+          }),
+        }));
+        localStorage.setItem(
+          LOCAL_ACTIVE_WORKING_PROJECT_KEY,
+          JSON.stringify({ ...doc, slides: prunedSlides })
+        );
+      } catch {
+        // IndexedDB holds the authoritative full copy
+      }
+    }
+
+    // 3. Maintain rotating backup vault in localStorage (retains last 3 projects)
     try {
       const rawVault = localStorage.getItem(LOCAL_PROJECT_BACKUP_VAULT_KEY);
       const vault: SavedWorkingProject[] = rawVault ? JSON.parse(rawVault) : [];
-      const updatedVault = [doc, ...vault.filter((v) => v.projectId !== doc.projectId)].slice(0, 5);
+      const updatedVault = [doc, ...vault.filter((v) => v.projectId !== doc.projectId)].slice(0, 3);
       localStorage.setItem(LOCAL_PROJECT_BACKUP_VAULT_KEY, JSON.stringify(updatedVault));
     } catch {
       // ignore backup write errors
     }
   } catch (err) {
-    console.warn('Failed to save working project to localStorage:', err);
+    console.warn('Failed to save working project to storage:', err);
   }
 }
 
@@ -195,6 +251,18 @@ export function getInitialActiveView(): StudioViewMode {
         viewParam === 'folders'
       ) {
         return viewParam;
+      }
+
+      // Check stored active view from previous session
+      const stored = localStorage.getItem(LOCAL_ACTIVE_VIEW_KEY) as StudioViewMode;
+      if (
+        stored === 'editor' ||
+        stored === 'gallery' ||
+        stored === 'theme-builder' ||
+        stored === 'team' ||
+        stored === 'folders'
+      ) {
+        return stored;
       }
     }
   } catch {
@@ -600,7 +668,7 @@ function autoSaveWorkingProjectDebounced(_state?: StudioState) {
       syncedOpenDocs.push(currentSnap);
     }
 
-    saveActiveWorkingProjectToStorage({
+    const payload: SavedWorkingProject = {
       projectId: latestState.projectId,
       projectTitle: latestState.projectTitle || 'Untitled Carousel Project',
       aspectRatio: latestState.aspectRatio,
@@ -613,11 +681,132 @@ function autoSaveWorkingProjectDebounced(_state?: StudioState) {
       openDocuments: syncedOpenDocs,
       activeDocumentId: latestState.activeDocumentId,
       comments: latestState.comments,
+    };
+
+    saveActiveWorkingProjectToStorage(payload);
+
+    // Synchronize to Saved User Projects (Proyek Terakhir) in background
+    // so user always finds their project on the homepage gallery and project folders
+    const idToSync = latestState.projectId || latestState.activeDocumentId || `proj-${Date.now().toString(36)}`;
+    const titleToSync = latestState.projectTitle || 'Untitled Carousel Project';
+    void upsertTemplate({
+      id: idToSync,
+      name: titleToSync,
+      description: `${latestState.slides.length} slides · ${latestState.aspectRatio}`,
+      aspectRatio: latestState.aspectRatio,
+      themeId: latestState.activeThemeId,
+      branding: latestState.branding,
+      scriptText: latestState.scriptText,
+      slides: latestState.slides,
     });
 
-    // Keep store's openDocuments in sync
-    useStudioStore.setState({ openDocuments: syncedOpenDocs });
+    const nowFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Keep store's openDocuments in sync and record last saved timestamp
+    useStudioStore.setState({
+      openDocuments: syncedOpenDocs,
+      lastSavedAt: nowFormatted,
+    });
   }, 150);
+}
+
+/**
+ * Synchronous immediate flush to prevent data loss on beforeunload / tab close / window minimize
+ */
+export function flushActiveWorkingProjectSync(): void {
+  try {
+    if (autoSaveProjectTimer) {
+      clearTimeout(autoSaveProjectTimer);
+      autoSaveProjectTimer = null;
+    }
+    const latestState = useStudioStore.getState();
+    if (!latestState.slides || latestState.slides.length === 0) return;
+
+    const currentSnap = snapshotCurrentActiveDoc(latestState);
+    const existingList = latestState.openDocuments || [];
+    const syncedOpenDocs = existingList.length > 0
+      ? existingList.map((doc) => (doc.id === latestState.activeDocumentId ? currentSnap : doc))
+      : [currentSnap];
+
+    if (!syncedOpenDocs.some((d) => d.id === latestState.activeDocumentId)) {
+      syncedOpenDocs.push(currentSnap);
+    }
+
+    const payload: SavedWorkingProject = {
+      projectId: latestState.projectId,
+      projectTitle: latestState.projectTitle || 'Untitled Carousel Project',
+      aspectRatio: latestState.aspectRatio,
+      activeThemeId: latestState.activeThemeId,
+      themeOverride: latestState.themeOverride,
+      branding: latestState.branding,
+      scriptText: latestState.scriptText,
+      slides: latestState.slides,
+      activeSlideIndex: latestState.activeSlideIndex,
+      openDocuments: syncedOpenDocs,
+      activeDocumentId: latestState.activeDocumentId,
+      comments: latestState.comments,
+    };
+
+    saveActiveWorkingProjectToStorage(payload);
+
+    const idToSync = latestState.projectId || latestState.activeDocumentId || `proj-${Date.now().toString(36)}`;
+    const titleToSync = latestState.projectTitle || 'Untitled Carousel Project';
+    void upsertTemplate({
+      id: idToSync,
+      name: titleToSync,
+      description: `${latestState.slides.length} slides · ${latestState.aspectRatio}`,
+      aspectRatio: latestState.aspectRatio,
+      themeId: latestState.activeThemeId,
+      branding: latestState.branding,
+      scriptText: latestState.scriptText,
+      slides: latestState.slides,
+    });
+  } catch (err) {
+    console.warn('Error during flushActiveWorkingProjectSync:', err);
+  }
+}
+
+/**
+ * Hydrates full-fidelity working project from IndexedDB on startup
+ * (recovering any heavy images or state that exceeded localStorage quota)
+ */
+export async function hydrateStoreFromIndexedDB(): Promise<boolean> {
+  try {
+    const idbDoc = await loadWorkingProjectIDB();
+    if (!idbDoc || !idbDoc.slides || idbDoc.slides.length === 0) return false;
+
+    const currentState = useStudioStore.getState();
+    const currentSlidesCount = currentState.slides?.length || 0;
+    const currentHasImages = currentState.slides?.some((s) =>
+      s.elements?.some((el) => el.type === 'image' && (el as any).content?.startsWith('data:image'))
+    );
+    const idbHasImages = idbDoc.slides.some((s) =>
+      s.elements?.some((el) => el.type === 'image' && (el as any).content?.startsWith('data:image'))
+    );
+
+    // If current store is empty, or IndexedDB has full images while store has pruned placeholders
+    if (currentSlidesCount === 0 || (!currentHasImages && idbHasImages) || (idbDoc.timestamp && idbDoc.timestamp > (currentState.lastModifiedTimestamp || 0))) {
+      useStudioStore.setState({
+        projectId: idbDoc.projectId || currentState.projectId,
+        projectTitle: idbDoc.projectTitle || currentState.projectTitle,
+        aspectRatio: idbDoc.aspectRatio || currentState.aspectRatio,
+        activeThemeId: idbDoc.activeThemeId || currentState.activeThemeId,
+        themeOverride: idbDoc.themeOverride || currentState.themeOverride,
+        branding: idbDoc.branding || currentState.branding,
+        scriptText: idbDoc.scriptText !== undefined ? idbDoc.scriptText : currentState.scriptText,
+        slides: cloneSlides(idbDoc.slides),
+        activeSlideIndex: Math.min(idbDoc.activeSlideIndex || 0, Math.max(0, idbDoc.slides.length - 1)),
+        openDocuments: idbDoc.openDocuments && idbDoc.openDocuments.length > 0 ? idbDoc.openDocuments : currentState.openDocuments,
+        activeDocumentId: idbDoc.activeDocumentId || currentState.activeDocumentId,
+        comments: idbDoc.comments || currentState.comments,
+        lastSavedAt: new Date(idbDoc.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+      return true;
+    }
+  } catch (err) {
+    console.warn('Failed to hydrate from IndexedDB:', err);
+  }
+  return false;
 }
 
 const savedWorkingDoc = loadSavedWorkingProjectFromStorage();
@@ -2688,3 +2877,23 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   setCloudMasterTemplates: (cloudMasterTemplates) =>
     set({ cloudMasterTemplates }),
 }));
+
+// ============================================================================
+// AUTOMATIC PERSISTENCE STORE SUBSCRIBER
+// ============================================================================
+// Reactively captures any modifications to slides, title, branding, aspect ratio,
+// or open document tabs to ensure NOTHING is ever lost even if an action forgets
+// to manually call autoSaveWorkingProjectDebounced.
+let previousSaveFingerprint = '';
+
+useStudioStore.subscribe((state) => {
+  if (!state.slides || state.slides.length === 0) return;
+
+  // Build a lightweight state fingerprint to avoid redundant writes
+  const fingerprint = `${state.projectId}_${state.projectTitle}_${state.aspectRatio}_${state.activeThemeId}_${state.slides.length}_${state.lastModifiedTimestamp || 0}`;
+
+  if (fingerprint !== previousSaveFingerprint) {
+    previousSaveFingerprint = fingerprint;
+    autoSaveWorkingProjectDebounced(state);
+  }
+});

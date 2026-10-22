@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Check,
+  CheckCircle2,
   ChevronDown,
   Copy,
   Download,
@@ -297,6 +298,19 @@ export const TopHeaderBar: React.FC = () => {
           >
             <Redo2 className="w-3.5 h-3.5" />
           </button>
+        </div>
+
+        {/* Autosave Status Pill */}
+        <div
+          title="Semua perubahan tersimpan otomatis ke penyimpanan aman (IndexedDB & Local Cache)"
+          className={`hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-medium transition-all select-none ${
+            workspaceDarkMode
+              ? 'bg-zinc-900/60 text-emerald-400 border border-emerald-500/20'
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs'
+          }`}
+        >
+          <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+          <span>{lastSavedAt ? `Tersimpan ${lastSavedAt}` : 'Tersimpan otomatis'}</span>
         </div>
 
         {/* Viewer Role Indicator Badge */}

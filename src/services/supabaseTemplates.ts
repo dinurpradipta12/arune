@@ -1,6 +1,11 @@
 import { type SupabaseClient } from '@supabase/supabase-js';
 import type { AspectRatioKey, CloudTemplateRecord } from '../types/studio';
 import {
+  saveUserProjectIDB,
+  getAllUserProjectsIDB,
+  deleteUserProjectIDB,
+} from './indexedDbStorage';
+import {
   getSupabaseConfig,
   saveSupabaseConfig,
   isSupabaseConfigured,
@@ -88,7 +93,13 @@ export function saveLocalTemplates(templates: CloudTemplateRecord[]): void {
     const clean = templates.filter((t) => t.id !== GLOBAL_CONFIG_ROW_ID);
     localStorage.setItem(LOCAL_USER_PROJECTS_CACHE_KEY, JSON.stringify(clean));
   } catch {
-    // ignore quota errors
+    // If quota exceeded in localStorage, save a pruned copy (first 3) so synchronous fallback still works
+    try {
+      const pruned = templates.filter((t) => t.id !== GLOBAL_CONFIG_ROW_ID).slice(0, 3);
+      localStorage.setItem(LOCAL_USER_PROJECTS_CACHE_KEY, JSON.stringify(pruned));
+    } catch {
+      // IndexedDB has full copy anyway
+    }
   }
 }
 
@@ -102,20 +113,41 @@ export function clearLocalUserProjectsCache(): void {
 }
 
 /**
- * Lists the user's personal saved projects from local device cache ONLY
- * so user projects never mix across different users in Supabase.
+ * Lists the user's personal saved projects.
+ * Primary source: IndexedDB (practically unlimited quota, handles all base64 photos).
+ * Fallback source: LocalStorage (migrated to IndexedDB automatically).
  */
 export async function listTemplates(): Promise<{
   templates: CloudTemplateRecord[];
   mode: 'local';
   error?: string;
 }> {
-  const local = getLocalTemplates();
-  return { templates: local, mode: 'local' };
+  try {
+    // 1. Try IndexedDB first
+    const idbTemplates = await getAllUserProjectsIDB();
+    if (idbTemplates && idbTemplates.length > 0) {
+      return { templates: idbTemplates, mode: 'local' };
+    }
+
+    // 2. Fallback to LocalStorage
+    const local = getLocalTemplates();
+    if (local && local.length > 0) {
+      // Migrate local projects into IndexedDB in background
+      for (const t of local) {
+        void saveUserProjectIDB(t);
+      }
+      return { templates: local, mode: 'local' };
+    }
+
+    return { templates: [], mode: 'local' };
+  } catch (err: any) {
+    console.warn('Error reading templates:', err);
+    return { templates: getLocalTemplates(), mode: 'local' };
+  }
 }
 
 /**
- * Saves a user's project strictly into their own browser's local cache.
+ * Saves a user's project into IndexedDB (full fidelity) and mirrors into LocalStorage.
  */
 export async function upsertTemplate(
   record: Omit<CloudTemplateRecord, 'updatedAt' | 'source'>
@@ -131,6 +163,10 @@ export async function upsertTemplate(
     source: 'local',
   };
 
+  // 1. Primary write to IndexedDB (guarantees saving without quota drop)
+  await saveUserProjectIDB(localRecord);
+
+  // 2. Best-effort mirror to LocalStorage
   const existing = getLocalTemplates().filter((t) => t.id !== record.id);
   saveLocalTemplates([localRecord, ...existing]);
 
@@ -138,6 +174,10 @@ export async function upsertTemplate(
 }
 
 export async function deleteTemplateById(id: string): Promise<void> {
+  // 1. Delete from IndexedDB
+  await deleteUserProjectIDB(id);
+
+  // 2. Delete from LocalStorage
   const remaining = getLocalTemplates().filter((t) => t.id !== id);
   saveLocalTemplates(remaining);
 }

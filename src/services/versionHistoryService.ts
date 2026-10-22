@@ -1,9 +1,10 @@
 import type { ProjectVersionSnapshot } from '../types/studio';
 import { useStudioStore } from '../store/useStudioStore';
 import { multiplayerService } from './multiplayerService';
+import { saveVersionSnapshotIDB, getVersionSnapshotsIDB } from './indexedDbStorage';
 
 const STORAGE_PREFIX = 'arune_snapshots_v1_';
-const MAX_SNAPSHOTS_PER_PROJECT = 40;
+const MAX_LOCAL_SNAPSHOTS = 3; // Keep localStorage footprint minimal to prevent QuotaExceededError
 
 export function getProjectVersionSnapshots(projectId: string): ProjectVersionSnapshot[] {
   if (!projectId) return [];
@@ -18,6 +19,19 @@ export function getProjectVersionSnapshots(projectId: string): ProjectVersionSna
   }
 }
 
+export async function getProjectVersionSnapshotsAsync(projectId: string): Promise<ProjectVersionSnapshot[]> {
+  if (!projectId) return [];
+  try {
+    const idbList = await getVersionSnapshotsIDB(projectId);
+    if (idbList && idbList.length > 0) {
+      return idbList;
+    }
+  } catch {
+    // fallback
+  }
+  return getProjectVersionSnapshots(projectId);
+}
+
 export function saveProjectVersionSnapshot(
   snapshotData: Omit<ProjectVersionSnapshot, 'id' | 'createdAt'>
 ): ProjectVersionSnapshot {
@@ -30,13 +44,16 @@ export function saveProjectVersionSnapshot(
     createdAt: new Date().toISOString(),
   };
 
-  // Prepend newest first
-  const updated = [newSnapshot, ...existing].slice(0, MAX_SNAPSHOTS_PER_PROJECT);
+  // 1. Save full snapshot in IndexedDB (no quota issues)
+  void saveVersionSnapshotIDB(newSnapshot);
+
+  // 2. Only keep max 3 in localStorage to keep quota safe
+  const updated = [newSnapshot, ...existing].slice(0, MAX_LOCAL_SNAPSHOTS);
 
   try {
     localStorage.setItem(`${STORAGE_PREFIX}${projectId}`, JSON.stringify(updated));
-  } catch (e) {
-    console.warn('Failed to save project snapshot:', e);
+  } catch {
+    // Ignore localStorage quota errors because IndexedDB already has the snapshot
   }
 
   return newSnapshot;

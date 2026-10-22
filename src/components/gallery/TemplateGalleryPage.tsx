@@ -314,7 +314,36 @@ export const TemplateGalleryPage: React.FC = () => {
     setIsLoading(true);
     try {
       const res = await listTemplates();
-      setSavedProjects(res.templates);
+      let list = res.templates;
+
+      // Ensure the current active project with slides is always visible at the top of Proyek Terakhir
+      const curState = useStudioStore.getState();
+      const curSlides = curState.slides;
+      const curId = curState.projectId || curState.activeDocumentId;
+      const curTitle = curState.projectTitle;
+      const curRatio = curState.aspectRatio;
+      const curTheme = curState.getActiveTheme();
+
+      if (curSlides && curSlides.length > 0 && curId) {
+        const hasSubstance = curSlides.some((s) => s.elements && s.elements.length > 0);
+        if (hasSubstance) {
+          const activeRecord: CloudTemplateRecord = {
+            id: curId,
+            name: curTitle || 'Untitled Carousel',
+            description: `${curSlides.length} slides · ${curRatio} · Sesi Aktif`,
+            aspectRatio: curRatio,
+            themeId: curTheme.id,
+            branding: curState.branding,
+            scriptText: curState.scriptText,
+            slides: curSlides,
+            updatedAt: new Date().toISOString(),
+            source: 'local',
+          };
+          list = [activeRecord, ...list.filter((p) => p.id !== curId)];
+        }
+      }
+
+      setSavedProjects(list);
     } finally {
       setIsLoading(false);
     }
