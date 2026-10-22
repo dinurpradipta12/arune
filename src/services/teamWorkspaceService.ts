@@ -1037,19 +1037,55 @@ export async function addTeamMemberCloud(
         };
       }
 
-      // Profile exists! Insert into team_members using sanitized validTeamId
-      const { data: tmData, error: tmErr } = await client
-        .from('team_members')
-        .upsert(
-          {
-            team_id: validTeamId,
-            user_id: profile.id,
-            role: memberData.role,
-          },
-          { onConflict: 'team_id,user_id' }
-        )
-        .select()
-        .single();
+      // Ensure team owner is claimed if currently null
+      if (authUser?.id) {
+        try {
+          await client
+            .from('teams')
+            .update({ created_by: authUser.id })
+            .eq('id', validTeamId)
+            .is('created_by', null);
+        } catch {
+          // ignore
+        }
+      }
+
+      // Profile exists! Try RPC first for security definer execution
+      let tmData: any = null;
+      let tmErr: any = null;
+
+      try {
+        const { data: rpcRes, error: rpcErr } = await client.rpc('add_member_to_team', {
+          p_team_id: validTeamId,
+          p_user_id: profile.id,
+          p_role: memberData.role,
+        });
+        if (!rpcErr && rpcRes) {
+          tmData = rpcRes;
+        } else if (rpcErr) {
+          console.warn('RPC add_member_to_team warning/fallback:', rpcErr);
+        }
+      } catch {
+        // fallback to standard upsert
+      }
+
+      if (!tmData) {
+        const res = await client
+          .from('team_members')
+          .upsert(
+            {
+              team_id: validTeamId,
+              user_id: profile.id,
+              role: memberData.role,
+            },
+            { onConflict: 'team_id,user_id' }
+          )
+          .select()
+          .maybeSingle();
+
+        tmData = res.data;
+        tmErr = res.error;
+      }
 
       if (tmErr) {
         console.error('Failed to add team member in Supabase:', tmErr);

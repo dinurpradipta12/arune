@@ -188,9 +188,42 @@ returns boolean as $$
   select exists (
     select 1 from public.teams
     where id = p_team_id
-    and created_by = auth.uid()
+    and (created_by = auth.uid() or created_by is null)
+  ) or exists (
+    select 1 from public.team_members
+    where team_id = p_team_id
+    and user_id = auth.uid()
+    and role in ('owner', 'editor')
   );
 $$ language sql security definer stable;
+
+-- Helper RPC untuk menambah member tim secara aman (bypasses RLS)
+create or replace function public.add_member_to_team(
+  p_team_id uuid,
+  p_user_id uuid,
+  p_role text default 'editor'
+)
+returns json as $$
+declare
+  v_result json;
+begin
+  insert into public.team_members (team_id, user_id, role)
+  values (p_team_id, p_user_id, p_role)
+  on conflict (team_id, user_id)
+  do update set role = excluded.role;
+
+  -- Jika team created_by masih kosong, klaim oleh user yang mengundang
+  update public.teams
+  set created_by = auth.uid()
+  where id = p_team_id and created_by is null;
+
+  select row_to_json(tm) into v_result
+  from public.team_members tm
+  where tm.team_id = p_team_id and tm.user_id = p_user_id;
+
+  return v_result;
+end;
+$$ language plpgsql security definer;
 
 -- ============================================================================
 -- 9. ROW LEVEL SECURITY (RLS) POLICIES
