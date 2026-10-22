@@ -52,6 +52,8 @@ export const CenterWorkspace: React.FC = () => {
     updateElement,
     commitElementHistory,
     addElement,
+    pasteElement,
+    pasteElementFromData,
     addSlide,
     duplicateSlide,
     deleteSlide,
@@ -580,7 +582,7 @@ export const CenterWorkspace: React.FC = () => {
     e.target.value = '';
   };
 
-  // Global Paste Listener for Images (Ctrl+V / Cmd+V anywhere on editor)
+  // Global Paste Listener for Images & Canvas Elements (Ctrl+V / Cmd+V anywhere on editor)
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       // Don't intercept paste if user is typing into an input or textarea
@@ -594,24 +596,58 @@ export const CenterWorkspace: React.FC = () => {
         return;
       }
 
-      const items = e.clipboardData?.items;
-      if (!items) return;
+      // 1. Check if clipboard text contains Arune canvas element JSON
+      const text = e.clipboardData?.getData('text/plain') || '';
+      if (
+        text &&
+        (text.includes('"type":"arune_canvas_element"') ||
+          text.includes('"type": "arune_canvas_element"'))
+      ) {
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.type === 'arune_canvas_element' && parsed.element) {
+            e.preventDefault();
+            pasteElementFromData(parsed.element, parsed.sourceSlideIndex);
+            return;
+          }
+        } catch {}
+      }
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            insertImageFileToCanvas(file, `Pasted Image ${new Date().toLocaleTimeString()}`);
+      // 2. Check for image files in clipboard
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+              insertImageFileToCanvas(
+                file,
+                `Pasted Image ${new Date().toLocaleTimeString()}`
+              );
+            }
+            return;
           }
         }
+      }
+
+      // 3. Fallback: If internal store has a copied element, paste it!
+      const storeState = useStudioStore.getState();
+      if (
+        storeState.clipboardElement ||
+        (typeof sessionStorage !== 'undefined' &&
+          sessionStorage.getItem('arune_studio_clipboard_v1'))
+      ) {
+        e.preventDefault();
+        pasteElement();
+        return;
       }
     };
 
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [dim.stageWidth, dim.stageHeight]);
+  }, [dim.stageWidth, dim.stageHeight, pasteElement, pasteElementFromData]);
 
   const targetZoomRef = useRef<number>(canvasZoom);
   const rafZoomRef = useRef<number | null>(null);

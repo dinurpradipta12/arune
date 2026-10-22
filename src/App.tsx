@@ -61,6 +61,8 @@ export function App() {
     selectedElementId,
     deleteElement,
     duplicateElement,
+    copyElement,
+    pasteElement,
     activeView,
     setActiveView,
     setActiveModal,
@@ -243,6 +245,22 @@ export function App() {
         return;
       }
 
+      if (!isInput && selectedElementId && matchesHotkey(e, hk.copyElement || 'Mod+C')) {
+        e.preventDefault();
+        copyElement(selectedElementId);
+        return;
+      }
+
+      if (!isInput && activeView === 'editor' && matchesHotkey(e, hk.pasteElement || 'Mod+V')) {
+        // If user configured a custom hotkey (different from standard Mod+V), execute paste directly
+        if (hk.pasteElement && hk.pasteElement !== 'Mod+V' && hk.pasteElement !== 'Cmd+V' && hk.pasteElement !== 'Ctrl+V') {
+          e.preventDefault();
+          pasteElement();
+          return;
+        }
+        // For standard Mod+V / Cmd+V / Ctrl+V, let it trigger native 'paste' event on window
+      }
+
       if (!isInput && selectedElementId && matchesHotkey(e, hk.deleteElement)) {
         e.preventDefault();
         deleteElement(selectedElementId);
@@ -268,6 +286,8 @@ export function App() {
     selectedElementId,
     deleteElement,
     duplicateElement,
+    copyElement,
+    pasteElement,
     undo,
     redo,
     saveCurrentProjectToVault,

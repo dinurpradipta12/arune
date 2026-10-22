@@ -86,6 +86,8 @@ export interface StudioHotkeys {
   redo: string;
   saveProject: string;
   duplicateElement: string;
+  copyElement?: string;
+  pasteElement?: string;
   deleteElement: string;
   newTab: string;
   exportModal: string;
@@ -118,6 +120,8 @@ export const DEFAULT_STUDIO_HOTKEYS: StudioHotkeys = {
   redo: 'Mod+Shift+Z',
   saveProject: 'Mod+S',
   duplicateElement: 'Mod+D',
+  copyElement: 'Mod+C',
+  pasteElement: 'Mod+V',
   deleteElement: 'Delete',
   newTab: 'Mod+T',
   exportModal: 'Mod+E',
@@ -373,6 +377,10 @@ interface StudioState {
   slides: Slide[];
   activeSlideIndex: number;
   selectedElementId: string | null;
+  clipboardElement: {
+    element: CanvasElement;
+    sourceSlideIndex: number;
+  } | null;
   lastSavedAt: string | null;
   lastModifiedTimestamp: number;
 
@@ -489,6 +497,12 @@ interface StudioState {
   commitElementHistory: () => void;
   deleteElement: (elementId?: string) => void;
   duplicateElement: (elementId?: string) => void;
+  copyElement: (elementId?: string) => boolean;
+  pasteElement: (targetSlideIndex?: number) => CanvasElement | null;
+  pasteElementFromData: (
+    element: CanvasElement,
+    sourceSlideIndex?: number
+  ) => CanvasElement | null;
   splitImagePanoramic: (elementId: string) => void;
   adjustElementZIndex: (
     elementId: string,
@@ -855,6 +869,17 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   slides: savedWorkingDoc?.slides || [],
   activeSlideIndex: savedWorkingDoc?.activeSlideIndex || 0,
   selectedElementId: null,
+  clipboardElement: (() => {
+    try {
+      const stored =
+        typeof sessionStorage !== 'undefined'
+          ? sessionStorage.getItem('arune_studio_clipboard_v1')
+          : null;
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  })(),
   lastSavedAt: null,
   lastModifiedTimestamp: Date.now(),
 
@@ -2474,6 +2499,133 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       selectedElementId: copyId,
     });
     broadcastCurrentCanvasStateDebounced(get());
+  },
+
+  copyElement: (elementId) => {
+    const state = get();
+    const targetId = elementId || state.selectedElementId;
+    const slide = state.getActiveSlide();
+    if (!slide || !targetId) return false;
+    const original = slide.elements.find((e) => e.id === targetId);
+    if (!original) return false;
+
+    const clipData = {
+      element: JSON.parse(JSON.stringify(original)),
+      sourceSlideIndex: state.activeSlideIndex,
+    };
+
+    set({ clipboardElement: clipData });
+
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('arune_studio_clipboard_v1', JSON.stringify(clipData));
+      }
+    } catch {}
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(
+          JSON.stringify({
+            type: 'arune_canvas_element',
+            version: 1,
+            sourceSlideIndex: state.activeSlideIndex,
+            element: original,
+          })
+        ).catch(() => {});
+      }
+    } catch {}
+
+    return true;
+  },
+
+  pasteElement: (targetSlideIndex) => {
+    const state = get();
+    let clip = state.clipboardElement;
+    if (!clip) {
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          const stored = sessionStorage.getItem('arune_studio_clipboard_v1');
+          if (stored) clip = JSON.parse(stored);
+        }
+      } catch {}
+    }
+    if (!clip || !clip.element) return null;
+
+    const destSlideIndex =
+      typeof targetSlideIndex === 'number'
+        ? targetSlideIndex
+        : state.activeSlideIndex;
+
+    const destSlide = state.slides[destSlideIndex];
+    if (!destSlide) return null;
+
+    state.pushHistory();
+
+    const maxZ = destSlide.elements.reduce(
+      (m, e) => Math.max(m, e.zIndex || 0),
+      1
+    );
+    const copyId = `${clip.element.type || 'el'}-${Date.now().toString(36).slice(-5)}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const isSameSlide = clip.sourceSlideIndex === destSlideIndex;
+    // If pasted on the SAME slide where it was copied, offset by 18px so it does not overlap invisibly.
+    // If pasted on a DIFFERENT slide, keep exact identical (x, y) coordinates for seamless cross-slide layout alignment!
+    const nextX = isSameSlide ? clip.element.x + 18 : clip.element.x;
+    const nextY = isSameSlide ? clip.element.y + 18 : clip.element.y;
+
+    const newElement: CanvasElement = {
+      ...JSON.parse(JSON.stringify(clip.element)),
+      id: copyId,
+      name: isSameSlide
+        ? `${clip.element.name || 'Elemen'} Copy`
+        : (clip.element.name || 'Elemen'),
+      x: nextX,
+      y: nextY,
+      zIndex: maxZ + 1,
+    };
+
+    const nextSlides = state.slides.map((s, idx) =>
+      idx === destSlideIndex
+        ? { ...s, elements: [...s.elements, newElement] }
+        : s
+    );
+
+    // Update clipboard position if pasted on same slide so consecutive pastes cascade smoothly
+    const updatedClip = {
+      element: {
+        ...clip.element,
+        x: nextX,
+        y: nextY,
+      },
+      sourceSlideIndex: destSlideIndex,
+    };
+
+    set({
+      slides: nextSlides,
+      selectedElementId: copyId,
+      clipboardElement: updatedClip,
+      lastModifiedTimestamp: Date.now(),
+    });
+
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('arune_studio_clipboard_v1', JSON.stringify(updatedClip));
+      }
+    } catch {}
+
+    broadcastCurrentCanvasStateDebounced(get());
+    return newElement;
+  },
+
+  pasteElementFromData: (element, sourceSlideIndex) => {
+    set({
+      clipboardElement: {
+        element: JSON.parse(JSON.stringify(element)),
+        sourceSlideIndex:
+          typeof sourceSlideIndex === 'number' ? sourceSlideIndex : -1,
+      },
+    });
+    return get().pasteElement();
   },
 
   splitImagePanoramic: (elementId: string) => {

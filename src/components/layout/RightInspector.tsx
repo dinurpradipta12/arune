@@ -15,7 +15,9 @@ import {
   Bold,
   ChevronRight,
   CircleDot,
+  ClipboardPaste,
   Copy,
+  CopyPlus,
   Crop,
   Eye,
   FlipHorizontal2,
@@ -212,6 +214,9 @@ export const RightInspector: React.FC = () => {
     updateElement,
     deleteElement,
     duplicateElement,
+    copyElement,
+    pasteElement,
+    clipboardElement,
     splitImagePanoramic,
     alignElementOnCanvas,
     customFonts,
@@ -2849,17 +2854,35 @@ export const RightInspector: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => duplicateElement(selectedElement.id)}
-                title="Duplicate Object"
-                className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-blue-900 border border-zinc-800 cursor-pointer"
+                onClick={() => copyElement(selectedElement.id)}
+                title="Salin Elemen (Cmd+C / Ctrl+C)"
+                className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-blue-400 border border-zinc-800 cursor-pointer transition-colors"
               >
                 <Copy className="w-3 h-3" />
               </button>
               <button
                 type="button"
+                onClick={() => duplicateElement(selectedElement.id)}
+                title="Duplikat Elemen (Cmd+D / Ctrl+D)"
+                className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-blue-400 border border-zinc-800 cursor-pointer transition-colors"
+              >
+                <CopyPlus className="w-3 h-3" />
+              </button>
+              {clipboardElement && (
+                <button
+                  type="button"
+                  onClick={() => pasteElement()}
+                  title="Tempel Elemen (Cmd+V / Ctrl+V)"
+                  className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-blue-400 border border-zinc-800 cursor-pointer transition-colors"
+                >
+                  <ClipboardPaste className="w-3 h-3" />
+                </button>
+              )}
+              <button
+                type="button"
                 onClick={() => deleteElement(selectedElement.id)}
-                title="Delete Object"
-                className="p-1.5 rounded-lg bg-zinc-900 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 border border-zinc-800 cursor-pointer"
+                title="Hapus Elemen (Delete)"
+                className="p-1.5 rounded-lg bg-zinc-900 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 border border-zinc-800 cursor-pointer transition-colors"
               >
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -2873,9 +2896,22 @@ export const RightInspector: React.FC = () => {
                 Modular Inspector
               </span>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400">
-              Slide {String(activeSlideIndex + 1).padStart(2, '0')}
-            </span>
+            <div className="flex items-center gap-2">
+              {clipboardElement && (
+                <button
+                  type="button"
+                  onClick={() => pasteElement()}
+                  title="Tempel Elemen ke Slide Ini (Cmd+V / Ctrl+V)"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-900/20 hover:bg-blue-900/35 text-blue-400 border border-blue-800/60 text-[10px] font-medium cursor-pointer transition-colors"
+                >
+                  <ClipboardPaste className="w-3 h-3" />
+                  <span>Tempel</span>
+                </button>
+              )}
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400">
+                Slide {String(activeSlideIndex + 1).padStart(2, '0')}
+              </span>
+            </div>
           </div>
         )}
       </div>

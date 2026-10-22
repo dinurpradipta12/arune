@@ -116,6 +116,16 @@ const HOTKEY_LABELS: {
     desc: 'Menduplikasi layer teks/gambar yang sedang dipilih',
   },
   {
+    key: 'copyElement',
+    label: 'Salin Objek (Copy)',
+    desc: 'Menyalin layer teks/gambar yang dipilih ke clipboard',
+  },
+  {
+    key: 'pasteElement',
+    label: 'Tempel Objek (Paste)',
+    desc: 'Menempel objek yang disalin ke slide aktif',
+  },
+  {
     key: 'deleteElement',
     label: 'Hapus Objek Terpilih',
     desc: 'Menghapus layer yang sedang dipilih di kanvas',

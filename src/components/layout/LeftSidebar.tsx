@@ -6,7 +6,9 @@ import {
   ArrowUpToLine,
   BadgeCheck,
   Check,
+  ClipboardPaste,
   Copy,
+  CopyPlus,
   Eye,
   EyeOff,
   Image as ImageIcon,
@@ -1338,6 +1340,9 @@ export const LeftSidebar: React.FC = () => {
     adjustElementZIndex,
     deleteElement,
     duplicateElement,
+    copyElement,
+    pasteElement,
+    clipboardElement,
     workspaceDarkMode,
     settings,
   } = useStudioStore();
@@ -1904,8 +1909,8 @@ export const LeftSidebar: React.FC = () => {
               <button
                 type="button"
                 disabled={!selectedElementId}
-                onClick={() => selectedElementId && duplicateElement(selectedElementId)}
-                title="Duplikat Layer (Ctrl+D)"
+                onClick={() => selectedElementId && copyElement(selectedElementId)}
+                title="Salin Layer (Cmd+C / Ctrl+C)"
                 className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
                   workspaceDarkMode
                     ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
@@ -1913,6 +1918,34 @@ export const LeftSidebar: React.FC = () => {
                 }`}
               >
                 <Copy className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!selectedElementId}
+                onClick={() => selectedElementId && duplicateElement(selectedElementId)}
+                title="Duplikat Layer (Cmd+D / Ctrl+D)"
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <CopyPlus className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={!clipboardElement}
+                onClick={() => pasteElement()}
+                title="Tempel Layer ke Slide Ini (Cmd+V / Ctrl+V)"
+                className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                  clipboardElement
+                    ? 'text-blue-400 hover:bg-blue-900/20'
+                    : workspaceDarkMode
+                    ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
