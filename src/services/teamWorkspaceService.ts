@@ -536,6 +536,18 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
 
     saveTeams(activeCloudTeams);
 
+    // Prune local projects and folders for teams that no longer exist
+    try {
+      const validTeamIds = new Set(activeCloudTeams.map((t) => t.id));
+      const prunedProjects = getAllStoredTeamProjects().filter((p) => validTeamIds.has(p.teamId));
+      saveAllStoredTeamProjects(prunedProjects);
+
+      const prunedFolders = getAllStoredTeamFolders().filter((f) => validTeamIds.has(f.teamId));
+      saveAllStoredTeamFolders(prunedFolders);
+    } catch {
+      // ignore
+    }
+
     const activeId = getActiveTeamId();
     if (!activeId || !activeCloudTeams.some((t) => t.id === activeId)) {
       setActiveTeamId(activeCloudTeams[0]?.id || null);
