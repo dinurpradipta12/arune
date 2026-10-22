@@ -47,7 +47,10 @@ import {
   syncTeamsFromCloud,
   syncProjectsFromCloud,
   deduplicateTeamMembers,
+  type UserProfile,
 } from '../../services/teamWorkspaceService';
+import { subscribeToAuthChanges } from '../../services/authService';
+import { getAvatarPresetById } from '../../constants/avatarPresets';
 import type { TeamWorkspace, TeamProjectRecord } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
 import type {
@@ -121,7 +124,28 @@ export const TemplateGalleryPage: React.FC = () => {
   }, []);
 
   // User Profile & Warm Greeting State
-  const currentUser = useMemo(() => getCurrentUserProfile(), []);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => getCurrentUserProfile());
+
+  useEffect(() => {
+    const unsub = subscribeToAuthChanges((u) => {
+      if (u) {
+        setCurrentUser(getCurrentUserProfile());
+        setTeams(getTeams());
+      }
+    });
+
+    const handleProfileUpdated = () => {
+      setCurrentUser(getCurrentUserProfile());
+      setTeams(getTeams());
+    };
+    window.addEventListener('arune-profile-updated', handleProfileUpdated);
+
+    return () => {
+      unsub();
+      window.removeEventListener('arune-profile-updated', handleProfileUpdated);
+    };
+  }, []);
+
   const firstName = useMemo(() => {
     if (!currentUser?.name) return 'Kreator';
     const parts = currentUser.name.trim().split(' ');
@@ -1498,16 +1522,18 @@ export const TemplateGalleryPage: React.FC = () => {
                     {/* Team Members List */}
                     <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-zinc-100/70 dark:bg-zinc-800/40 border border-zinc-200/40 dark:border-zinc-800/60 mb-4">
                       <div className="flex items-center -space-x-1.5 overflow-hidden">
-                        {deduplicateTeamMembers(currentTeam.members || [], currentTeam.ownerId).slice(0, 5).map((member) => (
-                          <div
-                            key={member.id || member.email}
-                            className="w-6 h-6 rounded-full border border-white dark:border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white shadow-2xs"
-                            style={{ backgroundColor: member.avatarColor || '#6366F1' }}
-                            title={`${member.name} (${member.role})`}
-                          >
-                            {member.name.charAt(0).toUpperCase()}
-                          </div>
-                        ))}
+                        {deduplicateTeamMembers(currentTeam.members || [], currentTeam.ownerId).slice(0, 5).map((member) => {
+                          const preset = getAvatarPresetById(member.avatarId);
+                          return (
+                            <div
+                              key={member.id || member.email}
+                              className="w-6 h-6 rounded-full border border-white dark:border-zinc-900 overflow-hidden shadow-2xs shrink-0"
+                              title={`${member.name} (${member.role})`}
+                            >
+                              <img src={preset.svgDataUri} alt={member.name} className="w-full h-full object-cover" />
+                            </div>
+                          );
+                        })}
                         {deduplicateTeamMembers(currentTeam.members || [], currentTeam.ownerId).length > 5 && (
                           <div className="w-6 h-6 rounded-full border border-white dark:border-zinc-900 bg-zinc-700 text-[9px] font-semibold text-zinc-200 flex items-center justify-center">
                             +{deduplicateTeamMembers(currentTeam.members || [], currentTeam.ownerId).length - 5}

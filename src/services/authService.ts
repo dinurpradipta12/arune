@@ -1,7 +1,12 @@
 import { getSupabaseClient } from './supabaseClient';
 import { type SupabaseClient, type User } from '@supabase/supabase-js';
 import { AVATAR_PRESETS, getAvatarPresetById } from '../constants/avatarPresets';
-import { saveCurrentUserProfile } from './teamWorkspaceService';
+import {
+  saveCurrentUserProfile,
+  getCurrentUserProfile,
+  getTeams,
+  saveTeams,
+} from './teamWorkspaceService';
 
 export interface AuthUser {
   id: string;
@@ -60,6 +65,7 @@ function saveLocalSession(user: AuthUser | null) {
         id: user.id,
         name: user.name,
         email: user.email,
+        avatarId: user.avatarId,
         avatarColor: avatarPreset.bgColor || user.avatarColor || '#5E887E',
       });
     } catch {
@@ -237,8 +243,19 @@ export async function logoutUser(): Promise<void> {
 export async function updateAuthUserProfile(
   partial: Partial<Pick<AuthUser, 'name' | 'avatarId'>>
 ): Promise<AuthUser | null> {
-  const current = getCurrentAuthUser();
-  if (!current) return null;
+  let current = getCurrentAuthUser();
+  if (!current) {
+    const localProfile = getCurrentUserProfile();
+    current = {
+      id: localProfile.id || `local_user_${Date.now()}`,
+      email: localProfile.email || 'user@arune.studio',
+      name: localProfile.name || 'Member Tim',
+      avatarId: 'ava-1',
+      avatarColor: '#5E887E',
+      isSupabaseUser: false,
+      createdAt: new Date().toISOString(),
+    };
+  }
 
   const nextAvatarId = partial.avatarId || current.avatarId;
   const avatar = getAvatarPresetById(nextAvatarId);
@@ -272,5 +289,36 @@ export async function updateAuthUserProfile(
   }
 
   saveLocalSession(updated);
+
+  // Update in local cached teams so current user's avatar & name update immediately across all cached teams
+  try {
+    const teams = getTeams();
+    let teamsModified = false;
+    teams.forEach((t) => {
+      if (t.members) {
+        t.members.forEach((m) => {
+          if (m.isCurrentUser || m.id === updated.id || (updated.email && m.email && m.email.toLowerCase() === updated.email.toLowerCase())) {
+            m.name = updated.name;
+            m.avatarId = updated.avatarId;
+            m.avatarColor = updated.avatarColor;
+            teamsModified = true;
+          }
+        });
+      }
+    });
+    if (teamsModified) {
+      saveTeams(teams);
+    }
+  } catch (err) {
+    console.warn('Failed to update local team members on profile save:', err);
+  }
+
+  // Dispatch custom window event for components
+  try {
+    window.dispatchEvent(new CustomEvent('arune-profile-updated', { detail: updated }));
+  } catch {
+    // ignore
+  }
+
   return updated;
 }

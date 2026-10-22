@@ -5,6 +5,7 @@ export interface TeamMember {
   name: string;
   email: string;
   role: TeamRole;
+  avatarId?: string;
   avatarUrl?: string;
   avatarColor?: string;
   joinedAt: string;

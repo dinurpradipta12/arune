@@ -56,6 +56,8 @@ import {
   type UserProfile,
 } from '../../services/teamWorkspaceService';
 import { getSupabaseClient, isSupabaseConfigured } from '../../services/supabaseClient';
+import { subscribeToAuthChanges, updateAuthUserProfile } from '../../services/authService';
+import { getAvatarPresetById, AVATAR_PRESETS } from '../../constants/avatarPresets';
 import type { TeamWorkspace, TeamRole, TeamProjectRecord, TeamBrandKit } from '../../types/team';
 import { DEFAULT_TEAM_BRAND_KIT } from '../../types/team';
 import { useStudioStore } from '../../store/useStudioStore';
@@ -216,10 +218,25 @@ export const TeamWorkspacePage: React.FC = () => {
   useEffect(() => {
     refreshData();
 
+    // Subscribe to auth changes so avatar/name updates propagate instantly
+    const unsubAuth = subscribeToAuthChanges((u) => {
+      if (u) {
+        setUserProfile(getCurrentUserProfile());
+        refreshData();
+      }
+    });
+
+    const handleProfileUpdated = () => {
+      setUserProfile(getCurrentUserProfile());
+      refreshData();
+    };
+    window.addEventListener('arune-profile-updated', handleProfileUpdated);
+
     // Subscribe to realtime changes so teammates see updates instantly
     const client = getSupabaseClient();
+    let channel: any = null;
     if (client && isSupabaseConfigured()) {
-      const channel = client
+      channel = client
         .channel('arune_team_workspace_live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'team_projects' }, () => {
           refreshData();
@@ -231,11 +248,15 @@ export const TeamWorkspacePage: React.FC = () => {
           refreshData();
         })
         .subscribe();
-
-      return () => {
-        channel.unsubscribe();
-      };
     }
+
+    return () => {
+      unsubAuth();
+      window.removeEventListener('arune-profile-updated', handleProfileUpdated);
+      if (channel) {
+        channel.unsubscribe();
+      }
+    };
   }, []);
 
   const refreshData = async () => {
@@ -664,8 +685,12 @@ export const TeamWorkspacePage: React.FC = () => {
     setActiveView('editor');
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    await updateAuthUserProfile({
+      name: userProfile.name,
+      avatarId: userProfile.avatarId,
+    });
     saveCurrentUserProfile(userProfile);
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2500);
@@ -1968,11 +1993,12 @@ export const TeamWorkspacePage: React.FC = () => {
                     className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white shrink-0 shadow-xs"
-                        style={{ backgroundColor: member.avatarColor || '#3B82F6' }}
-                      >
-                        {member.name.charAt(0).toUpperCase()}
+                      <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 shadow-xs ring-1 ring-zinc-200 dark:ring-zinc-800">
+                        <img
+                          src={getAvatarPresetById(member.avatarId).svgDataUri}
+                          alt={member.name}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -2083,6 +2109,36 @@ export const TeamWorkspacePage: React.FC = () => {
                   </p>
 
                   <div className="space-y-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">
+                        Pilih Avatar Akun
+                      </label>
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar scroll-smooth">
+                        {AVATAR_PRESETS.map((preset) => {
+                          const isSel = (userProfile.avatarId || 'ava-1') === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => setUserProfile({ ...userProfile, avatarId: preset.id })}
+                              className={`p-1 rounded-xl border transition-all cursor-pointer shrink-0 ${
+                                isSel
+                                  ? 'border-blue-500 ring-2 ring-blue-500/30 bg-blue-500/10'
+                                  : isDark
+                                  ? 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60'
+                                  : 'border-slate-200 hover:border-slate-300 bg-white'
+                              }`}
+                              title={preset.name}
+                            >
+                              <div className="w-9 h-9 rounded-full overflow-hidden shrink-0">
+                                <img src={preset.svgDataUri} alt={preset.name} className="w-full h-full object-cover" />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <div>
                       <label className="text-[11px] font-bold text-zinc-400 block mb-1">
                         Nama Tampilan

@@ -12,6 +12,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  avatarId?: string;
   avatarColor: string;
 }
 
@@ -130,6 +131,7 @@ export function getCurrentUserProfile(): UserProfile {
       id: authUser.id,
       name: authUser.name,
       email: authUser.email,
+      avatarId: authUser.avatarId || 'ava-1',
       avatarColor: authUser.avatarColor,
     };
     saveCurrentUserProfile(profile);
@@ -147,6 +149,7 @@ export function getCurrentUserProfile(): UserProfile {
     id: ensureUuid(),
     name: 'Dinur Pradipta',
     email: 'snllabsarchive@gmail.com',
+    avatarId: 'ava-1',
     avatarColor: '#5E887E',
   };
   saveCurrentUserProfile(defaultProfile);
@@ -179,6 +182,7 @@ export function getInitialTeams(): TeamWorkspace[] {
           name: me.name,
           email: me.email,
           role: 'owner',
+          avatarId: me.avatarId || 'ava-1',
           avatarColor: me.avatarColor,
           joinedAt: new Date().toISOString(),
           isCurrentUser: true,
@@ -471,6 +475,7 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
               name: isMe ? (authUser.name || profile?.name || 'Anda') : (profile?.name || 'Member'),
               email: profile?.email || (isMe ? authUser.email : ''),
               role: (m.role as TeamRole) || 'editor',
+              avatarId: isMe ? (authUser.avatarId || 'ava-1') : (profile?.avatarId || 'ava-1'),
               avatarColor: profile?.avatarColor || '#5E887E',
               joinedAt: m.created_at || new Date().toISOString(),
               isCurrentUser: isMe,
@@ -495,6 +500,7 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
           name: isMeOwner ? (authUser.name || ownerProf?.name || 'Anda') : (ownerProf?.name || 'Owner'),
           email: ownerProf?.email || (isMeOwner ? authUser.email : ''),
           role: 'owner',
+          avatarId: isMeOwner ? (authUser.avatarId || 'ava-1') : (ownerProf?.avatarId || 'ava-1'),
           avatarColor: ownerProf?.avatarColor || '#5E887E',
           joinedAt: t.created_at || new Date().toISOString(),
           isCurrentUser: isMeOwner,
@@ -731,6 +737,7 @@ export async function createTeamCloud(
         name: authUser?.name || me.name,
         email: authUser?.email || me.email,
         role: 'owner',
+        avatarId: authUser?.avatarId || me.avatarId || 'ava-1',
         avatarColor: authUser?.avatarColor || me.avatarColor,
         joinedAt: new Date().toISOString(),
         isCurrentUser: true,

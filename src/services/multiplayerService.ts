@@ -117,6 +117,7 @@ class MultiplayerService {
     subscribeToAuthChanges(() => {
       this.refreshUserIdentity();
       this.updatePresence();
+      this.notifyState();
     });
 
     // Cleanup peers that have been offline/disconnected for > 2 minutes

@@ -21,6 +21,7 @@ import { ASPECT_RATIOS } from '../../constants/themesAndPresets';
 import { SlideStage } from '../canvas/SlideStage';
 import { multiplayerService } from '../../services/multiplayerService';
 import { getAvatarPresetById } from '../../constants/avatarPresets';
+import { subscribeToAuthChanges } from '../../services/authService';
 import type { AspectRatioKey } from '../../types/studio';
 
 export type InstagramPreviewFormat = 'carousel' | 'story' | 'reels';
@@ -113,7 +114,14 @@ export const InstagramPreviewPanel: React.FC = () => {
     setIsDragging(false);
   };
 
-  const myIdentity = multiplayerService.getMyIdentity();
+  const [myIdentity, setMyIdentity] = useState(() => multiplayerService.getMyIdentity());
+  useEffect(() => {
+    const unsub = subscribeToAuthChanges(() => {
+      setMyIdentity(multiplayerService.getMyIdentity());
+    });
+    return () => unsub();
+  }, []);
+
   const avatarUri = getAvatarPresetById(myIdentity.avatarId).svgDataUri;
   const username = branding.authorOrHandle
     ? branding.authorOrHandle.replace('@', '').toLowerCase().replace(/\s+/g, '.')
