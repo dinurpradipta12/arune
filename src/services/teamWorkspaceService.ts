@@ -227,11 +227,19 @@ export function deduplicateTeamMembers(members: TeamMember[], ownerId?: string):
 export function getTeams(): TeamWorkspace[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TEAMS);
-    if (raw) {
+    if (raw !== null) {
       const parsed: TeamWorkspace[] = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
+        if (parsed.length === 0) return [];
+
         let changed = false;
-        const sanitized = parsed.map((t) => {
+        const deletedIds: string[] = JSON.parse(localStorage.getItem('arune_deleted_team_ids') || '[]');
+        const filtered = parsed.filter((t) => !deletedIds.includes(t.id));
+        if (filtered.length !== parsed.length) {
+          changed = true;
+        }
+
+        const sanitized = filtered.map((t) => {
           const validId = ensureUuid(t.id);
           const dedupedMembers = deduplicateTeamMembers(t.members || [], t.ownerId);
           if (validId !== t.id || dedupedMembers.length !== (t.members?.length || 0)) {
@@ -362,8 +370,20 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       return getTeams();
     }
 
-    // 2. If user is authenticated but has ZERO teams in Supabase, migrate ALL local teams!
+    const seededKey = 'arune_teams_seeded_' + authUser.id;
+    const hasBeenSeeded = localStorage.getItem(seededKey) === 'true';
+
+    // 2. If user is authenticated but has ZERO teams in Supabase
     if (!teamsData || teamsData.length === 0) {
+      if (hasBeenSeeded) {
+        // User intentionally deleted all teams in Supabase! Do NOT resurrect them!
+        saveTeams([]);
+        setActiveTeamId(null);
+        return [];
+      }
+
+      // First time onboarding: seed default team to cloud once
+      localStorage.setItem(seededKey, 'true');
       const localTeams = getTeams();
       const localProjects = getAllStoredTeamProjects();
 
@@ -434,6 +454,9 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       }
       return localTeams;
     }
+
+    // Mark as seeded so future zero-team states are respected as deleted
+    localStorage.setItem(seededKey, 'true');
 
     // 3. Collect all user IDs from team members to fetch their profile details
     const allUserIds = new Set<string>();
@@ -545,49 +568,17 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       };
     });
 
-    // Merge Supabase teams with existing local teams so local teams are NEVER deleted!
-    const localTeams = getTeams();
-    const mergedMap = new Map<string, TeamWorkspace>();
+    // For authenticated Supabase users, Cloud is authoritative!
+    const deletedIds: string[] = JSON.parse(localStorage.getItem('arune_deleted_team_ids') || '[]');
+    const activeCloudTeams = mappedTeams.filter((t) => !deletedIds.includes(t.id));
 
-    // 1. Keep existing local teams first
-    localTeams.forEach((t) => mergedMap.set(t.id, t));
+    saveTeams(activeCloudTeams);
 
-    // 2. Overlay with cloud teams
-    mappedTeams.forEach((t) => mergedMap.set(t.id, t));
-
-    const finalTeams = Array.from(mergedMap.values());
-    saveTeams(finalTeams);
-
-    // 3. For any local team that is not yet in Supabase, upload it in the background
-    for (const lt of localTeams) {
-      if (!mappedTeams.some((ct) => ct.id === lt.id)) {
-        void (async () => {
-          try {
-            await client.from('teams').upsert({
-              id: ensureUuid(lt.id),
-              name: lt.name || 'Folder Tim',
-              description: lt.description || '',
-              avatar_color: lt.avatarColor || '#5E887E',
-              icon_url: lt.iconUrl || null,
-              created_by: authUser.id,
-            }, { onConflict: 'id' });
-
-            await client.from('team_members').upsert({
-              team_id: ensureUuid(lt.id),
-              user_id: authUser.id,
-              role: 'owner',
-            }, { onConflict: 'team_id,user_id' });
-          } catch {
-            // ignore background sync errors
-          }
-        })();
-      }
+    const activeId = getActiveTeamId();
+    if (!activeId || !activeCloudTeams.some((t) => t.id === activeId)) {
+      setActiveTeamId(activeCloudTeams[0]?.id || null);
     }
-
-    if (!getActiveTeamId() && finalTeams[0]) {
-      setActiveTeamId(finalTeams[0].id);
-    }
-    return finalTeams;
+    return activeCloudTeams;
   } catch (err) {
     console.error('Failed to sync teams with Supabase:', err);
     return getTeams();
@@ -871,22 +862,58 @@ export function updateTeam(teamId: string, partial: Partial<TeamWorkspace>): Tea
 }
 
 export async function deleteTeamCloud(teamId: string): Promise<boolean> {
-  const teams = getTeams().filter((t) => t.id !== teamId);
-  saveTeams(teams);
-  const currentActive = getActiveTeamId();
-  if (currentActive === teamId) {
-    setActiveTeamId(teams[0]?.id || null);
-  }
-
+  const validTeamId = ensureUuid(teamId);
   const client = getSupabaseClient();
+  const authUser = getCurrentAuthUser();
+
+  // 1. Mark as deleted in localStorage blacklist immediately
+  try {
+    const deletedList: string[] = JSON.parse(localStorage.getItem('arune_deleted_team_ids') || '[]');
+    if (!deletedList.includes(validTeamId)) deletedList.push(validTeamId);
+    if (!deletedList.includes(teamId)) deletedList.push(teamId);
+    localStorage.setItem('arune_deleted_team_ids', JSON.stringify(deletedList));
+    if (authUser?.id) {
+      localStorage.setItem('arune_teams_seeded_' + authUser.id, 'true');
+    }
+  } catch {}
+
+  // 2. Delete from Supabase Cloud (explicitly clean up child rows first)
   if (client && isSupabaseConfigured()) {
     try {
-      await client.from('teams').delete().eq('id', teamId);
-      return true;
+      await client.from('team_folders').delete().eq('team_id', validTeamId);
+      await client.from('team_projects').delete().eq('team_id', validTeamId);
+      await client.from('team_brand_kits').delete().eq('team_id', validTeamId);
+      await client.from('team_members').delete().eq('team_id', validTeamId);
+      const { error } = await client.from('teams').delete().eq('id', validTeamId);
+      if (error) {
+        console.warn('Supabase delete team warning/error:', error);
+      }
     } catch (e) {
       console.warn('Failed to delete team in Supabase:', e);
     }
   }
+
+  // 3. Remove from local teams storage
+  const currentTeams = getTeams().filter((t) => t.id !== validTeamId && t.id !== teamId);
+  saveTeams(currentTeams);
+
+  // 4. Remove all projects & folders associated with this team locally
+  const remainingProjects = getAllStoredTeamProjects().filter(
+    (p) => p.teamId !== validTeamId && p.teamId !== teamId
+  );
+  saveAllStoredTeamProjects(remainingProjects);
+
+  const remainingFolders = getAllStoredTeamFolders().filter(
+    (f) => f.teamId !== validTeamId && f.teamId !== teamId
+  );
+  saveAllStoredTeamFolders(remainingFolders);
+
+  // 5. Update active team
+  const currentActive = getActiveTeamId();
+  if (currentActive === validTeamId || currentActive === teamId) {
+    setActiveTeamId(currentTeams[0]?.id || null);
+  }
+
   return true;
 }
 

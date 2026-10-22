@@ -434,22 +434,24 @@ export const TeamWorkspacePage: React.FC = () => {
 
   const handleDeleteTeamFromEditModal = () => {
     if (!editingTeam) return;
+    const teamToDelete = editingTeam;
     setDialogModal({
       isOpen: true,
       type: 'confirm-delete',
       title: 'Hapus Ruang Kerja Tim?',
       message: (
         <span>
-          Apakah Anda yakin ingin menghapus folder tim <strong className="text-red-500 font-semibold">"{editingTeam.name}"</strong>? Seluruh data proyek bersama dan brand kit di dalam tim ini akan dihapus secara permanen.
+          Apakah Anda yakin ingin menghapus folder tim <strong className="text-red-500 font-semibold">"{teamToDelete.name}"</strong>? Seluruh data proyek bersama dan brand kit di dalam tim ini akan dihapus secara permanen.
         </span>
       ),
       primaryButtonText: 'Ya, Hapus Tim',
       secondaryButtonText: 'Batal',
       onPrimary: async () => {
-        await deleteTeamCloud(editingTeam.id);
-        setIsEditTeamModalOpen(false);
-        await refreshData();
         setDialogModal(null);
+        setIsEditTeamModalOpen(false);
+        setEditingTeam(null);
+        await deleteTeamCloud(teamToDelete.id);
+        await refreshData();
       },
       onSecondary: () => setDialogModal(null),
     });
@@ -1372,10 +1374,33 @@ export const TeamWorkspacePage: React.FC = () => {
             </div>
           )}
 
-          {/* ========================================================
-              TAB 1: PROYEK TIM (Finder-Style Hierarchical Explorer)
-             ======================================================== */}
-          {activeTab === 'projects' && (
+          {/* Empty State when zero teams exist */}
+          {!currentTeam ? (
+            <div className="py-24 text-center max-w-md mx-auto space-y-5 animate-in fade-in">
+              <div className="w-16 h-16 rounded-3xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto shadow-sm">
+                <Users className="w-8 h-8" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-lg font-bold">Belum Ada Ruang Kerja Tim</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Semua tim telah dihapus atau Anda belum membuat ruang kerja bersama. Buat ruang kerja tim baru untuk mulai berkolaborasi.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenCreateTeamModal}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs inline-flex items-center gap-2 shadow-md transition-all cursor-pointer hover:scale-102"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Buat Ruang Kerja Baru</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* ========================================================
+                  TAB 1: PROYEK TIM (Finder-Style Hierarchical Explorer)
+                 ======================================================== */}
+              {activeTab === 'projects' && (
             <div className="space-y-6">
               {/* Helper renderer for project cards (used both in root and inside folder) */}
               {(() => {
@@ -2874,6 +2899,8 @@ export const TeamWorkspacePage: React.FC = () => {
               </div>
             </div>
           )}
+        </>
+      )}
 
         </div>
       </div>
