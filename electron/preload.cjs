@@ -1,6 +1,21 @@
 // Preload script for Arune Editorial Studio Desktop App
 const { contextBridge, ipcRenderer } = require('electron');
 
+if (process.platform === 'darwin') {
+  try {
+    if (document.documentElement) {
+      document.documentElement.classList.add('is-electron-mac');
+    }
+  } catch (e) {}
+  window.addEventListener('DOMContentLoaded', () => {
+    try {
+      if (document.documentElement) {
+        document.documentElement.classList.add('is-electron-mac');
+      }
+    } catch (e) {}
+  });
+}
+
 contextBridge.exposeInMainWorld('aruneDesktop', {
   platform: process.platform,
   isDesktop: true,

@@ -783,11 +783,11 @@ export const TeamWorkspacePage: React.FC = () => {
           1. TOP NAVBAR (Modern SaaS Team Header)
          ======================================================== */}
       <header
-        className={`h-14 border-b flex items-center justify-between px-4 sm:px-6 z-30 shrink-0 mac-drag-region ${
+        className={`h-14 border-b flex items-center justify-between z-30 shrink-0 mac-drag-region transition-all ${
           isDark
             ? 'bg-[#0A1A2F]/95 border-zinc-800/80 backdrop-blur-md'
             : 'bg-white/95 border-slate-200/90 backdrop-blur-md shadow-2xs'
-        } ${isElectronMac() ? 'pl-20' : ''}`}
+        } ${isElectronMac() ? 'mac-traffic-light-pad is-active pl-22 sm:pl-24 pr-4 sm:pr-6' : 'px-4 sm:px-6'}`}
       >
         {/* Left: Home & Team Selector Dropdown */}
         <div className="flex items-center gap-3 mac-no-drag">

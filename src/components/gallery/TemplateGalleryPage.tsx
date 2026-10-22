@@ -506,11 +506,11 @@ export const TemplateGalleryPage: React.FC = () => {
       {/* 1. TOP HEADER BAR (Logo, Centered Search Bar, Utilities, Profile)  */}
       {/* ================================================================== */}
       <header
-        className={`h-14 px-6 border-b flex items-center justify-between gap-4 shrink-0 mac-drag-region transition-colors ${
+        className={`h-14 border-b flex items-center justify-between gap-4 shrink-0 mac-drag-region transition-colors ${
           workspaceDarkMode
             ? 'border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md'
             : 'border-slate-200 bg-white/95 backdrop-blur-md shadow-2xs'
-        } ${isElectronMac() ? 'pl-22' : 'px-6'}`}
+        } ${isElectronMac() ? 'mac-traffic-light-pad is-active pl-22 sm:pl-24 pr-6' : 'px-6'}`}
       >
         {/* Left: Studio Logo & Title */}
         <div className="flex items-center gap-3 mac-no-drag shrink-0">

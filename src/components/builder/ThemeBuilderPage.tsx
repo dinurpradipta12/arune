@@ -521,7 +521,7 @@ const ThemeBuilderContent: React.FC = () => {
       {/* 1. TOP HEADER BAR */}
       <header
         className={`h-13 border-b border-zinc-800/90 bg-zinc-900/95 flex items-center justify-between shrink-0 z-30 mac-drag-region ${
-          isElectronMac() ? 'pl-22 pr-4' : 'px-4'
+          isElectronMac() ? 'mac-traffic-light-pad is-active pl-22 sm:pl-24 pr-4' : 'px-4'
         }`}
       >
         <div className="flex items-center gap-3 min-w-0 mac-no-drag">

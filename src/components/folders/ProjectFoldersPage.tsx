@@ -39,6 +39,7 @@ import type { CloudTemplateRecord } from '../../types/studio';
 import { ASPECT_RATIOS, THEME_PALETTES } from '../../constants/themesAndPresets';
 import { SlideStage } from '../canvas/SlideStage';
 import { useStudioStore } from '../../store/useStudioStore';
+import { isElectronMac } from '../../utils/platform';
 
 export function ProjectFoldersPage() {
   const {
@@ -261,13 +262,13 @@ export function ProjectFoldersPage() {
     >
       {/* TOP HEADER NAVIGATION BAR */}
       <header
-        className={`shrink-0 border-b px-6 py-3.5 flex items-center justify-between gap-4 backdrop-blur-md transition-colors ${
+        className={`shrink-0 border-b py-3.5 flex items-center justify-between gap-4 backdrop-blur-md transition-colors mac-drag-region ${
           workspaceDarkMode
             ? 'border-zinc-800/80 bg-zinc-950/40'
             : 'border-slate-200/90 bg-white/70'
-        }`}
+        } ${isElectronMac() ? 'mac-traffic-light-pad is-active pl-22 sm:pl-24 pr-6' : 'px-6'}`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mac-no-drag">
           {/* Back Button */}
           <button
             type="button"

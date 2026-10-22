@@ -157,8 +157,8 @@ export const TopHeaderBar: React.FC = () => {
 
   return (
     <header
-      className={`h-12 border-b flex items-center justify-between px-3 gap-2 select-none z-40 shrink-0 mac-drag-region transition-colors ${
-        isElectronMac() ? 'pl-22' : 'px-3'
+      className={`h-12 border-b flex items-center justify-between gap-2 select-none z-40 shrink-0 mac-drag-region transition-colors ${
+        isElectronMac() ? 'mac-traffic-light-pad is-active pl-22 sm:pl-24 pr-3' : 'px-3'
       } ${
         workspaceDarkMode
           ? 'border-zinc-800/80 bg-zinc-950/95 text-zinc-100 backdrop-blur-md'

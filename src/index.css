@@ -719,6 +719,12 @@
   -webkit-app-region: no-drag;
 }
 
+/* Electron macOS Traffic Light Inset (88px / 5.5rem clearance so traffic lights never collide with UI) */
+html.is-electron-mac .mac-traffic-light-pad,
+.mac-traffic-light-pad.is-active {
+  padding-left: 5.5rem !important;
+}
+
 /* ========================================================
    RIGHT INSPECTOR: DISTINCT SECTION HEADERS PER MODULE
    ======================================================== */
