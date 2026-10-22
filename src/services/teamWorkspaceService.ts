@@ -224,7 +224,20 @@ export function deduplicateTeamMembers(members: TeamMember[], ownerId?: string):
   return Array.from(map.values());
 }
 
+export function clearTeamLocalCache(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY_TEAMS);
+    localStorage.removeItem(STORAGE_KEY_ACTIVE_TEAM);
+    localStorage.removeItem(STORAGE_KEY_TEAM_PROJECTS);
+    localStorage.removeItem(STORAGE_KEY_TEAM_FOLDERS);
+    localStorage.removeItem('arune_deleted_team_ids');
+  } catch {
+    // ignore
+  }
+}
+
 export function getTeams(): TeamWorkspace[] {
+  const authUser = getCurrentAuthUser();
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TEAMS);
     if (raw !== null) {
@@ -234,7 +247,19 @@ export function getTeams(): TeamWorkspace[] {
 
         let changed = false;
         const deletedIds: string[] = JSON.parse(localStorage.getItem('arune_deleted_team_ids') || '[]');
-        const filtered = parsed.filter((t) => !deletedIds.includes(t.id));
+        let filtered = parsed.filter((t) => !deletedIds.includes(t.id));
+
+        // If user is logged in to Supabase, strictly only show teams they own or are members of
+        if (authUser?.isSupabaseUser) {
+          filtered = filtered.filter((t) => {
+            const isOwner = t.ownerId === authUser.id;
+            const isMember = Array.isArray(t.members) && t.members.some(
+              (m) => m.id === authUser.id || (authUser.email && m.email && m.email.toLowerCase() === authUser.email.toLowerCase())
+            );
+            return isOwner || isMember;
+          });
+        }
+
         if (filtered.length !== parsed.length) {
           changed = true;
         }
@@ -261,6 +286,12 @@ export function getTeams(): TeamWorkspace[] {
     }
   } catch {
     // fallback
+  }
+
+  // If user is logged in to Supabase and has no cached teams, return empty array
+  // DO NOT fabricate fake default teams or seed another user's teams!
+  if (authUser?.isSupabaseUser) {
+    return [];
   }
 
   const initial = getInitialTeams();
@@ -370,97 +401,28 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       return getTeams();
     }
 
-    const seededKey = 'arune_teams_seeded_' + authUser.id;
-    const hasBeenSeeded = localStorage.getItem(seededKey) === 'true';
-
-    // 2. If user is authenticated but has ZERO teams in Supabase
     if (!teamsData || teamsData.length === 0) {
-      if (hasBeenSeeded) {
-        // User intentionally deleted all teams in Supabase! Do NOT resurrect them!
-        saveTeams([]);
-        setActiveTeamId(null);
-        return [];
-      }
-
-      // First time onboarding: seed default team to cloud once
-      localStorage.setItem(seededKey, 'true');
-      const localTeams = getTeams();
-      const localProjects = getAllStoredTeamProjects();
-
-      for (const team of localTeams) {
-        const teamId = ensureUuid(team.id);
-        team.id = teamId;
-        team.ownerId = authUser.id;
-
-        // Insert team into Supabase
-        const { error: insTeamErr } = await client.from('teams').insert({
-          id: teamId,
-          name: team.name || 'Folder Tim',
-          description: team.description || '',
-          avatar_color: team.avatarColor || '#5E887E',
-          icon_url: team.iconUrl || null,
-          created_by: authUser.id,
-        });
-
-        if (!insTeamErr) {
-          // Insert owner into team_members
-          await client.from('team_members').upsert({
-            team_id: teamId,
-            user_id: authUser.id,
-            role: 'owner',
-          }, { onConflict: 'team_id,user_id' });
-
-          // Insert brand kit
-          await client.from('team_brand_kits').upsert({
-            team_id: teamId,
-            publication_name: team.brandKit?.publicationName || 'Creative Editorial Studio',
-            author_handle: team.brandKit?.authorOrHandle || '@dinurpradiptaa',
-            issue_label: team.brandKit?.issueLabel || 'VOL. 01',
-            footer_note: team.brandKit?.footerNote || 'arune.studio • swipe to read',
-            primary_color: team.brandKit?.primaryColor || '#2F3E46',
-            accent_color: team.brandKit?.accentColor || '#5E887E',
-            background_color: team.brandKit?.backgroundColor || '#FFFFFF',
-            text_color: team.brandKit?.textColor || '#2F3E46',
-            heading_font: team.brandKit?.headingFont || 'Plus Jakarta Sans',
-            body_font: team.brandKit?.bodyFont || 'Plus Jakarta Sans',
-            show_slide_numbers: team.brandKit?.showSlideNumbers ?? true,
-            show_footer_bar: team.brandKit?.showFooterBar ?? true,
-          });
-        }
-      }
-
-      // Migrate local projects
-      for (const lp of localProjects) {
-        try {
-          const parsedJson = typeof lp.projectJson === 'string' ? JSON.parse(lp.projectJson) : lp.projectJson;
-          await client.from('team_projects').upsert({
-            id: ensureUuid(lp.id),
-            team_id: ensureUuid(lp.teamId || localTeams[0]?.id || ''),
-            title: lp.title || 'Untitled Carousel Project',
-            aspect_ratio: lp.aspectRatio || '4:5',
-            slide_count: lp.slideCount || 6,
-            project_json: parsedJson,
-            last_edited_by: authUser.name || 'Member',
-            last_edited_at: lp.lastEditedAt || new Date().toISOString(),
-          }, { onConflict: 'id' });
-        } catch (e) {
-          console.warn('Failed to migrate local project to Supabase:', e);
-        }
-      }
-
-      saveTeams(localTeams);
-      if (localTeams.length > 0 && !getActiveTeamId()) {
-        setActiveTeamId(localTeams[0].id);
-      }
-      return localTeams;
+      saveTeams([]);
+      setActiveTeamId(null);
+      return [];
     }
 
-    // Mark as seeded so future zero-team states are respected as deleted
-    localStorage.setItem(seededKey, 'true');
+    // Defensive user isolation: user must be team creator OR in team_members
+    const userTeams = teamsData.filter((t: any) => {
+      const isCreator = Boolean(t.created_by && t.created_by === authUser.id);
+      const isMember = Array.isArray(t.team_members) && t.team_members.some((m: any) => m.user_id === authUser.id);
+      return isCreator || isMember;
+    });
 
-    // 3. Collect all user IDs from team members to fetch their profile details
+    if (userTeams.length === 0) {
+      saveTeams([]);
+      setActiveTeamId(null);
+      return [];
+    }
+
+    // 2. Collect all user IDs from team members to fetch their profile details
     const allUserIds = new Set<string>();
-    teamsData.forEach((t: any) => {
+    userTeams.forEach((t: any) => {
       if (t.created_by) allUserIds.add(t.created_by);
       if (Array.isArray(t.team_members)) {
         t.team_members.forEach((m: any) => {
@@ -488,8 +450,8 @@ export async function syncTeamsFromCloud(): Promise<TeamWorkspace[]> {
       }
     }
 
-    // 4. Map Supabase rows to TeamWorkspace objects
-    const mappedTeams: TeamWorkspace[] = teamsData.map((t: any) => {
+    // 3. Map Supabase rows to TeamWorkspace objects
+    const mappedTeams: TeamWorkspace[] = userTeams.map((t: any) => {
       const rawMembers: TeamMember[] = Array.isArray(t.team_members)
         ? t.team_members.map((m: any) => {
             const profile = profilesMap.get(m.user_id);

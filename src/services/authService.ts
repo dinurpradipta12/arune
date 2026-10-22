@@ -6,6 +6,7 @@ import {
   getCurrentUserProfile,
   getTeams,
   saveTeams,
+  clearTeamLocalCache,
 } from './teamWorkspaceService';
 
 export interface AuthUser {
@@ -57,6 +58,13 @@ export function getCurrentAuthUser(): AuthUser | null {
 }
 
 function saveLocalSession(user: AuthUser | null) {
+  const previousUser = getCurrentAuthUser();
+  const isDifferentUser = !user || !previousUser || user.id !== previousUser.id;
+
+  if (isDifferentUser) {
+    clearTeamLocalCache();
+  }
+
   if (user) {
     try {
       localStorage.setItem(STORAGE_KEY_AUTH_USER, JSON.stringify(user));
@@ -74,6 +82,7 @@ function saveLocalSession(user: AuthUser | null) {
   } else {
     try {
       localStorage.removeItem(STORAGE_KEY_AUTH_USER);
+      localStorage.removeItem('arune_user_profile_v1');
     } catch {
       // ignore
     }
