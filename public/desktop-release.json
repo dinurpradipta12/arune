@@ -1,9 +1,9 @@
 {
-  "version": "1.0.4",
-  "build": 5,
-  "commit": "4df3c57",
+  "version": "1.0.5",
+  "build": 6,
+  "commit": "e74db06",
   "releaseDate": "2026-10-22",
-  "changelog": "Perbaikan kritis sinkronisasi cloud Supabase team_projects agar desain tidak hilang/reset saat user lain menyimpan, serta isolasi ruang kolaborasi realtime per proyek.",
+  "changelog": "Perbaikan ketahanan folder workspace agar folder yang dibuat tidak terhapus saat sinkronisasi cloud dan aman dari error RLS.",
   "deployUrl": "https://arune.pages.dev",
   "mac": {
     "url": "https://github.com/dinurpradipta12/arune/releases/download/v1.0.1/Arune-Editorial-Studio-1.0.1-arm64.dmg"

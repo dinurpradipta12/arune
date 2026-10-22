@@ -1626,6 +1626,7 @@ export async function saveTeamFolder(
         name: record.name,
         description: record.description,
         color: record.color,
+        created_at: record.createdAt,
         updated_at: record.updatedAt,
       });
       if (fErr) {
@@ -1754,7 +1755,12 @@ export async function syncTeamFoldersFromCloud(teamId: string): Promise<TeamFold
         .eq('team_id', validTeamId)
         .order('created_at', { ascending: true });
 
-      if (!error && data) {
+      if (error) {
+        console.warn('Failed to fetch team folders from Supabase:', error);
+        return getTeamFolders(teamId);
+      }
+
+      if (data) {
         const mapped: TeamFolder[] = data.map((row: any) => ({
           id: ensureUuid(row.id),
           teamId: row.team_id,
@@ -1765,21 +1771,21 @@ export async function syncTeamFoldersFromCloud(teamId: string): Promise<TeamFold
           updatedAt: row.updated_at || new Date().toISOString(),
         }));
 
-        // Push any local folders that haven't reached Supabase yet
+        // CRUCIAL: ALWAYS preserve local folders! Never delete local folders even if Supabase table is empty or pending sync
         for (const lf of localFolders) {
           if (!mapped.some((mf) => mf.id === lf.id)) {
+            mapped.push(lf);
+            // Best-effort push to Supabase in background
             try {
-              const { error: insErr } = await client.from('team_folders').upsert({
+              void client.from('team_folders').upsert({
                 id: lf.id,
                 team_id: lf.teamId,
                 name: lf.name,
                 description: lf.description || '',
                 color: lf.color || 'blue',
+                created_at: lf.createdAt || new Date().toISOString(),
                 updated_at: lf.updatedAt || new Date().toISOString(),
               });
-              if (!insErr) {
-                mapped.push(lf);
-              }
             } catch (e) {
               console.warn('Failed to push unsynced folder to Supabase:', e);
             }

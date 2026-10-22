@@ -118,7 +118,7 @@ export const UserGuidePdfModal: React.FC<UserGuidePdfModalProps> = ({ isOpen, on
         >
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>Dokumentasi Resmi 2026 • Versi 1.0.4 • By Dinur Pradipta</span>
+            <span>Dokumentasi Resmi 2026 • Versi 1.0.5 • By Dinur Pradipta</span>
           </div>
 
           <div className="flex items-center gap-3">
