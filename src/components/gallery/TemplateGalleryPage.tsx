@@ -26,6 +26,7 @@ import {
   Users,
   X,
   Layers,
+  Download,
 } from 'lucide-react';
 import {
   ASPECT_RATIOS,
@@ -74,7 +75,7 @@ import {
 } from '../../services/projectFolderService';
 import { UserAuthButton } from '../common/UserAuthButton';
 import { studioLogo } from '../../assets/branding';
-import { isElectronMac } from '../../utils/platform';
+import { isDesktopApp, isElectronMac } from '../../utils/platform';
 
 export const TemplateGalleryPage: React.FC = () => {
   const {
@@ -115,6 +116,36 @@ export const TemplateGalleryPage: React.FC = () => {
 
   // User Guide PDF Modal State
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
+
+  // Standalone Desktop App & PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallAppClick = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setDeferredPrompt(null);
+          return;
+        }
+      } catch {
+        // fallback to download standalone modal
+      }
+    }
+    setShowDownloadModal(true);
+  };
 
   useEffect(() => {
     const unsub = subscribeToProjectFolders((updated) => {
@@ -682,6 +713,23 @@ export const TemplateGalleryPage: React.FC = () => {
             <BookOpen className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
             <span className="hidden sm:inline">Panduan PDF</span>
           </button>
+
+          {/* Tombol Instal App / Unduh Desktop App (Hanya tampil saat dibuka di Browser Web) */}
+          {!isDesktopApp() && (
+            <button
+              type="button"
+              onClick={handleInstallAppClick}
+              title="Instal Web App (PWA) atau Unduh Installer Desktop Standalone (.dmg / .exe)"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all shadow-2xs group ${
+                workspaceDarkMode
+                  ? 'border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300'
+                  : 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800'
+              }`}
+            >
+              <Download className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
+              <span>Instal App</span>
+            </button>
+          )}
 
           <div
             className={`w-px h-5 mx-0.5 ${
