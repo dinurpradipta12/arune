@@ -49,7 +49,7 @@ export const UserGuidePdfModal: React.FC<UserGuidePdfModalProps> = ({ isOpen, on
                   Panduan Penggunaan Arune Carousel Studio
                 </h3>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
-                  Ebook PDF • 10 Halaman
+                  Ebook PDF • 16 Halaman
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400 truncate">

@@ -73,6 +73,11 @@ export function App() {
 
   const theme = getActiveTheme();
 
+  // Expose store to window for automation/screenshots
+  useEffect(() => {
+    (window as unknown as { useStudioStore: typeof useStudioStore }).useStudioStore = useStudioStore;
+  }, []);
+
   // Keep browser document title synced with Studio Name
   useEffect(() => {
     if (settings.studioName) {

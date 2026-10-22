@@ -1,0 +1,1264 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+
+HTML_CONTENT = """<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Panduan Pengguna Resmi - Arune Carousel Studio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap');
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #ffffff;
+    color: #0f172a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    line-height: 1.45;
+  }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    padding: 16mm 18mm 14mm 18mm;
+    position: relative;
+    page-break-after: always;
+    page-break-inside: avoid;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  /* Header & Footer */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #64748b;
+    margin-bottom: 12px;
+  }
+
+  .page-header strong {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .page-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 6px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 7.5pt;
+    color: #64748b;
+    margin-top: 10px;
+  }
+
+  .page-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  /* Typography */
+  h1.title-main {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 18pt;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h2.section-title {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1.5px solid #0f172a;
+    padding-bottom: 3px;
+    margin-bottom: 6px;
+  }
+
+  h3.item-title {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+
+  p {
+    font-size: 8.5pt;
+    color: #334155;
+    line-height: 1.45;
+  }
+
+  .lead-text {
+    font-size: 9pt;
+    color: #475569;
+    line-height: 1.45;
+  }
+
+  /* Screenshot Container */
+  .screenshot-container {
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin: 4px 0 6px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .screenshot-container img {
+    width: 100%;
+    max-height: 118mm;
+    object-fit: contain;
+    border-radius: 2px;
+    display: block;
+    border: 1px solid #e2e8f0;
+  }
+
+  .screenshot-caption {
+    font-size: 7pt;
+    color: #64748b;
+    text-align: center;
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  /* Grids & Cards */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  .grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 6px;
+  }
+
+  .card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 8px 10px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .num-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 7.5pt;
+    font-weight: 700;
+    border-radius: 50%;
+  }
+
+  .tag-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #e2e8f0;
+    color: #0f172a;
+    font-size: 7pt;
+    font-weight: 600;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Callout box */
+  .callout-box {
+    background: #f8fafc;
+    border-left: 3px solid #0f172a;
+    padding: 6px 10px;
+    border-radius: 0 4px 4px 0;
+    font-size: 8pt;
+    color: #334155;
+    margin: 4px 0;
+  }
+
+  .callout-box strong {
+    color: #0f172a;
+  }
+
+  /* Tables */
+  table.minimal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+    margin: 4px 0;
+  }
+
+  table.minimal-table th {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 1.5px solid #0f172a;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  table.minimal-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+  }
+
+  table.minimal-table tr:nth-child(even) td {
+    background: #f8fafc;
+  }
+
+  code.hotkey {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-family: monospace;
+    font-size: 7.5pt;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  /* Cover Styles */
+  .cover-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1.5px solid #0f172a;
+    padding: 30mm 20mm;
+    background: #ffffff;
+    position: relative;
+  }
+
+  .cover-top {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cover-tag {
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    color: #475569;
+    font-weight: 600;
+  }
+
+  .cover-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 34pt;
+    line-height: 1.1;
+    color: #0f172a;
+    font-weight: 700;
+    margin: 12px 0 6px 0;
+  }
+
+  .cover-subtitle {
+    font-size: 13pt;
+    color: #334155;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    max-width: 85%;
+    line-height: 1.4;
+  }
+
+  .cover-divider {
+    width: 60px;
+    height: 2px;
+    background: #0f172a;
+    margin: 20px 0;
+  }
+
+  .cover-features-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 15px;
+  }
+
+  .cover-feature-item {
+    border-top: 1px solid #cbd5e1;
+    padding-top: 8px;
+  }
+
+  .cover-feature-item strong {
+    font-size: 9pt;
+    color: #0f172a;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .cover-feature-item span {
+    font-size: 8pt;
+    color: #64748b;
+  }
+
+  .cover-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-top: 1px solid #0f172a;
+    padding-top: 15px;
+  }
+
+  .cover-meta {
+    font-size: 8pt;
+    color: #475569;
+    line-height: 1.6;
+  }
+
+  .cover-badge {
+    border: 1px solid #0f172a;
+    padding: 6px 14px;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==========================================
+     HALAMAN 1: COVER
+     ========================================== -->
+<div class="page">
+  <div class="cover-container">
+    <div class="cover-top">
+      <div class="cover-tag">Dokumentasi &amp; Panduan Pengguna Resmi</div>
+      <h1 class="cover-title">ARUNE CAROUSEL STUDIO</h1>
+      <div class="cover-subtitle">Buku Panduan Komprehensif Desain Carousel Editorial, Pengelolaan Folder Proyek, Kolaborasi Tim, dan Ekspor Multi-Format.</div>
+      <div class="cover-divider"></div>
+
+      <div class="cover-features-list">
+        <div class="cover-feature-item">
+          <strong>Home Hub &amp; Format Instan</strong>
+          <span>4:5 Portrait, 9:16 Story &amp; Reels, 1:1 Square Feed</span>
+        </div>
+        <div class="cover-feature-item">
+          <strong>Project Folders System</strong>
+          <span>Kategorisasi proyek berbasis folder dan label pekerjaan</span>
+        </div>
+        <div class="cover-feature-item">
+          <strong>Team Workspace</strong>
+          <span>Tumpukan kartu proyek, Brand Kit bersama, &amp; sinkronisasi cloud</span>
+        </div>
+        <div class="cover-feature-item">
+          <strong>Studio Editor Canvas</strong>
+          <span>Manipulasi layer, tipografi editorial, &amp; preset visual</span>
+        </div>
+        <div class="cover-feature-item">
+          <strong>Instagram Swipe Simulator</strong>
+          <span>Uji kontinuitas visual seamless di layar ponsel interaktif</span>
+        </div>
+        <div class="cover-feature-item">
+          <strong>Smart Multi-Format Export</strong>
+          <span>Batch ZIP, PNG Ultra-HD, JPG Web, dan PDF Carousel</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cover-bottom">
+      <div class="cover-meta">
+        <div><strong>Penyusun:</strong> Tim Pengembang Arune Editorial Studio</div>
+        <div><strong>Edisi:</strong> 2026 Desktop &amp; Web Production Release (v1.0.2)</div>
+        <div><strong>Format:</strong> High-Resolution Monochromatic PDF Manual</div>
+      </div>
+      <div class="cover-badge">VERSI RESMI</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 2: DAFTAR ISI & ARSITEKTUR
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Arune Carousel Studio</strong>
+    <span>Daftar Isi &amp; Ringkasan Arsitektur</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Daftar Isi &amp; Fondasi Aplikasi</h1>
+    <p class="lead-text">Arune Carousel Studio dirancang khusus untuk memproduksi konten media sosial profesional dengan estetika editorial tinggi. Panduan ini mencakup seluruh fitur dari navigasi dasar hingga ekspor beresolusi tinggi.</p>
+
+    <h2 class="section-title">Struktur Modul Panduan (16 Halaman)</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3 class="item-title">Bagian I: Fondasi &amp; Manajemen Proyek</h3>
+        <ul style="font-size: 8pt; color: #334155; margin-left: 14px; line-height: 1.6;">
+          <li><strong>Halaman 03:</strong> Beranda &amp; Quick Start Formats (4:5, 9:16, 1:1)</li>
+          <li><strong>Halaman 04:</strong> Manajemen Project Folders (Pengelompokan Kerja)</li>
+          <li><strong>Halaman 05:</strong> Team Workspace (Kolaborasi &amp; Multi-Pengguna)</li>
+          <li><strong>Halaman 06:</strong> Team Brand Kit &amp; Standarisasi Identitas</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Bagian II: Studio Editor &amp; Konten Visual</h3>
+        <ul style="font-size: 8pt; color: #334155; margin-left: 14px; line-height: 1.6;">
+          <li><strong>Halaman 07:</strong> Studio Editor: Anatomi Antarmuka 3-Kolom</li>
+          <li><strong>Halaman 08:</strong> Navigasi Kanvas, Zoom, Slide Filmstrip &amp; Reorder</li>
+          <li><strong>Halaman 09:</strong> Sidebar Kiri: Bentuk, Ornamen, Badge &amp; Layering</li>
+          <li><strong>Halaman 10:</strong> Sidebar Kiri: Tipografi Editorial &amp; Font Pairs</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Bagian III: Pengaturan Presisi &amp; Alat Bantu</h3>
+        <ul style="font-size: 8pt; color: #334155; margin-left: 14px; line-height: 1.6;">
+          <li><strong>Halaman 11:</strong> Right Inspector: Styling Font, Warna &amp; Shadow</li>
+          <li><strong>Halaman 12:</strong> Instagram Feed &amp; Swipe Simulator Real-Time</li>
+          <li><strong>Halaman 13:</strong> Script Editor Markdown &amp; Otomasi Slide</li>
+          <li><strong>Halaman 14:</strong> Global Branding &amp; Custom Theme Builder</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Bagian IV: Distribusi &amp; Produktivitas</h3>
+        <ul style="font-size: 8pt; color: #334155; margin-left: 14px; line-height: 1.6;">
+          <li><strong>Halaman 15:</strong> Smart Export Multi-Format (PNG, JPG, PDF, ZIP)</li>
+          <li><strong>Halaman 16:</strong> Shortcut Keyboard Lengkap &amp; Troubleshooting</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="section-title">3 Prinsip Desain Arune Studio</h2>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header"><span class="num-badge">1</span><strong style="font-size: 8.5pt;">Editorial-First</strong></div>
+        <p>Tipografi elegan yang terinspirasi dari majalah cetak internasional dengan layout yang proporsional.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="num-badge">2</span><strong style="font-size: 8.5pt;">Seamless Carousel</strong></div>
+        <p>Kontinuitas visual sempurna tanpa garis patah ketika audiens menggeser slide di Instagram feed.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="num-badge">3</span><strong style="font-size: 8.5pt;">Privasi &amp; Kecepatan</strong></div>
+        <p>Arsitektur local-first dengan kemampuan sinkronisasi cloud real-time tanpa ketergantungan server berat.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Catatan Penggunaan:</strong> Dokumen ini dapat diakses kapan saja langsung dari tombol floating kanan bawah aplikasi atau menu atas Home. Seluruh screenshot dalam panduan diambil langsung dari antarmuka aktual aplikasi.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 2 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 3: HOME DASHBOARD
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 1: Beranda Aplikasi</strong>
+    <span>Home Dashboard &amp; Quick Start</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Halaman Beranda (Home Dashboard)</h1>
+    <p class="lead-text">Beranda adalah pusat kendali awal untuk memulai pembuatan karya baru, membuka kembali dokumen terakhir, menelusuri katalog template editorial, serta mengakses folder proyek.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/01_home_dashboard.png" alt="Tampilan Halaman Beranda Aktual">
+      <div class="screenshot-caption">Gambar 1: Antarmuka aktual Home Dashboard dengan Quick Start cards, galeri proyek, dan tombol navigasi folder.</div>
+    </div>
+
+    <h2 class="section-title">Fitur &amp; Elemen Utama Beranda</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">1. Top Navigation Bar</h3>
+        <p>Berisi logo Studio, bilah pencarian global untuk menemukan template/proyek, toggle Dark Mode, tombol Ruang Kerja Tim, tombol Project Folders, dan tombol Panduan PDF.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">2. Quick Start Formats</h3>
+        <p>Tiga kartu instan untuk membuat dokumen baru dalam rasio standar industri: <strong>4:5 Portrait</strong> (1080&times;1350px), <strong>9:16 Story</strong> (1080&times;1920px), dan <strong>1:1 Square</strong> (1080&times;1080px).</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">3. Galeri Proyek &amp; Folder</h3>
+        <p>Menampilkan daftar proyek terakhir yang sedang Anda kerjakan lengkap dengan jumlah slide, badge status folder, dan tombol opsi <em>"Add to Folder"</em>.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Tombol Cepat Pojok Kanan Bawah:</strong> Terdapat Floating Action Button <em>"Panduan Pengguna (PDF)"</em> yang selalu melayang di sisi kanan bawah untuk membuka kembali buku panduan ini tanpa mengganggu pekerjaan Anda.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 3 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 4: PROJECT FOLDERS
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 2: Manajemen Berkas</strong>
+    <span>Project Folders &amp; Pengelompokan Kerja</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Manajemen Project Folders</h1>
+    <p class="lead-text">Fitur Project Folders memudahkan Anda mengorganisasi puluhan hingga ratusan desain berdasarkan nama klien, kampanye bulanan, atau kategori konten.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/02_project_folders.png" alt="Tampilan Halaman Project Folders Aktual">
+      <div class="screenshot-caption">Gambar 2: Antarmuka Project Folders dengan daftar direktori kerja, jumlah item, dan proyek yang terasosiasi.</div>
+    </div>
+
+    <h2 class="section-title">Alur Kerja Pengelolaan Folder</h2>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="num-badge">1</span><strong style="font-size: 8.5pt;">Membuat Folder Baru</strong></div>
+        <p>Klik tombol <strong>"+ Folder Baru"</strong> di kanan atas. Masukkan nama folder (misal: <em>"Klien Alpha - Q2 2026"</em>), pilih warna aksen folder untuk memudahkan identifikasi visual, lalu klik Simpan.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="num-badge">2</span><strong style="font-size: 8.5pt;">Memasukkan Proyek ke Folder</strong></div>
+        <p>Dari halaman Home atau Studio Editor, klik ikon titik tiga pada kartu proyek &gt; pilih <strong>"Pindahkan ke Folder"</strong> &gt; centang folder tujuan &gt; klik Konfirmasi.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="num-badge">3</span><strong style="font-size: 8.5pt;">Membuka Proyek dalam Folder</strong></div>
+        <p>Klik kartu folder untuk masuk ke direktori tersebut. Semua carousel yang tergabung akan ditampilkan dalam mode Grid atau List sesuai preferensi Anda.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="num-badge">4</span><strong style="font-size: 8.5pt;">Mengedit &amp; Menghapus Folder</strong></div>
+        <p>Nama dan warna folder dapat diubah sewaktu-waktu. Menghapus folder tidak akan menghapus proyek di dalamnya, melainkan mengembalikannya ke folder utama (Unassigned).</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 4 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 5: TEAM WORKSPACE
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 3: Kolaborasi Multi-Pengguna</strong>
+    <span>Team Workspace &amp; Stacked Projects</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Team Workspace &amp; Kolaborasi Tim</h1>
+    <p class="lead-text">Team Workspace memungkinkan Anda dan rekan tim bekerja dalam satu ruang kerja tersentralisasi dengan pembaruan instan, riwayat versi snapshot, dan pembagian aset bersama.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/03_team_workspace.png" alt="Tampilan Halaman Team Workspace Aktual">
+      <div class="screenshot-caption">Gambar 3: Halaman Ruang Kerja Tim aktual dengan navigasi tab Proyek Tim, Brand Kit, Anggota, serta tata letak tumpukan proyek ke bawah.</div>
+    </div>
+
+    <h2 class="section-title">Fitur Kolaborasi Utama</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">Team Switcher Dropdown</h3>
+        <p>Berpindah antar tim dengan satu klik pada dropdown kiri atas. Setiap tim memiliki direktori proyek, hak akses, dan Brand Kit independen.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Tata Letak Tumpukan ke Bawah</h3>
+        <p>Kartu proyek tim disusun bertumpuk ke bawah (vertical stacked layout) yang rapi, memperlihatkan cover slide, pembuat, tanggal update, dan tombol aksi cepat.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Manajemen Anggota Tim</h3>
+        <p>Undang anggota baru menggunakan email atau tautan unik. Tentukan peran anggota (Owner, Editor, Viewer) untuk menjaga integritas template master tim.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Keamanan Sinkronisasi Cloud:</strong> Saat menjalankan database SQL, data tim tersimpan secara aman di Supabase dengan Row-Level Security (RLS) sehingga hanya anggota terdaftar yang dapat membaca dan menyunting dokumen tim.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 5 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 6: TEAM BRAND KIT
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 3: Kolaborasi Multi-Pengguna</strong>
+    <span>Team Brand Kit &amp; Standarisasi Identitas</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Team Brand Kit</h1>
+    <p class="lead-text">Brand Kit memastikan seluruh anggota tim menggunakan palet warna resmi, pasangan tipografi standar, dan logo korporat yang konsisten di setiap postingan media sosial.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/04_team_brand_kit.png" alt="Tampilan Tab Team Brand Kit Aktual">
+      <div class="screenshot-caption">Gambar 4: Tab Brand Kit dalam Team Workspace memperlihatkan palet warna organisasi, font korporat, dan logo resmi.</div>
+    </div>
+
+    <h2 class="section-title">Komponen Brand Kit Tim</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">1. Palet Warna Resmi (HEX)</h3>
+        <p>Definisikan warna primer, sekunder, background, dan aksen tim. Palet ini akan langsung muncul di baris teratas color picker di seluruh Studio Editor anggota tim.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">2. Pasangan Tipografi Tim</h3>
+        <p>Tetapkan font judul resmi (Display/Heading) dan font teks paragraf (Body). Anggota tim tidak perlu menebak ukuran atau jenis huruf yang diizinkan.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">3. Logo &amp; Identitas Akun</h3>
+        <p>Unggah aset logo transparan (PNG/SVG) dan tentukan default watermark atau handle Instagram (misal: <code>@mindora.studio</code>) yang otomatis tercantum di setiap slide.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Keuntungan Brand Kit:</strong> Memangkas waktu review desain hingga 70% karena desainer junior atau content writer otomatis bekerja dalam batasan visual identitas brand yang baku.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 6 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 7: STUDIO EDITOR OVERVIEW
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 4: Studio Editor</strong>
+    <span>Anatomi Antarmuka 3-Kolom</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Studio Editor: Anatomi Antarmuka</h1>
+    <p class="lead-text">Studio Editor adalah area kerja utama tempat Anda merancang slide carousel secara mendalam dengan kanvas presisi piksel dan arsitektur kontrol 3-kolom modern.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/05_editor_overview.png" alt="Tampilan Studio Editor Aktual">
+      <div class="screenshot-caption">Gambar 5: Tampilan Studio Editor aktual dengan Top Bar, Left Sidebar, Kanvas Utama, Right Inspector, dan Bottom Filmstrip.</div>
+    </div>
+
+    <h2 class="section-title">Peta Antarmuka Studio Editor</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">Top Header Bar</h3>
+        <p>Tombol kembali ke Beranda, judul proyek yang dapat disunting langsung, status Auto-Save Cloud, kontrol Undo/Redo, zoom persentase kanvas, tombol Preview Simulator, dan tombol Export.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Left Sidebar (Katalog)</h3>
+        <p>Tiga tab utama: <strong>Slide Layers</strong> (hierarki susunan objek), <strong>Layouts &amp; Themes</strong> (preset cover overlay, headline minimalis, palet warna), dan <strong>Font Combinations</strong>.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Right Inspector (Styling)</h3>
+        <p>Panel parameter dinamis. Saat sebuah teks atau bentuk diklik di kanvas, panel ini otomatis membuka opsi tipografi presisi, spasi, bayangan, border, dan penataan posisi.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Bottom Filmstrip:</strong> Di bagian bawah kanvas terdapat bilah thumbnail urutan seluruh slide (Slide 1, Slide 2, dst.) untuk berpindah slide, menambah slide baru (+), menggandakan, atau menghapus.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 7 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 8: NAVIGASI KANVAS & MULTI-SLIDE
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 4: Studio Editor</strong>
+    <span>Navigasi Kanvas, Zoom &amp; Urutan Slide</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Navigasi Kanvas &amp; Manajemen Multi-Slide</h1>
+    <p class="lead-text">Bekerja dengan carousel multi-halaman membutuhkan navigasi kanvas yang gesit, pengaturan zoom yang fleksibel, dan kemudahan mengatur urutan alur cerita.</p>
+
+    <h2 class="section-title">Kontrol Navigasi Kanvas</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">Zooming &amp; Fit to Screen</h3>
+        <p>Gunakan tombol persentase zoom di Top Bar atau pintasan <code class="hotkey">Ctrl + Scroll</code>. Tombol <em>"Fit"</em> otomatis menyesuaikan kanvas ke luas jendela kerja Anda.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Panning (Geser Kanvas)</h3>
+        <p>Tahan tombol <code class="hotkey">Spasi</code> lalu klik dan seret mouse untuk menggeser sudut pandang kanvas secara bebas tanpa memindahkan objek desain.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Smart Guides &amp; Snapping</h3>
+        <p>Garis pemandu merah halus otomatis muncul saat Anda menyeret elemen untuk membantu memposisikan objek tepat di tengah (center) atau sejajar dengan tepi elemen lain.</p>
+      </div>
+    </div>
+
+    <h2 class="section-title" style="margin-top: 6px;">Manajemen Slide di Bottom Filmstrip</h2>
+    <table class="minimal-table">
+      <thead>
+        <tr>
+          <th>Tindakan</th>
+          <th>Cara Melakukan</th>
+          <th>Pintasan Keyboard</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Berpindah Slide</strong></td>
+          <td>Klik thumbnail slide yang diinginkan di filmstrip bawah</td>
+          <td><code class="hotkey">Panah Kiri</code> / <code class="hotkey">Panah Kanan</code></td>
+        </tr>
+        <tr>
+          <td><strong>Tambah Slide Baru</strong></td>
+          <td>Klik tombol <code>+ Tambah Slide</code> di ujung kanan filmstrip</td>
+          <td><code class="hotkey">Ctrl + Shift + N</code></td>
+        </tr>
+        <tr>
+          <td><strong>Duplikasi Slide</strong></td>
+          <td>Arahkan kursor ke thumbnail slide &gt; klik ikon <em>Copy</em></td>
+          <td><code class="hotkey">Ctrl + D</code></td>
+        </tr>
+        <tr>
+          <td><strong>Ubah Urutan Slide</strong></td>
+          <td>Seret (drag &amp; drop) thumbnail slide ke posisi baru</td>
+          <td>Drag manual</td>
+        </tr>
+        <tr>
+          <td><strong>Hapus Slide</strong></td>
+          <td>Arahkan kursor ke thumbnail slide &gt; klik ikon <em>Trash</em></td>
+          <td><code class="hotkey">Backspace / Delete</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout-box">
+      <strong>Tips Alur Carousel Editorial:</strong> Struktur 6-8 slide adalah format ideal untuk engagement Instagram. Slide 1 (Hook/Cover), Slide 2-3 (Eksplorasi Masalah), Slide 4-5 (Solusi &amp; Studi Kasus), Slide 6 (Call-to-Action).
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 8 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 9: SIDEBAR KIRI - SHAPES & LAYERS
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 4: Studio Editor</strong>
+    <span>Sidebar Kiri: Bentuk, Ornamen &amp; Layering</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Bentuk Geometris, Ornamen &amp; Susunan Layer</h1>
+    <p class="lead-text">Tab <strong>Slide Layers</strong> dan elemen di sidebar kiri memberi Anda kendali penuh atas hierarki visual, bentuk ornamen editorial, garis pemisah, dan manajemen tumpukan objek.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/06_editor_elements_tab.png" alt="Tampilan Tab Slide Layers Aktual">
+      <div class="screenshot-caption">Gambar 6: Panel Slide Layers menampilkan daftar seluruh elemen pada slide aktif, kontrol visibilitas, kunci, dan pengaturan tumpukan Z-index.</div>
+    </div>
+
+    <h2 class="section-title">Fitur Penataan Layer</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">Hirarki Z-Index</h3>
+        <p>Gunakan tombol <em>Bring Forward</em>, <em>Send Backward</em>, <em>Bring to Front</em>, atau <em>Send to Back</em> untuk mengatur tumpukan elemen teks di atas foto atau background.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Lock &amp; Unlock Elemen</h3>
+        <p>Kunci elemen latar belakang atau bingkai ornamen dengan ikon gembok agar tidak sengaja bergeser saat Anda sedang menyunting teks utama.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Visibility Toggle (Mata)</h3>
+        <p>Sembunyikan elemen sementara untuk melihat komposisi slide tanpa elemen tersebut tanpa perlu menghapusnya secara permanen.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Divider &amp; Border Editorial:</strong> Garis pemisah tipis 0.5px atau 1px memberikan kesan majalah mewah kontemporer. Anda dapat menyisipkannya langsung melalui opsi Shapes di kanvas.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 9 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 10: TIPOGRAFI & FONT COMBINATIONS
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 4: Studio Editor</strong>
+    <span>Sidebar Kiri: Tipografi Editorial &amp; Font Pairs</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Tipografi Editorial &amp; Font Combinations</h1>
+    <p class="lead-text">Tipografi adalah jiwa dari Arune Carousel Studio. Panel Font Combinations menyediakan kurasi pasangan jenis huruf terbaik dunia yang dirancang oleh desainer tipografi profesional.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/07_editor_font_combinations.png" alt="Tampilan Tab Font Combinations Aktual">
+      <div class="screenshot-caption">Gambar 7: Katalog Font Combinations menampilkan pasangan Serif + Sans-Serif siap pakai lengkap dengan preview visual.</div>
+    </div>
+
+    <h2 class="section-title">Preset Tipografi Populer</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">Kinfolk Editorial</h3>
+        <span class="tag-badge">Serif + Sans</span>
+        <p style="margin-top: 4px;">Kombinasi <em>Playfair Display</em> (Judul) dan <em>Plus Jakarta Sans</em> (Body). Sangat cocok untuk konten arsitektur, fashion, interior, dan esai pemikiran mendalam.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Swiss Modernist</h3>
+        <span class="tag-badge">Sans + Sans</span>
+        <p style="margin-top: 4px;">Kombinasi <em>Inter Black</em> dan <em>Inter Regular</em>. Gaya minimalis modern yang sangat efektif untuk tips bisnis, tech insights, dan carousel data/statistik.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Literary Heritage</h3>
+        <span class="tag-badge">Serif + Serif</span>
+        <p style="margin-top: 4px;">Kombinasi <em>Cormorant Garamond</em> dan <em>EB Garamond</em>. Memberikan atmosfer sastra klasik, puisi, kutipan inspiratif, dan narasi sejarah.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Mendukung Font Komputer Lokal:</strong> Studio otomatis mendeteksi seluruh font yang terpasang di sistem operasi komputer Anda (Mac / Windows) sehingga Anda bebas menggunakan font komersial berlisensi milik agensi Anda.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 10 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 11: RIGHT INSPECTOR STYLING
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 4: Studio Editor</strong>
+    <span>Right Inspector: Penyetelan Presisi Elemen</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Right Inspector: Parameter Presisi</h1>
+    <p class="lead-text">Inspector kanan menyediakan kendali piksel mendetail untuk setiap elemen yang Anda pilih di atas kanvas, mulai dari pelacakan spasi huruf hingga efek bayangan lembut.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/08_editor_inspector.png" alt="Tampilan Right Inspector Aktual">
+      <div class="screenshot-caption">Gambar 8: Right Inspector saat elemen teks dipilih, menampilkan font family, bobot (weight), tracking, leading, dan drop shadow.</div>
+    </div>
+
+    <h2 class="section-title">Daftar Kontrol Parameter Inspector</h2>
+    <table class="minimal-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Fungsi Desain</th>
+          <th>Nilai Rekomendasi Editorial</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Font Family &amp; Weight</strong></td>
+          <td>Mengubah rupa huruf dan ketebalan (Light, Regular, Medium, Bold, Black)</td>
+          <td>Judul: Bold/Black, Body: Regular/Medium</td>
+        </tr>
+        <tr>
+          <td><strong>Letter Spacing (Tracking)</strong></td>
+          <td>Jarak horizontal antar karakter huruf</td>
+          <td>Judul Huruf Kapital: <code>+0.05em s/d +0.15em</code></td>
+        </tr>
+        <tr>
+          <td><strong>Line Height (Leading)</strong></td>
+          <td>Kerapatan vertikal jarak antar baris teks</td>
+          <td>Judul: <code>1.05 - 1.15</code>, Paragraf: <code>1.4 - 1.6</code></td>
+        </tr>
+        <tr>
+          <td><strong>Color &amp; Opacity</strong></td>
+          <td>Warna solid/HEX dan tingkat transparansi elemen</td>
+          <td>Subjudul editorial: Opacity <code>70% - 85%</code></td>
+        </tr>
+        <tr>
+          <td><strong>Drop Shadow &amp; Blur</strong></td>
+          <td>Bayangan halus di belakang teks untuk kontras foto</td>
+          <td>X:0, Y:4, Blur: 12px, Color: rgba(0,0,0,0.3)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 11 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 12: INSTAGRAM SIMULATOR
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 5: Verifikasi Visual</strong>
+    <span>Instagram Feed &amp; Swipe Simulator</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Instagram Feed &amp; Swipe Simulator</h1>
+    <p class="lead-text">Sebelum mengunduh dan memposting konten, uji keterbacaan dan transisi slide di Simulator Instagram interaktif yang mensimulasikan layar smartphone nyata.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/09_instagram_simulator.png" alt="Tampilan Instagram Swipe Simulator Aktual">
+      <div class="screenshot-caption">Gambar 9: Modal Instagram Swipe Simulator menampilkan mock smartphone beresolusi tinggi dengan interaksi swipe sentuh/mouse.</div>
+    </div>
+
+    <h2 class="section-title">Fitur Simulasi Smartphone</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3 class="item-title">1. Uji Transisi Geser (Swipe)</h3>
+        <p>Seret mouse ke kiri dan kanan untuk mensimulasikan jari audiens. Perhatikan apakah teks dan elemen gambar tersambung sempurna tanpa terpotong kaku.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">2. Preview Feed &amp; UI Instagram</h3>
+        <p>Lengkap dengan bilah status baterai/sinyal, foto profil pembuat, username, tombol Like, Komentar, Bagikan, Simpan, dan baris caption teks.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">3. Mode Terang &amp; Gelap Ponsel</h3>
+        <p>Uji bagaimana carousel Anda tampak pada pengguna smartphone dengan tema iOS/Android Light Mode maupun Dark Mode.</p>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <strong>Pintasan Cepat:</strong> Saat modal simulator terbuka, gunakan tombol <code class="hotkey">Panah Kiri</code> dan <code class="hotkey">Panah Kanan</code> pada keyboard Anda untuk beralih slide secara instan, dan tekan <code class="hotkey">Esc</code> untuk keluar.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 12 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 13: SCRIPT EDITOR & AI
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 6: Otomasi Konten</strong>
+    <span>Script Editor Markdown &amp; Otomasi Slide</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Script Editor &amp; Konversi Markdown</h1>
+    <p class="lead-text">Jika Anda lebih suka menulis naskah konten secara terstruktur terlebih dahulu, Script Editor memungkinkan Anda menyusun teks dalam format Markdown dan langsung mengonversinya menjadi slide visual.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/13_script_editor.png" alt="Tampilan Script Editor Modal Aktual">
+      <div class="screenshot-caption">Gambar 10: Modal Script Editor dengan editor naskah Markdown, parser otomatis, dan tombol sinkronisasi ke kanvas.</div>
+    </div>
+
+    <h2 class="section-title">Aturan Penulisan Script Markdown</h2>
+    <table class="minimal-table">
+      <thead>
+        <tr>
+          <th>Sintaks Markdown</th>
+          <th>Hasil Konversi Slide Kanvas</th>
+          <th>Contoh Penulisan</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>---</code> (Tiga Strip)</td>
+          <td>Pemisah Antar-Slide (Menciptakan slide baru)</td>
+          <td><code>---</code></td>
+        </tr>
+        <tr>
+          <td><code># Judul Besar</code></td>
+          <td>Elemen Headline / Display Text Utama</td>
+          <td><code># 5 Prinsip Tipografi Swiss</code></td>
+        </tr>
+        <tr>
+          <td><code>## Subjudul</code></td>
+          <td>Elemen Kategori / Tanggal / Subtitle</td>
+          <td><code>## Panduan Desain Edisi 2026</code></td>
+        </tr>
+        <tr>
+          <td><code>Teks Paragraf</code></td>
+          <td>Elemen Body Copy / Deskripsi Penjelasan</td>
+          <td><code>Konsistensi grid adalah kunci estetika.</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout-box">
+      <strong>Otomasi Menyelamatkan Waktu:</strong> Salin naskah dari Google Docs atau ChatGPT ke Script Editor, lalu klik <em>"Generate Slides"</em>. Seluruh slide terbentuk rapi dalam hitungan 1 detik lengkap dengan layout editorial.
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 13 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 14: GLOBAL BRANDING & THEME BUILDER
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 7: Kustomisasi Visual</strong>
+    <span>Global Branding &amp; Theme Builder</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Global Branding &amp; Theme Builder</h1>
+    <p class="lead-text">Tetapkan identitas publikasi Anda secara menyeluruh dan ciptakan palet warna khas yang merefleksikan karakter brand Anda.</p>
+
+    <div class="grid-2">
+      <div class="screenshot-container">
+        <img src="tutorial-images/14_global_branding.png" alt="Tampilan Modal Global Branding">
+        <div class="screenshot-caption">Gambar 11a: Modal Global Branding untuk watermark &amp; handle.</div>
+      </div>
+      <div class="screenshot-container">
+        <img src="tutorial-images/12_theme_builder.png" alt="Tampilan Halaman Theme Builder">
+        <div class="screenshot-caption">Gambar 11b: Halaman Theme Builder untuk membuat palet baru.</div>
+      </div>
+    </div>
+
+    <h2 class="section-title">Fitur Branding &amp; Penyesuaian Tema</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3 class="item-title">Global Branding Overlay</h3>
+        <p>Masukkan nama publikasi (misal: <em>"Arunika Editorial"</em>), handle Instagram (<em>"@arunika.id"</em>), dan pilih posisi watermark (pojok kiri atas, kanan atas, atau footer tengah). Watermark ini akan otomatis menempel di seluruh slide tanpa perlu disalin manual.</p>
+      </div>
+      <div class="card">
+        <h3 class="item-title">Custom Theme Builder</h3>
+        <p>Ciptakan palet warna baru dengan menentukan warna background kanvas, warna teks utama, warna aksen ornamen, dan warna kartu. Simpan palet ke koleksi favorit untuk digunakan berulang kali pada proyek masa depan.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 14 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 15: SMART EXPORT MULTI-FORMAT
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 8: Ekspor &amp; Publikasi</strong>
+    <span>Smart Export Multi-Format &amp; Batch ZIP</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Smart Export Multi-Format</h1>
+    <p class="lead-text">Arune Carousel Studio menyertakan mesin render grafis berperforma tinggi yang mampu mengekspor seluruh slide dalam hitungan detik dengan ketajaman piksel sempurna.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/10_export_modal.png" alt="Tampilan Modal Smart Export Aktual">
+      <div class="screenshot-caption">Gambar 12: Modal Smart Export aktual menampilkan pilihan format berkas, opsi kompresi, dan tombol download instan.</div>
+    </div>
+
+    <h2 class="section-title">Panduan Memilih Format Ekspor</h2>
+    <table class="minimal-table">
+      <thead>
+        <tr>
+          <th>Format Berkas</th>
+          <th>Kegunaan Utama</th>
+          <th>Kelebihan &amp; Rekomendasi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>PNG Ultra-HD</strong></td>
+          <td>Feed Instagram, LinkedIn, Behance</td>
+          <td>Kualitas gambar tertinggi tanpa artefak kompresi (Lossless). Sangat disarankan untuk carousel editorial.</td>
+        </tr>
+        <tr>
+          <td><strong>JPG Web Optimized</strong></td>
+          <td>Website, Blog, Email Newsletter</td>
+          <td>Ukuran berkas kecil, loading cepat, warna cerah. Ideal jika memiliki batasan kuota upload.</td>
+        </tr>
+        <tr>
+          <td><strong>WebP Modern</strong></td>
+          <td>Platform Web Kontemporer</td>
+          <td>Kompresi generasi baru dengan ukuran berkas 30% lebih hemat dibanding JPG namun tetap tajam.</td>
+        </tr>
+        <tr>
+          <td><strong>PDF Multi-Page</strong></td>
+          <td>Dokumen Presentasi, Ebook, LinkedIn Carousel</td>
+          <td>Seluruh slide digabung menjadi satu berkas PDF vertikal atau horizontal siap upload ke LinkedIn Document.</td>
+        </tr>
+        <tr>
+          <td><strong>Batch .ZIP Archive</strong></td>
+          <td>Arsip Lengkap Seluruh Slide</td>
+          <td>Mengemas seluruh slide (Slide_01.png s/d Slide_08.png) ke dalam satu berkas zip rapi dengan penomoran urut.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 15 dari 16</span>
+  </div>
+</div>
+
+<!-- ==========================================
+     HALAMAN 16: HOTKEYS & TROUBLESHOOTING
+     ========================================== -->
+<div class="page">
+  <div class="page-header">
+    <strong>Modul 9: Produktivitas</strong>
+    <span>Shortcut Keyboard &amp; Troubleshooting</span>
+  </div>
+  <div class="page-content">
+    <h1 class="title-main">Shortcut Keyboard &amp; Panduan Solusi</h1>
+    <p class="lead-text">Tingkatkan kecepatan alur kerja desain Anda hingga 3x lipat dengan menguasai pintasan keyboard resmi yang tersedia di Arune Carousel Studio.</p>
+
+    <div class="screenshot-container">
+      <img src="tutorial-images/11_settings_hotkeys.png" alt="Tampilan Modal Pengaturan Shortcut Aktual">
+      <div class="screenshot-caption">Gambar 13: Modal Settings &amp; Hotkeys tempat Anda dapat mengkustomisasi setiap kombinasi tombol sesuai kebiasaan Anda.</div>
+    </div>
+
+    <h2 class="section-title">Tabel Pintasan Keyboard Terpenting</h2>
+    <div class="grid-2">
+      <table class="minimal-table">
+        <thead>
+          <tr>
+            <th>Fungsi</th>
+            <th>Pintasan Keyboard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Simpan ke Vault (Save)</td>
+            <td><code class="hotkey">Ctrl / Cmd + S</code></td>
+          </tr>
+          <tr>
+            <td>Undo (Batal Tindakan)</td>
+            <td><code class="hotkey">Ctrl / Cmd + Z</code></td>
+          </tr>
+          <tr>
+            <td>Redo (Ulangi Tindakan)</td>
+            <td><code class="hotkey">Ctrl / Cmd + Shift + Z</code></td>
+          </tr>
+          <tr>
+            <td>Duplikasi Elemen Terpilih</td>
+            <td><code class="hotkey">Ctrl / Cmd + D</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <table class="minimal-table">
+        <thead>
+          <tr>
+            <th>Fungsi</th>
+            <th>Pintasan Keyboard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Buka Modal Ekspor</td>
+            <td><code class="hotkey">Ctrl / Cmd + E</code></td>
+          </tr>
+          <tr>
+            <td>Buka Pengaturan Hotkey</td>
+            <td><code class="hotkey">Ctrl / Cmd + ,</code></td>
+          </tr>
+          <tr>
+            <td>Hapus Elemen Terpilih</td>
+            <td><code class="hotkey">Backspace / Del</code></td>
+          </tr>
+          <tr>
+            <td>Pindah Slide Kiri / Kanan</td>
+            <td><code class="hotkey">Panah Kiri / Kanan</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section-title" style="margin-top: 6px;">Pertanyaan Sering Diajukan (FAQ)</h2>
+    <div class="card" style="font-size: 8pt; line-height: 1.45;">
+      <p style="margin-bottom: 4px;"><strong>T: Apakah data desain saya aman jika aplikasi ditutup tiba-tiba?</strong><br>
+      J: Ya, studio dilengkapi Auto-Vault lokal yang menyimpan perubahan ke penyimpanan browser/desktop secara otomatis setiap 2 detik.</p>
+      <p><strong>T: Bagaimana cara mengajak rekan bergabung ke tim saya?</strong><br>
+      J: Buka halaman Team Workspace &gt; Tab Anggota Tim &gt; klik <em>"+ Undang Anggota"</em> dan kirimkan tautan atau email undangan.</p>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Arune Carousel Studio &bull; Panduan Resmi v1.0.2</span>
+    <span>Halaman 16 dari 16</span>
+  </div>
+</div>
+
+</body>
+</html>
+"""
+
+def main():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    public_dir = os.path.join(project_root, "public")
+    html_path = os.path.join(public_dir, "user_guide.html")
+    pdf_path = os.path.join(public_dir, "Arune_Studio_Panduan_Pengguna.pdf")
+
+    print(f"Menulis HTML template ke: {html_path}")
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(HTML_CONTENT)
+
+    chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    print(f"Mengompilasi PDF via Chrome Headless ke: {pdf_path}")
+    cmd = [
+        chrome_path,
+        "--headless",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        f"--print-to-pdf={pdf_path}",
+        f"file://{html_path}"
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0 and os.path.exists(pdf_path):
+        size_mb = os.path.getsize(pdf_path) / (1024 * 1024)
+        print(f"Sukses mengompilasi PDF! Ukuran berkas: {size_mb:.2f} MB")
+    else:
+        print(f"Error kompilasi PDF: {res.stderr}")
+        exit(1)
+
+if __name__ == "__main__":
+    main()

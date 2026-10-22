@@ -50,6 +50,22 @@ export const InstagramSwipeModal: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const carouselRef = useRef<HTMLDivElement | null>(null);
 
+  // Keyboard navigation
+  useEffect(() => {
+    if (activeModal !== 'preview') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveModal(null);
+      } else if (e.key === 'ArrowLeft') {
+        handlePrev();
+      } else if (e.key === 'ArrowRight') {
+        handleNext();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeModal, slides.length]);
+
   if (activeModal !== 'preview') return null;
 
   const theme = getActiveTheme();
@@ -99,20 +115,7 @@ export const InstagramSwipeModal: React.FC = () => {
     setIsDragging(false);
   };
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setActiveModal(null);
-      } else if (e.key === 'ArrowLeft') {
-        handlePrev();
-      } else if (e.key === 'ArrowRight') {
-        handleNext();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [slides.length]);
+
 
   const myIdentity = multiplayerService.getMyIdentity();
   const avatarUri = getAvatarPresetById(myIdentity.avatarId).svgDataUri;
