@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, LogIn, UserPlus, Check, Sparkles, AlertCircle, Shield } from 'lucide-react';
+import { X, LogIn, UserPlus, Check, Sparkles, AlertCircle, Shield, Eye, EyeOff } from 'lucide-react';
 import { AVATAR_PRESETS, getAvatarPresetById } from '../../constants/avatarPresets';
 import { loginWithEmail, registerWithEmail, updateAuthUserProfile, type AuthUser } from '../../services/authService';
 
@@ -31,6 +31,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     currentUser?.avatarId || 'ava-1'
   );
 
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setEmail(currentUser?.email || '');
       setSelectedAvatarId(currentUser?.avatarId || 'ava-1');
       setPassword('');
+      setShowPassword(false);
       setErrorMsg(null);
       setSuccessMsg(null);
     }
@@ -188,6 +190,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               type="button"
               onClick={() => {
                 setTab('login');
+                setShowPassword(false);
                 setErrorMsg(null);
                 setSuccessMsg(null);
               }}
@@ -209,6 +212,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               type="button"
               onClick={() => {
                 setTab('register');
+                setShowPassword(false);
                 setErrorMsg(null);
                 setSuccessMsg(null);
               }}
@@ -278,17 +282,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 >
                   Kata Sandi
                 </label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-[#5E887E]/30 ${
-                    darkMode
-                      ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
-                      : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
-                  }`}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`w-full pl-3 pr-10 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-[#5E887E]/30 ${
+                      darkMode
+                        ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                        : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
+                    className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors cursor-pointer ${
+                      darkMode
+                        ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                        : 'text-[#8E9F9B] hover:text-[#2F3E46] hover:bg-[#EAEFEF]'
+                    }`}
+                    title={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <button
@@ -413,17 +437,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     >
                       Kata Sandi (Minimal 6 karakter)
                     </label>
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-[#5E887E]/30 ${
-                        darkMode
-                          ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
-                          : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
-                      }`}
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`w-full pl-3 pr-10 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-[#5E887E]/30 ${
+                          darkMode
+                            ? 'bg-zinc-900 border-zinc-700 text-white placeholder-zinc-500'
+                            : 'bg-[#F7FAF9] border-[#DFE6E4] text-[#2F3E46] placeholder-[#8E9F9B]'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        tabIndex={-1}
+                        aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
+                        className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors cursor-pointer ${
+                          darkMode
+                            ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                            : 'text-[#8E9F9B] hover:text-[#2F3E46] hover:bg-[#EAEFEF]'
+                        }`}
+                        title={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
