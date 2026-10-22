@@ -1535,7 +1535,41 @@ export function getTeamFolderColorTheme(colorId?: string) {
 export function getAllStoredTeamFolders(): TeamFolder[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TEAM_FOLDERS);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed: TeamFolder[] = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        let changed = false;
+        const allProjects = getAllStoredTeamProjects();
+        let projectsChanged = false;
+
+        const migrated = parsed.map((f) => {
+          const validId = ensureUuid(f.id);
+          const validTeamId = ensureUuid(f.teamId);
+          if (validId !== f.id || validTeamId !== f.teamId) {
+            changed = true;
+            allProjects.forEach((p) => {
+              if (p.folderId === f.id) {
+                p.folderId = validId;
+                projectsChanged = true;
+              }
+            });
+          }
+          return {
+            ...f,
+            id: validId,
+            teamId: validTeamId,
+          };
+        });
+
+        if (projectsChanged) {
+          saveAllStoredTeamProjects(allProjects);
+        }
+        if (changed) {
+          saveAllStoredTeamFolders(migrated);
+        }
+        return migrated;
+      }
+    }
   } catch {
     // ignore
   }
@@ -1551,8 +1585,9 @@ export function saveAllStoredTeamFolders(folders: TeamFolder[]): void {
 }
 
 export function getTeamFolders(teamId: string): TeamFolder[] {
+  const validTeamId = ensureUuid(teamId);
   const all = getAllStoredTeamFolders();
-  return all.filter((f) => f.teamId === teamId);
+  return all.filter((f) => f.teamId === validTeamId);
 }
 
 export async function saveTeamFolder(
@@ -1562,7 +1597,7 @@ export async function saveTeamFolder(
   const all = getAllStoredTeamFolders();
   const validTeamId = ensureUuid(teamId);
   const now = new Date().toISOString();
-  const folderId = folder.id || `tf_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const folderId = folder.id ? ensureUuid(folder.id) : generateUuid();
 
   const existingIndex = all.findIndex((f) => f.id === folderId);
   const record: TeamFolder = {
@@ -1585,7 +1620,7 @@ export async function saveTeamFolder(
   const client = getSupabaseClient();
   if (client && isSupabaseConfigured()) {
     try {
-      await client.from('team_folders').upsert({
+      const { error: fErr } = await client.from('team_folders').upsert({
         id: record.id,
         team_id: record.teamId,
         name: record.name,
@@ -1593,8 +1628,11 @@ export async function saveTeamFolder(
         color: record.color,
         updated_at: record.updatedAt,
       });
-    } catch {
-      // ignore
+      if (fErr) {
+        console.error('Failed to save team folder to Supabase:', fErr);
+      }
+    } catch (err) {
+      console.error('Exception saving team folder to Supabase:', err);
     }
   }
 
@@ -1708,14 +1746,17 @@ export async function syncTeamFoldersFromCloud(teamId: string): Promise<TeamFold
 
   if (client && isSupabaseConfigured()) {
     try {
+      const localFolders = getTeamFolders(validTeamId);
+
       const { data, error } = await client
         .from('team_folders')
         .select('*')
-        .eq('team_id', validTeamId);
+        .eq('team_id', validTeamId)
+        .order('created_at', { ascending: true });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         const mapped: TeamFolder[] = data.map((row: any) => ({
-          id: row.id,
+          id: ensureUuid(row.id),
           teamId: row.team_id,
           name: row.name,
           description: row.description || '',
@@ -1724,12 +1765,33 @@ export async function syncTeamFoldersFromCloud(teamId: string): Promise<TeamFold
           updatedAt: row.updated_at || new Date().toISOString(),
         }));
 
+        // Push any local folders that haven't reached Supabase yet
+        for (const lf of localFolders) {
+          if (!mapped.some((mf) => mf.id === lf.id)) {
+            try {
+              const { error: insErr } = await client.from('team_folders').upsert({
+                id: lf.id,
+                team_id: lf.teamId,
+                name: lf.name,
+                description: lf.description || '',
+                color: lf.color || 'blue',
+                updated_at: lf.updatedAt || new Date().toISOString(),
+              });
+              if (!insErr) {
+                mapped.push(lf);
+              }
+            } catch (e) {
+              console.warn('Failed to push unsynced folder to Supabase:', e);
+            }
+          }
+        }
+
         const others = getAllStoredTeamFolders().filter((f) => f.teamId !== validTeamId);
         saveAllStoredTeamFolders([...mapped, ...others]);
         return mapped;
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Failed to sync team folders from Supabase:', err);
     }
   }
 
