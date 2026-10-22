@@ -214,15 +214,13 @@ function setupAutoUpdater(mainWindow, app) {
       else if (liveDeploy?.version && compareSemver(liveDeploy.version, currentAppVersion) > 0) {
         hasUpdate = true;
       }
-      // 3. If client is already running the latest commit or deploy build, NO update is needed
-      else if (isAlreadyOnLatestCommit || isAlreadyOnLatestDeployBuild) {
+      // 3. If client is already running this exact deploy build or commit, NO update is needed
+      else if (isAlreadyOnLatestDeployBuild || isAlreadyOnLatestCommit) {
         hasUpdate = false;
       }
-      // 4. If latest commit exists and running client doesn't have it
-      else if (latestSha && !cleanRunning.includes(latestSha.toLowerCase())) {
-        hasUpdate = true;
-      }
-      // 5. If live deploy build exists and running client doesn't have it
+      // 4. IMPORTANT: Only trigger Live Deploy update if the live server (arune.pages.dev)
+      // actually HAS a newer build deployed and ready to be loaded!
+      // Never prompt for live reload before Cloudflare Pages finishes deploying the commit!
       else if (deployBuildSha && !cleanRunning.includes(deployBuildSha)) {
         hasUpdate = true;
       }
@@ -243,15 +241,15 @@ function setupAutoUpdater(mainWindow, app) {
         ? (manifest?.mac?.url || 'https://github.com/dinurpradipta12/arune/releases')
         : (manifest?.win?.url || '');
 
-      // Extract clean semver version (e.g. "1.0.1") to display to users
-      const semverVersion = manifest?.version || currentAppVersion || '1.0.1';
+      // Extract clean semver version (e.g. "1.0.2") to display to users
+      const semverVersion = manifest?.version || liveDeploy?.version || currentAppVersion || '1.0.2';
 
       return {
         hasUpdate,
-        currentVersion: semverVersion,
+        currentVersion: currentAppVersion || '1.0.2',
         latestVersion: semverVersion,
         buildId: activeRunningVersion,
-        latestBuildId: latestSha || deployVersion,
+        latestBuildId: deployBuildSha || latestSha || deployVersion,
         changelog,
         releaseDate,
         downloadUrl,

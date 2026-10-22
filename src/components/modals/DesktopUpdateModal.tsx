@@ -75,10 +75,15 @@ export const DesktopUpdateModal: React.FC = () => {
           : typeof __APP_VERSION__ !== 'undefined'
           ? __APP_VERSION__
           : '1.0.0';
-      const res: DesktopUpdateInfo = await desktop.checkForUpdates(currentBuild);
+      const res: any = await desktop.checkForUpdates(currentBuild);
       if (res && res.hasUpdate) {
-        const dismissedKey = `arune_dismissed_update_${res.latestVersion}`;
-        if (!isManual && sessionStorage.getItem(dismissedKey) === 'true') {
+        const buildKey = res.latestBuildId || res.latestVersion;
+        const dismissedKey = `arune_dismissed_update_${buildKey}`;
+        const isDismissed =
+          sessionStorage.getItem(dismissedKey) === 'true' ||
+          localStorage.getItem('arune_dismissed_update_build') === buildKey;
+
+        if (!isManual && isDismissed) {
           return;
         }
         setUpdateInfo(res);
@@ -98,6 +103,13 @@ export const DesktopUpdateModal: React.FC = () => {
 
   const handleApplyLiveDeploy = async () => {
     setApplyingLive(true);
+    if (updateInfo) {
+      const buildKey = (updateInfo as any).latestBuildId || updateInfo.latestVersion;
+      try {
+        localStorage.setItem('arune_dismissed_update_build', buildKey);
+      } catch {}
+    }
+    setIsOpen(false);
     try {
       const desktop = (window as any).aruneDesktop;
       if (desktop?.reloadLatest) {
@@ -111,12 +123,11 @@ export const DesktopUpdateModal: React.FC = () => {
   };
 
   const handleDismissModal = () => {
-    if (updateInfo?.latestVersion) {
+    if (updateInfo) {
+      const buildKey = (updateInfo as any).latestBuildId || updateInfo.latestVersion;
       try {
-        sessionStorage.setItem(
-          `arune_dismissed_update_${updateInfo.latestVersion}`,
-          'true'
-        );
+        sessionStorage.setItem(`arune_dismissed_update_${buildKey}`, 'true');
+        localStorage.setItem('arune_dismissed_update_build', buildKey);
       } catch {}
     }
     setIsOpen(false);
